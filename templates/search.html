@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Buscar — QAPV Legacy App Analyzer{% endblock %}
+{% block content %}
+
+<p><a href="{{ url_for('index') }}">&larr; Volver al listado</a></p>
+
+<div class="card">
+    <h2>Buscar en todas las apps analizadas</h2>
+    <form method="get" action="{{ url_for('search') }}">
+        <nav class="tabs">
+            <label style="display:inline;"><input type="radio" name="mode" value="table" {% if mode == 'table' %}checked{% endif %}> Tabla / Stored Procedure</label>
+            &nbsp;&nbsp;
+            <label style="display:inline;"><input type="radio" name="mode" value="connection" {% if mode == 'connection' %}checked{% endif %}> Servidor / Base de datos (connection string)</label>
+        </nav>
+        <input type="text" name="term" value="{{ term }}" placeholder="p. ej. JDSU_Proceso, InsertJDSU, QAPVDB01...">
+        <button type="submit">Buscar</button>
+    </form>
+</div>
+
+{% if term %}
+<div class="card">
+    <h2>Resultados para "{{ term }}"</h2>
+    {% if results %}
+    <table>
+        {% if mode == 'table' %}
+        <tr><th>App</th><th>Tabla / SP</th><th>Tipo</th></tr>
+        {% for r in results %}
+        <tr>
+            <td><a href="{{ url_for('app_detail', app_id=r.id) }}">{{ r.name }}</a></td>
+            <td>{{ r.target }}</td>
+            <td>{{ r.category }}</td>
+        </tr>
+        {% endfor %}
+        {% else %}
+        <tr><th>App</th><th>Setting</th><th>Valor</th></tr>
+        {% for r in results %}
+        <tr>
+            <td><a href="{{ url_for('app_detail', app_id=r.id) }}">{{ r.name }}</a></td>
+            <td>{{ r.setting_name }}</td>
+            <td><code>{{ r.default_value }}</code></td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+    </table>
+    {% else %}
+    <p class="muted">Sin resultados.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

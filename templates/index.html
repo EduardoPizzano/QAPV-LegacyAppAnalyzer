@@ -1,0 +1,69 @@
+{% extends "library_base.html" %}
+{% block title %}Analizar app — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>Analizar una app legacy</h2>
+    <p class="muted">
+        Pega la ruta de la carpeta donde esta el .exe/.dll de la app (p. ej. su carpeta
+        <code>bin\Debug</code>), o la ruta directa al archivo. Si la carpeta tiene varios
+        ejecutables te dejare elegir cual.
+    </p>
+    <form id="analyzeForm" method="post" action="{{ url_for('analyze') }}">
+        <label for="path">Carpeta o archivo .exe/.dll</label>
+        <input type="text" id="path" name="path" placeholder="\\servidor\ruta\a\LaApp\bin\Debug" required>
+
+        <label for="name">Nombre para el reporte (opcional)</label>
+        <input type="text" id="name" name="name" placeholder="Se usa el nombre del archivo si se deja vacio">
+
+        <button type="submit" id="analyzeSubmit">Analizar</button>
+        <p id="analyzeWorking" class="muted" style="display:none; margin-top:10px;">
+            <span class="spinner" style="border-color: rgba(28,111,201,0.3); border-top-color:#1c6fc9;"></span>
+            Decompilando y analizando (<span id="analyzeElapsed">0</span>s)... esto puede tardar mas para
+            apps grandes o con conexion a base de datos — sigue trabajando, no se congelo.
+        </p>
+    </form>
+</div>
+
+<script>
+(function () {
+    var form = document.getElementById('analyzeForm');
+    if (!form) return;
+    form.addEventListener('submit', function () {
+        document.getElementById('analyzeSubmit').disabled = true;
+        var working = document.getElementById('analyzeWorking');
+        working.style.display = 'block';
+        var elapsedEl = document.getElementById('analyzeElapsed');
+        var started = Date.now();
+        setInterval(function () {
+            elapsedEl.textContent = Math.floor((Date.now() - started) / 1000);
+        }, 1000);
+        // No preventDefault — this is a normal form submit; the browser will
+        // navigate away once the server responds, so no need to handle completion here.
+    });
+})();
+</script>
+
+<div class="card">
+    <h2>Escanear una carpeta raiz (varias apps a la vez)</h2>
+    <p class="muted">
+        Para soluciones con varios modulos (p. ej. <code>AFL.Dashboard</code> con
+        Entrega/Liberacion/Recibo/Reportes/Scrap, cada uno su propio proyecto), pega
+        la carpeta raiz de la solucion y buscare todos los .exe dentro, en cualquier
+        subcarpeta. Despues eliges cuales analizar.
+    </p>
+    <form method="post" action="{{ url_for('discover') }}">
+        <label for="root_path">Carpeta raiz</label>
+        <input type="text" id="root_path" name="root_path" placeholder="\\servidor\ruta\a\AFL.Dashboard" required>
+        <button type="submit" class="secondary">Escanear</button>
+    </form>
+</div>
+
+<div class="card">
+    <p class="muted">
+        Selecciona un reporte de la lista a la izquierda para verlo, o analiza una app
+        nueva arriba. Hay {{ apps|length }} app{{ 's' if apps|length != 1 else '' }} analizada{{ 's' if apps|length != 1 else '' }} hasta ahora.
+    </p>
+</div>
+
+{% endblock %}

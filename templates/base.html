@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}QAPV Legacy App Analyzer{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+    <h1><a href="{{ url_for('index') }}">QAPV Legacy App Analyzer</a></h1>
+</header>
+<main>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for m in messages %}
+                <div class="flash">{{ m }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

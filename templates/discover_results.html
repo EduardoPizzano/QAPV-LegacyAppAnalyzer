@@ -1,0 +1,155 @@
+{% extends "library_base.html" %}
+{% block title %}Apps encontradas — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>Apps encontradas en</h2>
+    <p class="muted"><code>{{ root_path }}</code></p>
+    {% if groups %}
+    <p class="muted">
+        Se encontraron {{ candidates|length }} ejecutable{{ 's' if candidates|length != 1 else '' }}
+        en {{ groups|length }} carpeta{{ 's' if groups|length != 1 else '' }}. Revisa y quita las
+        que no quieras analizar (p. ej. copias de respaldo "- Copy") antes de continuar. Cada una se
+        guardara como <code>{{ root_path.split('\\')[-1] or root_path }}/NombreModulo</code>.
+    </p>
+    <form id="batchForm" method="post" action="{{ url_for('analyze_batch') }}">
+        <input type="hidden" name="root_path" value="{{ root_path }}">
+        <p>
+            <a href="#" onclick="document.querySelectorAll('.exe-check').forEach(c => c.checked = true); return false;">Seleccionar todas</a>
+            &nbsp;|&nbsp;
+            <a href="#" onclick="document.querySelectorAll('.exe-check').forEach(c => c.checked = false); return false;">Deseleccionar todas</a>
+        </p>
+        {% for project, exes in groups.items() %}
+        <div style="margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #eef1f4;">
+            <strong>{{ project }}</strong>
+            {% for exe, default_checked in exes %}
+            <div style="margin: 4px 0 4px 16px;">
+                <label style="display:flex; align-items:center; gap:8px; font-weight:normal;">
+                    <input type="checkbox" class="exe-check" name="selected" value="{{ exe }}" {% if default_checked %}checked{% endif %} style="margin:0;">
+                    <span>{{ exe }}</span>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        <button type="submit" id="batchSubmit">Analizar seleccionadas</button>
+    </form>
+
+    <div id="batchProgress" style="display:none; margin-top: 18px;">
+        <p style="font-weight:600; margin-bottom:4px;">
+            <span id="progressStatus"></span>
+            <span id="elapsedTime" class="muted" style="font-weight:normal;"></span>
+        </p>
+        <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+        <p id="progressHint" class="muted" style="display:none;">
+            Las apps con conexion a base de datos tardan un poco mas (se intenta traer tambien las
+            definiciones de sus Stored Procedures, solo lectura) — esto sigue trabajando, no se congelo.
+        </p>
+        <ul id="progressList" class="progress-list"></ul>
+        <a id="backToList" class="btn secondary" href="{{ url_for('index') }}" style="display:none;">Volver al listado</a>
+    </div>
+
+    {% else %}
+    <p class="muted">No se encontro ningun .exe dentro de esa carpeta (se ignoran obj, .vs, .git, packages y *.vshost.exe).</p>
+    {% endif %}
+</div>
+
+<script>
+(function () {
+    var form = document.getElementById('batchForm');
+    if (!form) return;
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var selected = Array.from(document.querySelectorAll('.exe-check:checked')).map(c => c.value);
+        if (selected.length === 0) {
+            alert('Selecciona al menos una app.');
+            return;
+        }
+        var rootPath = form.querySelector('input[name="root_path"]').value;
+
+        form.style.display = 'none';
+        var progress = document.getElementById('batchProgress');
+        var status = document.getElementById('progressStatus');
+        var elapsedEl = document.getElementById('elapsedTime');
+        var hint = document.getElementById('progressHint');
+        var fill = document.getElementById('progressFill');
+        var list = document.getElementById('progressList');
+        var backLink = document.getElementById('backToList');
+        progress.style.display = 'block';
+
+        var total = selected.length;
+        var done = 0;
+        var lastAppId = null;
+        var itemStartedAt = null;
+        var elapsedTimer = null;
+
+        function startElapsedTimer() {
+            itemStartedAt = Date.now();
+            hint.style.display = 'none';
+            clearInterval(elapsedTimer);
+            elapsedTimer = setInterval(function () {
+                var secs = Math.floor((Date.now() - itemStartedAt) / 1000);
+                elapsedEl.textContent = '(' + secs + 's, trabajando...)';
+                fill.classList.add('progress-fill-active');
+                if (secs >= 12) hint.style.display = 'block';
+            }, 1000);
+        }
+
+        function stopElapsedTimer() {
+            clearInterval(elapsedTimer);
+            elapsedEl.textContent = '';
+            fill.classList.remove('progress-fill-active');
+        }
+
+        function next(i) {
+            if (i >= total) {
+                stopElapsedTimer();
+                status.textContent = 'Listo: ' + done + ' / ' + total + ' analizadas.';
+                backLink.style.display = 'inline-block';
+                if (lastAppId) {
+                    backLink.textContent = 'Ver ultimo analisis';
+                    backLink.href = '/apps/' + lastAppId;
+                }
+                return;
+            }
+            var path = selected[i];
+            status.textContent = 'Analizando ' + (i + 1) + ' / ' + total + ' ...';
+            startElapsedTimer();
+            fetch('/analyze_one', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path, root: rootPath })
+            })
+            .then(r => r.json())
+            .then(data => {
+                stopElapsedTimer();
+                done += data.ok ? 1 : 0;
+                if (data.ok) lastAppId = data.app_id;
+                var li = document.createElement('li');
+                li.className = data.ok ? 'ok' : 'fail';
+                var extra = '';
+                if (data.ok && data.enrich && data.enrich.sp_total) {
+                    extra = ' — BD: ' + data.enrich.sp_ok + '/' + data.enrich.sp_total + ' SPs, ' + data.enrich.tables + ' tablas';
+                }
+                li.textContent = (data.ok ? '✓ ' : '✗ ') + data.name + (data.ok ? extra : ' — ' + data.error);
+                list.appendChild(li);
+                fill.style.width = Math.round(((i + 1) / total) * 100) + '%';
+                next(i + 1);
+            })
+            .catch(err => {
+                stopElapsedTimer();
+                var li = document.createElement('li');
+                li.className = 'fail';
+                li.textContent = '✗ ' + path + ' — error de red: ' + err;
+                list.appendChild(li);
+                fill.style.width = Math.round(((i + 1) / total) * 100) + '%';
+                next(i + 1);
+            });
+        }
+        next(0);
+    });
+})();
+</script>
+
+{% endblock %}

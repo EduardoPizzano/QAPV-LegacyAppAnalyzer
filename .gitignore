@@ -1,0 +1,10 @@
+decompiled/
+__pycache__/
+*.pyc
+.venv/
+
+# Datos extraidos de las apps legacy: contienen credenciales en texto plano,
+# nombres de servidores internos y detalle de logica de negocio de AFL.
+# No deben subirse al repositorio.
+reports/
+qapv_analyzer.db

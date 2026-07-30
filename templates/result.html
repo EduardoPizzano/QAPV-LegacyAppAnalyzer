@@ -1,0 +1,47 @@
+{% extends "library_base.html" %}
+{% block title %}{{ data.app.name }} — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>{{ data.app.name }}</h2>
+    <p class="muted">
+        Fuente: <code>{{ data.app.source_path }}</code><br>
+        Analizado: {{ data.app.analyzed_at }}
+    </p>
+    <a class="btn" href="{{ url_for('export', app_id=data.app.id, fmt='md') }}">Exportar .md</a>
+    <a class="btn" href="{{ url_for('export', app_id=data.app.id, fmt='xlsx') }}">Exportar Excel</a>
+    <a class="btn" href="{{ url_for('export', app_id=data.app.id, fmt='docx') }}">Exportar Word</a>
+    <form method="post" action="{{ url_for('enrich_route', app_id=data.app.id) }}" style="display:inline;">
+        <button type="submit" class="secondary" onclick="return confirm('Esto ya se intento automaticamente al analizar la app (solo lectura). Usa este boton solo para reintentar (ej. si la base de datos no respondia en ese momento). ¿Continuar?');">Reintentar extraccion de BD (solo lectura)</button>
+    </form>
+    <form method="post" action="{{ url_for('delete', app_id=data.app.id) }}" style="display:inline;">
+        <button type="submit" class="danger" onclick="return confirm('¿Eliminar este analisis de la base de datos?');">Eliminar</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Revision de logica de negocio</h2>
+    <p class="muted">
+        Esto es seguimiento manual en nuestra propia base — no modifica la app legada.
+        Marca el estado real de la revision antes de dar esta app por lista para migrar.
+    </p>
+    <form method="post" action="{{ url_for('review_route', app_id=data.app.id) }}">
+        <label for="review_status">Estado</label>
+        <select id="review_status" name="review_status" style="width:100%; padding:10px 12px; border:1px solid #c6ccd2; border-radius:6px;">
+            <option value="borrador" {% if data.app.review_status == 'borrador' or not data.app.review_status %}selected{% endif %}>Borrador (solo extraccion automatica)</option>
+            <option value="logica_revisada" {% if data.app.review_status == 'logica_revisada' %}selected{% endif %}>Logica de negocio revisada</option>
+            <option value="listo_para_migrar" {% if data.app.review_status == 'listo_para_migrar' %}selected{% endif %}>Listo para migrar</option>
+        </select>
+
+        <label for="review_notes">Notas de la revision (validaciones, reglas de negocio, riesgos, casos borde)</label>
+        <textarea id="review_notes" name="review_notes" rows="10" style="width:100%; padding:10px 12px; border:1px solid #c6ccd2; border-radius:6px; font-family:inherit; font-size:0.9rem;">{{ data.app.review_notes or '' }}</textarea>
+
+        <button type="submit">Guardar revision</button>
+    </form>
+</div>
+
+<div class="card report-body">
+    {{ report_html | safe }}
+</div>
+
+{% endblock %}

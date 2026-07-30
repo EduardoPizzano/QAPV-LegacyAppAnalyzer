@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="library">
+    <aside class="sidebar">
+        <a class="btn full" href="{{ url_for('index') }}">+ Analizar nueva app</a>
+        <a class="btn secondary full" href="{{ url_for('search') }}">Buscar en todo</a>
+        <a class="btn secondary full" href="{{ url_for('findings') }}">⚠ Hallazgos</a>
+        <ul class="report-list">
+            {% for a in apps %}
+            <li class="{% if selected_id == a.id %}active{% endif %}">
+                <a href="{{ url_for('app_detail', app_id=a.id) }}">
+                    <strong>{{ a.name }}</strong>
+                    {% if a.review_status == 'listo_para_migrar' %}
+                    <span class="badge status-ready">Listo</span>
+                    {% elif a.review_status == 'logica_revisada' %}
+                    <span class="badge status-reviewed">Revisado</span>
+                    {% endif %}
+                    <span class="muted">{{ a.analyzed_at }}</span>
+                </a>
+            </li>
+            {% else %}
+            <li class="muted empty">Aun no hay reportes.</li>
+            {% endfor %}
+        </ul>
+    </aside>
+    <section class="content">
+        {% block right %}{% endblock %}
+    </section>
+</div>
+{% endblock %}

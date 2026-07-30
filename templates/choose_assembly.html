@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Elegir ejecutable — QAPV Legacy App Analyzer{% endblock %}
+{% block content %}
+
+<div class="card">
+    <h2>Se encontraron varios ejecutables en esta carpeta</h2>
+    <p class="muted">{{ folder }}</p>
+    <p>Elige cual analizar:</p>
+    {% for c in candidates %}
+    <form method="post" action="{{ url_for('analyze') }}" style="display:inline-block; margin-right:10px;">
+        <input type="hidden" name="path" value="{{ c }}">
+        <button type="submit" class="secondary">{{ c.name }}</button>
+    </form>
+    {% endfor %}
+    <p style="margin-top:20px;"><a href="{{ url_for('index') }}">&larr; Volver</a></p>
+</div>
+
+{% endblock %}
