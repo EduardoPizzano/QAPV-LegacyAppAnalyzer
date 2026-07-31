@@ -320,10 +320,21 @@ def delete_finding(finding_id: int) -> None:
 
 
 def list_apps() -> list[sqlite3.Row]:
+    """Listado usado por la barra lateral (todas las vistas). Incluye sp_count
+    (cuantos SqlFinding de categoria 'stored_procedure' tiene la app) para
+    mostrar una marca visual de "esta app llama Stored Procedures" sin tener
+    que abrir el reporte completo — se calcula desde lo ya extraido del
+    codigo, no depende de que la introspeccion de BD haya podido conectarse."""
     with get_conn() as conn:
         return conn.execute(
-            "SELECT id, name, source_path, analyzed_at, dotnet_target, ui_framework, db_drivers, review_status "
-            "FROM apps ORDER BY analyzed_at DESC"
+            """
+            SELECT apps.id, apps.name, apps.source_path, apps.analyzed_at, apps.dotnet_target,
+                   apps.ui_framework, apps.db_drivers, apps.review_status,
+                   (SELECT COUNT(*) FROM sql_findings sf
+                    WHERE sf.app_id = apps.id AND sf.category = 'stored_procedure') AS sp_count
+            FROM apps
+            ORDER BY apps.analyzed_at DESC
+            """
         ).fetchall()
 
 

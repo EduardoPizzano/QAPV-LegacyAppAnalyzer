@@ -15,6 +15,9 @@
                     {% elif a.review_status == 'logica_revisada' %}
                     <span class="badge status-reviewed">Revisado</span>
                     {% endif %}
+                    {% if a.sp_count %}
+                    <span class="badge badge-sp" title="{{ a.sp_count }} Stored Procedure(s) detectado(s) en el codigo">SP</span>
+                    {% endif %}
                     <span class="muted">{{ a.analyzed_at }}</span>
                 </a>
             </li>

@@ -111,6 +111,7 @@ QAPV-LegacyAppAnalyzer/
 | `enrich.py` | Orquestar `db_introspect.py` para una app ya analizada: decide qué connection strings usar, qué SPs/tablas buscar, y maneja errores de conexión por servidor. |
 | `db.py` | Capa de persistencia SQLite completa: esquema, migraciones, upsert de análisis, CRUD de revisión de negocio y Hallazgos, búsquedas cruzadas. |
 | `report.py` | Renderizar el análisis (desde memoria o reconstruido desde la BD) a Markdown; también expone las funciones de agrupado/deduplicado (`_group_by_method`, `_rows_for_method`) reutilizadas por `export_office.py`. |
+| `diagram.py` | Generar el texto fuente de un diagrama Mermaid (flowchart) que resume, por clase, qué tablas/SPs/recursos de I/O toca cada app — a partir de los mismos `SqlFinding`/`LocalIOFinding` que ya produce `extract.py`. No genera ninguna imagen; el renderizado ocurre en el navegador. |
 | `export_office.py` | Generar los bytes de `.xlsx` y `.docx` a partir de los mismos datos que `report.py` renderiza. |
 
 ---
@@ -248,6 +249,12 @@ Para cada componente: responsabilidad, entradas, salidas y dependencias — tal 
 - **Salida**: `bytes`.
 - **Dependencias**: `report.py` (funciones privadas `_group_by_method`/`_rows_for_method`), `openpyxl`, `python-docx`.
 
+### `analyzer/diagram.py`
+- **Responsabilidad**: convertir `SqlFinding[]`/`LocalIOFinding[]` en el texto fuente de un diagrama Mermaid (`flowchart LR`), agrupado por `class_name`: una arista por cada par (clase, tabla/SP/recurso de I/O) que la clase toca, deduplicando nodos de recurso compartidos entre varias clases. Categoriza los hallazgos de I/O por tipo (`_io_category()`: archivos, impresora, puerto serial, proceso externo, red) en vez de por ruta exacta, porque muchas rutas son expresiones C# dinámicas, no texto fijo. Corta el diagrama en `MAX_NODES` (80) nodos para evitar diagramas ilegibles en apps con muchos hallazgos (confirmado necesario: la app con más SPs del inventario actual, 162, satura ese límite y se trunca correctamente).
+- **Entrada**: `list[SqlFinding]`, `list[LocalIOFinding]` (los mismos dataclasses que produce `extract.py`, en memoria o reconstruidos desde la BD).
+- **Salida**: `str` con sintaxis Mermaid, o `None` si la app no tiene ningún hallazgo SQL/I-O (nada que dibujar). **No genera ninguna imagen ni HTML** — el renderizado real ocurre en el navegador vía `static/mermaid.min.js`, cargado únicamente en `result.html` cuando `dataflow_diagram` no es `None`.
+- **Dependencias**: `extract.py` (solo para los tipos). Es, junto a `security.py`, uno de los módulos con menos acoplamiento del paquete.
+
 ### `templates/`
 - **Responsabilidad**: presentación HTML únicamente; sin lógica de negocio (a lo sumo condicionales de Jinja2 sobre datos ya calculados en `app.py`).
 - **Entrada**: contexto pasado por `render_template(...)` desde `app.py`.
@@ -288,6 +295,7 @@ flowchart LR
 - Después del análisis inicial, **todo dato mostrado al usuario se relee desde SQLite** — el objeto `AnalysisResult` en memoria del primer análisis se descarta una vez escrito a disco/BD; nunca se reutiliza directamente para la respuesta HTTP.
 - `reconstruct_from_db()` es el único punto donde las filas de SQLite (`dict`s con JSON serializado en varias columnas: `parameters`, `result_columns`, `columns_json`, `foreign_keys_json`, etc.) vuelven a convertirse en los mismos dataclasses que el pipeline produjo originalmente — esto garantiza que `report.render()` no necesite dos implementaciones distintas según el origen de los datos.
 - Los datos de enriquecimiento de BD (`db_procedures`, `db_tables`) viajan por un camino paralelo e independiente del análisis estático: se calculan después, a partir de lo ya guardado, y se guardan en tablas separadas.
+- El diagrama de flujo de datos es una **vista derivada, calculada al vuelo en cada request** (`app.py: app_detail()` llama a `diagram.build_dataflow_diagram()` sobre los `sql_findings`/`io_findings` reconstruidos) — no se persiste en la base de datos ni se guarda como archivo; si el análisis subyacente cambia, el diagrama cambia solo en la siguiente carga de la página.
 
 ---
 
@@ -628,6 +636,7 @@ graph TD
     app_py --> decompile
     app_py --> pipeline
     app_py --> report
+    app_py --> diagram
     main_py["main.py"] --> decompile
     main_py --> pipeline
     main_py --> report
@@ -650,13 +659,16 @@ graph TD
     enrich --> db
     enrich --> db_introspect
 
+    diagram --> extract
+
     extract["extract.py (hoja)"]
     techstack["techstack.py (hoja)"]
     decompile["decompile.py (hoja)"]
     db_introspect["db_introspect.py (hoja, solo pyodbc)"]
+    diagram["diagram.py (hoja, solo depende de extract.py)"]
 ```
 
-`extract.py`, `techstack.py`, `decompile.py` y `db_introspect.py` son los cuatro módulos "hoja" del proyecto — no dependen de ningún otro módulo interno, solo de la librería estándar (los tres primeros) o de `pyodbc` (el último). Esto los hace los más fáciles de probar de forma aislada.
+`extract.py`, `techstack.py`, `decompile.py` y `db_introspect.py` son los cuatro módulos "hoja" del proyecto — no dependen de ningún otro módulo interno, solo de la librería estándar (los tres primeros) o de `pyodbc` (el último). Esto los hace los más fáciles de probar de forma aislada. `diagram.py` es casi-hoja: depende únicamente de los tipos de `extract.py` (`SqlFinding`/`LocalIOFinding`), sin ninguna otra dependencia interna.
 
 ### Externas (paquetes de terceros)
 
@@ -675,6 +687,7 @@ graph TD
 | **`ilspycmd`** | `analyzer/decompile.py` (vía `subprocess`) | Decompilar el binario .NET a proyecto C#. |
 | **ODBC Driver 17 para SQL Server** | `analyzer/db_introspect.py` (vía `pyodbc`) | Driver de sistema operativo requerido para que `pyodbc` pueda conectarse. |
 | **SQLite** (`sqlite3`, librería estándar de Python) | `analyzer/db.py` | Motor de la base de datos acumulativa — sin instalación aparte. |
+| **Mermaid.js** | `templates/result.html` (cargado como `<script>` en el navegador) | Renderiza el diagrama de flujo de datos que genera `analyzer/diagram.py`. Vendorizado como `static/mermaid.min.js` (descargado una vez desde jsDelivr) en vez de referenciado por CDN — es la **única** dependencia de terceros del proyecto que no vive en `requirements.txt` ni se instala con `pip`, sino como un archivo estático versionado a mano; si se actualiza la versión de Mermaid, hay que volver a descargar el archivo manualmente. |
 
 ---
 
@@ -699,6 +712,7 @@ Decisiones de seguridad tal como están implementadas en el código (no solo dec
 - **Lectura completa de archivos en memoria**: `extract.py`/`techstack.py` usan `Path.read_text()` (carga el archivo entero) por cada `.cs`/`.csproj` — adecuado para el tamaño típico de estas apps legacy (WinForms/WPF de escritorio), no diseñado para codebases masivos.
 - **SQLite de archivo único, sin pool de conexiones**: cada operación abre y cierra su propia conexión (`get_conn()` context manager) — correcto para el patrón de uso actual (una request HTTP a la vez, sin concurrencia real de escritura), pero no está pensado para muchos escritores simultáneos.
 - **Sin índices en columnas de FK** (ver [Base de Datos](#base-de-datos)) — cada lookup por `app_id` es un table scan; irrelevante hoy por el volumen de datos, pero es el primer cuello de botella esperable si crece.
+- **Diagrama de flujo de datos calculado en cada request, sin caché**: `diagram.build_dataflow_diagram()` recorre todos los `sql_findings`/`io_findings` de la app cada vez que se abre `/apps/<id>` — es una simple agregación en memoria (sin I/O), así que el costo es despreciable incluso en la app con más hallazgos del inventario actual (162 SPs). El límite `MAX_NODES = 80` no existe por costo de generación del texto, sino por costo de **renderizado en el navegador**: Mermaid se vuelve lento e ilegible bastante antes de los cientos de nodos.
 
 ### Posibles optimizaciones
 - Paralelizar la decompilación de ensamblados "compañeros" (hoy secuencial en un bucle `for` dentro de `pipeline.run_analysis()`) — son procesos independientes entre sí.
@@ -723,6 +737,7 @@ Hallazgos concretos de revisar el código completo, sin exagerar ni inventar pro
 - **Acoplamiento fuerte, pero contenido, en `enrich.py`**: depende directamente de la forma exacta del `dict` que devuelve `db.get_app()` (por ejemplo, accede a `data["settings"]`, `data["sql_findings"]` con claves de string) en vez de recibir los dataclasses ya tipados — un cambio en la forma del diccionario de `db.get_app()` podría romper `enrich.py` sin que el tipado (`dict` genérico) lo detecte en tiempo de análisis estático.
 - **No hay código muerto evidente** dentro de `analyzer/` — todas las funciones revisadas tienen al menos un punto de llamada real en el flujo actual (verificado módulo por módulo durante esta revisión).
 - **Lista de servidores no disponibles hardcodeada** (`KNOWN_UNREACHABLE_SERVERS` en `enrich.py`) — funcionalmente correcta hoy, pero cualquier cambio de infraestructura (un servidor que se recupera, uno nuevo que se cae) requiere un cambio de código y redeploy, no solo un cambio de dato.
+- **`static/mermaid.min.js` es una dependencia de terceros sin mecanismo de actualización**: al ser un archivo vendorizado a mano (no gestionado por pip/`requirements.txt`), no hay ningún proceso ni recordatorio para actualizarlo si aparecen versiones nuevas de Mermaid con mejoras o correcciones — queda congelado en la versión descargada el día que se agregó, indefinidamente, hasta que alguien lo note y lo reemplace manualmente.
 
 ---
 
@@ -740,6 +755,8 @@ Propuesta técnica, derivada directamente de las observaciones anteriores y de l
 8. **Abstraer el motor de decompilación** detrás de una interfaz mínima, aunque `ilspycmd` siga siendo la única implementación por ahora — reduce el costo de un eventual soporte a otro tipo de aplicación.
 9. **Soporte de introspección de solo lectura para Oracle**, siguiendo el mismo patrón arquitectónico que `db_introspect.py`/`enrich.py` ya establecen para SQL Server.
 10. **Hacer configurable, sin tocar código, la lista de servidores conocidos como no disponibles** (por ejemplo, una tabla en `qapv_analyzer.db` o un archivo de configuración simple).
+11. **Incluir el diagrama de flujo de datos en las exportaciones** — hoy solo existe en la vista web; para Word/Excel se podría incrustar como imagen (requeriría un renderizado headless de Mermaid en el servidor, ej. `mermaid-cli` vía Node, o generar el diagrama con una librería Python equivalente) en vez de simplemente pegar el texto fuente.
+12. **Nivel de detalle configurable en el diagrama** (por clase vs. por método) — hoy el agrupado por clase es fijo; exponer un toggle en la UI para apps pequeñas donde el detalle por método sí sería legible.
 
 ---
 

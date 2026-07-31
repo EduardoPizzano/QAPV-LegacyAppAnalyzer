@@ -1,0 +1,120 @@
+"""Genera un diagrama Mermaid (flowchart) que resume el flujo de datos de una
+app ya analizada: que clases tocan que tablas/Stored Procedures, y que clases
+usan que tipo de recurso externo (archivos, impresora, puerto serial, otro
+proceso, red).
+
+Se agrupa por CLASE (no por metodo/funcion) deliberadamente: apps con decenas
+o cientos de hallazgos SQL producirian, a nivel de metodo, un grafo ilegible.
+A nivel de clase el diagrama se mantiene legible y sigue respondiendo la
+pregunta util: "que parte de la app toca que dato/recurso".
+
+No requiere conexion a ninguna base de datos ni ejecuta nada — solo transforma
+los hallazgos (SqlFinding/LocalIOFinding) ya extraidos por analyzer/extract.py."""
+
+import re
+from collections import defaultdict
+
+from .extract import LocalIOFinding, SqlFinding
+
+# Nodos totales (clases + tablas/SPs + recursos de IO) antes de truncar el
+# diagrama — mas alla de esto Mermaid se vuelve lento e ilegible en el navegador.
+MAX_NODES = 80
+
+IO_CATEGORY_PATTERNS = [
+    (("File.", "Directory.", "StreamReader", "StreamWriter", "FileStream", "DirectoryInfo"), "Archivos / carpetas"),
+    (("PrintDocument", "PrintDialog", "PrinterSettings", "BarTender", "PrintOut"), "Impresora"),
+    (("SerialPort",), "Puerto serial"),
+    (("Process.Start",), "Proceso externo"),
+    (("HttpClient", "WebClient", "HttpWebRequest", "WebRequest", "SmtpClient"), "Red (HTTP/SMTP)"),
+]
+
+
+def _io_category(operation: str) -> str:
+    for prefixes, label in IO_CATEGORY_PATTERNS:
+        if any(p in operation for p in prefixes):
+            return label
+    return "Otro I/O"
+
+
+def _sanitize_id(text: str) -> str:
+    """IDs de nodo en Mermaid no pueden tener espacios/simbolos raros."""
+    return re.sub(r"[^\w]", "_", text)[:60] or "n"
+
+
+def _escape_label(text: str) -> str:
+    return text.replace('"', "'")
+
+
+def build_dataflow_diagram(sql_findings: list[SqlFinding], io_findings: list[LocalIOFinding]) -> str | None:
+    """Devuelve el texto fuente de un flowchart Mermaid, o None si la app no
+    tiene ningun hallazgo SQL/IO (nada que dibujar)."""
+    if not sql_findings and not io_findings:
+        return None
+
+    class_to_sql: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    for f in sql_findings:
+        if not f.target:
+            continue
+        kind = "table" if f.category == "query" else "sp"
+        class_to_sql[f.class_name].add((kind, f.target))
+
+    class_to_io: dict[str, set[str]] = defaultdict(set)
+    for f in io_findings:
+        class_to_io[f.class_name].add(_io_category(f.operation))
+
+    all_classes = sorted(set(class_to_sql) | set(class_to_io))
+    if not all_classes:
+        return None
+
+    lines = ["flowchart LR"]
+    resource_node_ids: dict[tuple[str, str], str] = {}
+    node_count = 0
+    truncated = False
+
+    def resource_node(kind: str, label: str) -> str:
+        nonlocal node_count
+        key = (kind, label)
+        if key in resource_node_ids:
+            return resource_node_ids[key]
+        node_id = f"{kind}_{_sanitize_id(label)}"
+        resource_node_ids[key] = node_id
+        safe_label = _escape_label(label)
+        if kind == "table":
+            lines.append(f'    {node_id}[("{safe_label}")]')
+        elif kind == "sp":
+            lines.append(f'    {node_id}[["{safe_label}"]]')
+        else:
+            lines.append(f'    {node_id}("{safe_label}")')
+        node_count += 1
+        return node_id
+
+    for class_name in all_classes:
+        if node_count >= MAX_NODES:
+            truncated = True
+            break
+        class_id = f"class_{_sanitize_id(class_name)}"
+        lines.append(f'    {class_id}["{_escape_label(class_name)}"]:::classNode')
+        node_count += 1
+
+        for kind, target in sorted(class_to_sql.get(class_name, [])):
+            if node_count >= MAX_NODES:
+                truncated = True
+                break
+            node_id = resource_node(kind, target)
+            lines.append(f"    {class_id} --> {node_id}")
+
+        for io_label in sorted(class_to_io.get(class_name, [])):
+            if node_count >= MAX_NODES:
+                truncated = True
+                break
+            node_id = resource_node("io", io_label)
+            lines.append(f"    {class_id} -.-> {node_id}")
+
+    if truncated:
+        lines.append(
+            '    nota_truncado["... diagrama truncado (demasiados elementos) — ver la tabla completa abajo"]'
+        )
+
+    lines.append("    classDef classNode fill:#e1eef8,stroke:#1c6fc9,color:#17324d;")
+
+    return "\n".join(lines)

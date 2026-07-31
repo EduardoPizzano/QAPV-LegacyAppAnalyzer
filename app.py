@@ -16,7 +16,7 @@ from pathlib import Path
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
 
-from analyzer import db, enrich, export_office
+from analyzer import db, diagram, enrich, export_office
 from analyzer.decompile import DecompileError, discover_assemblies, project_label
 from analyzer.pipeline import run_analysis
 from analyzer.report import reconstruct_from_db, render, render_from_db
@@ -223,9 +223,15 @@ def app_detail(app_id):
     if not data:
         flash("Esa app no existe en la base de datos.")
         return redirect(url_for("index"))
-    report_html = md.markdown(render_from_db(data), extensions=["tables"])
+    report_html = md.markdown(
+        render_from_db(data),
+        extensions=["tables", "fenced_code", "codehilite"],
+        extension_configs={"codehilite": {"guess_lang": False, "pygments_style": "vs", "noclasses": False}},
+    )
+    _, _, _, sql_findings, io_findings, *_rest = reconstruct_from_db(data)
+    dataflow_diagram = diagram.build_dataflow_diagram(sql_findings, io_findings)
     return render_template(
-        "result.html", data=data, report_html=report_html,
+        "result.html", data=data, report_html=report_html, dataflow_diagram=dataflow_diagram,
         apps=db.list_apps(), selected_id=app_id,
     )
 

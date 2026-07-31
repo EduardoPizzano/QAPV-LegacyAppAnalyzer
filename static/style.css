@@ -135,6 +135,7 @@ table td code, table td p code { font-size: 0.82rem; word-break: break-word; }
 .badge.info { background: #e1eef8; color: #1c6fc9; }
 .badge.status-ready { background: #dcf3e3; color: #1c7a3d; }
 .badge.status-reviewed { background: #e1eef8; color: #1c6fc9; }
+.badge.badge-sp { background: #f3e8ff; color: #7c3aed; font-weight: 600; }
 .badge.sev-critica { background: #c0392b; color: white; font-weight: 600; }
 .badge.sev-alta { background: #fbe1de; color: #c0392b; }
 .badge.sev-media { background: #fdf1d0; color: #b7822a; }
@@ -142,3 +143,59 @@ table td code, table td p code { font-size: 0.82rem; word-break: break-word; }
 nav.tabs { margin-bottom: 18px; }
 nav.tabs a { margin-right: 16px; color: #17324d; font-weight: 600; text-decoration: none; }
 nav.tabs a.active { border-bottom: 2px solid #1c6fc9; }
+
+/* Bloques de codigo (definiciones de SP) resaltados por Pygments, estilo "vs"
+   (similar al tema claro de VSCode). El coloreado por token viene de Python
+   generado con HtmlFormatter(style='vs').get_style_defs('.codehilite'). */
+.codehilite {
+    background: #fafafa;
+    border: 1px solid #e2e6ea;
+    border-radius: 6px;
+    padding: 12px 16px;
+    overflow-x: auto;
+    margin: 8px 0 16px;
+}
+.codehilite pre {
+    margin: 0;
+    font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+.codehilite .hll { background-color: #ffffcc }
+.codehilite .c { color: #008000 } /* Comment */
+.codehilite .err { border: 1px solid #F00 } /* Error */
+.codehilite .k { color: #00F } /* Keyword */
+.codehilite .ch { color: #008000 } /* Comment.Hashbang */
+.codehilite .cm { color: #008000 } /* Comment.Multiline */
+.codehilite .cp { color: #00F } /* Comment.Preproc */
+.codehilite .cpf { color: #008000 } /* Comment.PreprocFile */
+.codehilite .c1 { color: #008000 } /* Comment.Single */
+.codehilite .cs { color: #008000 } /* Comment.Special */
+.codehilite .kc { color: #00F } /* Keyword.Constant */
+.codehilite .kd { color: #00F } /* Keyword.Declaration */
+.codehilite .kn { color: #00F } /* Keyword.Namespace */
+.codehilite .kp { color: #00F } /* Keyword.Pseudo */
+.codehilite .kr { color: #00F } /* Keyword.Reserved */
+.codehilite .kt { color: #2B91AF } /* Keyword.Type */
+.codehilite .s { color: #A31515 } /* Literal.String */
+.codehilite .nc { color: #2B91AF } /* Name.Class */
+.codehilite .ow { color: #00F } /* Operator.Word */
+.codehilite .sa,
+.codehilite .sb,
+.codehilite .sc,
+.codehilite .dl,
+.codehilite .sd,
+.codehilite .s2,
+.codehilite .se,
+.codehilite .sh,
+.codehilite .si,
+.codehilite .sx,
+.codehilite .sr,
+.codehilite .s1,
+.codehilite .ss { color: #A31515 } /* variantes de Literal.String */
+
+/* Bloques de codigo sin resaltar (ej. dentro de <code> inline) */
+code {
+    font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+    font-size: 0.85rem;
+}

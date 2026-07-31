@@ -14,10 +14,14 @@ from . import db, db_introspect
 VALID_SQL_OBJECT_NAME = re.compile(r"^\[?(\w+)\]?(?:\.\[?(\w+)\]?)?$")
 ORACLE_HINT = re.compile(r"(?i)Data Source\s*=\s*\(|TNS|Oracle")
 
-# Servers confirmed unreachable (checked both over VPN and on-site at the
-# plant network on 2026-07-30 — genuinely dead/orphaned, not a routing
-# artifact). Skip connecting entirely instead of eating a ~10s TCP handshake
-# timeout per app every time enrichment runs; just mark it clearly instead.
+# Servers confirmed decommissioned/unreachable. naamrt-qcs11 was suspected dead
+# since 2026-07-29 (checked both over VPN and on-site at the plant network,
+# genuinely unresponsive, not a routing artifact) and IT confirmed on
+# 2026-07-30 that it was formally decommissioned, replaced by naamrt-qcs25
+# (already the working server for AFL.Dashboard's own connections) — several
+# apps' connection strings just never got updated when they were migrated.
+# Skip connecting entirely instead of eating a ~10s TCP handshake timeout per
+# app every time enrichment runs; just mark it clearly instead.
 KNOWN_UNREACHABLE_SERVERS = {"naamrt-qcs11"}
 
 
@@ -84,8 +88,10 @@ def enrich_app(app_id: int) -> dict:
         server = _server_from_conn_str(conn_str)
         if server and server.lower() in KNOWN_UNREACHABLE_SERVERS:
             connection_errors.append(
-                f"Server={server}: servidor conocido como no disponible — no se intento conectar "
-                f"(confirmado caido tanto por VPN como en planta, revisar con infraestructura)"
+                f"Server={server}: servidor dado de baja oficialmente por el equipo de infraestructura "
+                f"(confirmado 2026-07-30), reemplazado por naamrt-qcs25 — no se intento conectar. La "
+                f"connection string de esta app nunca se actualizo al servidor de reemplazo, revisar "
+                f"con el equipo de la app."
             )
             continue
 

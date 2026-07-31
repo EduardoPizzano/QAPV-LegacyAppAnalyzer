@@ -195,6 +195,8 @@ def render(
                         "el codigo de la SP arriba manualmente._"
                     )
                     lines.append("")
+                lines.append(f"**Codigo de `{full_name}`:**")
+                lines.append("")
                 lines.append("```sql")
                 lines.append(p["definition"].strip())
                 lines.append("```")

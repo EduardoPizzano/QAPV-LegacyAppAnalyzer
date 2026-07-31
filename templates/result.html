@@ -40,6 +40,22 @@
     </form>
 </div>
 
+{% if dataflow_diagram %}
+<div class="card">
+    <h2>Diagrama de flujo de datos</h2>
+    <p class="muted">
+        Generado automaticamente a partir de los hallazgos SQL/I-O ya extraidos, agrupado por clase
+        (no por funcion, para que apps con muchos hallazgos sigan siendo legibles). No reemplaza la
+        tabla detallada de abajo, es un resumen visual.
+    </p>
+    <pre class="mermaid">{{ dataflow_diagram }}</pre>
+</div>
+<script src="{{ url_for('static', filename='mermaid.min.js') }}"></script>
+<script>
+    mermaid.initialize({ startOnLoad: true, securityLevel: "strict" });
+</script>
+{% endif %}
+
 <div class="card report-body">
     {{ report_html | safe }}
 </div>

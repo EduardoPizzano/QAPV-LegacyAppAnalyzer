@@ -52,12 +52,36 @@
         la carpeta raiz de la solucion y buscare todos los .exe dentro, en cualquier
         subcarpeta. Despues eliges cuales analizar.
     </p>
-    <form method="post" action="{{ url_for('discover') }}">
+    <form id="discoverForm" method="post" action="{{ url_for('discover') }}">
         <label for="root_path">Carpeta raiz</label>
         <input type="text" id="root_path" name="root_path" placeholder="\\servidor\ruta\a\AFL.Dashboard" required>
-        <button type="submit" class="secondary">Escanear</button>
+        <button type="submit" class="secondary" id="discoverSubmit">Escanear</button>
+        <p id="discoverWorking" class="muted" style="display:none; margin-top:10px;">
+            <span class="spinner" style="border-color: rgba(107,118,132,0.3); border-top-color:#6b7684;"></span>
+            Buscando ejecutables en la carpeta (<span id="discoverElapsed">0</span>s)... en carpetas de red
+            grandes puede tardar un poco — sigue trabajando, no se congelo.
+        </p>
     </form>
 </div>
+
+<script>
+(function () {
+    var form = document.getElementById('discoverForm');
+    if (!form) return;
+    form.addEventListener('submit', function () {
+        document.getElementById('discoverSubmit').disabled = true;
+        var working = document.getElementById('discoverWorking');
+        working.style.display = 'block';
+        var elapsedEl = document.getElementById('discoverElapsed');
+        var started = Date.now();
+        setInterval(function () {
+            elapsedEl.textContent = Math.floor((Date.now() - started) / 1000);
+        }, 1000);
+        // No preventDefault — este tambien es un submit normal; el navegador
+        // avanza a discover_results.html en cuanto el servidor responde.
+    });
+})();
+</script>
 
 <div class="card">
     <p class="muted">

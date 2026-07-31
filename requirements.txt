@@ -2,3 +2,5 @@ flask
 markdown
 openpyxl
 python-docx
+pyodbc
+pygments

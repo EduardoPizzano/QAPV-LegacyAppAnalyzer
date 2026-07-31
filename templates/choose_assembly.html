@@ -7,12 +7,38 @@
     <p class="muted">{{ folder }}</p>
     <p>Elige cual analizar:</p>
     {% for c in candidates %}
-    <form method="post" action="{{ url_for('analyze') }}" style="display:inline-block; margin-right:10px;">
+    <form class="chooseForm" method="post" action="{{ url_for('analyze') }}" style="display:inline-block; margin-right:10px;">
         <input type="hidden" name="path" value="{{ c }}">
         <button type="submit" class="secondary">{{ c.name }}</button>
     </form>
     {% endfor %}
+    <p id="chooseWorking" class="muted" style="display:none; margin-top:10px;">
+        <span class="spinner" style="border-color: rgba(107,118,132,0.3); border-top-color:#6b7684;"></span>
+        Decompilando y analizando (<span id="chooseElapsed">0</span>s)... esto puede tardar mas para
+        apps grandes o con conexion a base de datos — sigue trabajando, no se congelo.
+    </p>
     <p style="margin-top:20px;"><a href="{{ url_for('index') }}">&larr; Volver</a></p>
 </div>
+
+<script>
+(function () {
+    var forms = document.querySelectorAll('.chooseForm');
+    if (!forms.length) return;
+    forms.forEach(function (form) {
+        form.addEventListener('submit', function () {
+            forms.forEach(function (f) { f.querySelector('button').disabled = true; });
+            var working = document.getElementById('chooseWorking');
+            working.style.display = 'block';
+            var elapsedEl = document.getElementById('chooseElapsed');
+            var started = Date.now();
+            setInterval(function () {
+                elapsedEl.textContent = Math.floor((Date.now() - started) / 1000);
+            }, 1000);
+            // No preventDefault — submit normal, el navegador avanza al
+            // reporte en cuanto el servidor responde.
+        });
+    });
+})();
+</script>
 
 {% endblock %}

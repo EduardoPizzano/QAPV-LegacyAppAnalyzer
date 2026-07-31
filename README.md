@@ -119,6 +119,12 @@ Específicamente para el inventario de aplicaciones legacy de AFL previo a la mi
 ### 📤 Exportaciones
 - Markdown (`.md`), Excel (`.xlsx`) y Word (`.docx`), generados siempre a partir de los mismos datos guardados en la base (ver [Exportaciones](#exportaciones)).
 
+### 🗺️ Diagrama de flujo de datos
+- Diagrama generado automáticamente (Mermaid) en la vista de cada app, mostrando qué **clases** tocan qué **tablas**, **Stored Procedures** y **recursos externos** (archivos, impresora, puerto serial, proceso externo, red).
+- Agrupado por clase, no por función, para que apps con muchos hallazgos SQL sigan siendo legibles; si una app supera un límite de nodos, el diagrama se trunca con una nota clara (la tabla detallada del reporte conserva siempre el detalle completo).
+- Se renderiza en el navegador con [Mermaid.js](https://mermaid.js.org/) vendorizado localmente en `static/` — no depende de internet ni de un CDN en tiempo de ejecución.
+- Solo existe en la vista web; no forma parte todavía de las exportaciones a Word/Excel (ver [Limitaciones actuales](#limitaciones-actuales)).
+
 ### 🗃️ Base de datos acumulativa
 - SQLite (`qapv_analyzer.db`) con upsert por nombre de app: re-analizar una app reemplaza su análisis anterior en vez de duplicarlo.
 - Preserva el estado de revisión de lógica de negocio (`review_status`/`review_notes`) a través de re-análisis.
@@ -201,6 +207,7 @@ flowchart TD
 - **.NET SDK** — requerido únicamente para poder instalar y ejecutar `ilspycmd` (es una herramienta .NET), no para correr la aplicación Python en sí.
 - **SQLite** (vía el módulo `sqlite3` de la librería estándar de Python, sin dependencia externa) — motor de la base de datos acumulativa `qapv_analyzer.db`. Se eligió por ser un solo archivo, sin servidor que administrar, suficiente para el volumen de datos de este proyecto (decenas de apps, no miles).
 - **ODBC Driver 17 para SQL Server** — driver a nivel de sistema operativo que `pyodbc` necesita para poder hablar con SQL Server; no se instala vía pip, debe existir en la máquina.
+- **[Mermaid.js](https://mermaid.js.org/)** — librería JavaScript para renderizar diagramas a partir de texto plano; genera en el navegador el diagrama de flujo de datos de cada app. Vendorizada como archivo estático (`static/mermaid.min.js`, descargada una sola vez) en vez de cargada desde un CDN, para que funcione sin conexión a internet — no es una dependencia Python, no aparece en `requirements.txt`.
 - **OpenXML** (formato) — tanto `.xlsx` como `.docx` son en realidad contenedores ZIP con XML interno siguiendo el estándar Office Open XML; `openpyxl` y `python-docx` son las librerías que abstraen ese formato para que el proyecto no tenga que generarlo a mano.
 
 ---
@@ -267,7 +274,7 @@ No existe un archivo de configuración externo (`.env`, `config.py`, etc.) — l
 - **Carpeta `reports/`**: ruta fija relativa a la raíz del proyecto (`app.py: REPORTS_DIR`). Se crea sola (incluyendo subcarpetas para apps con nombre `Carpeta/Modulo`) la primera vez que se guarda un reporte.
 - **Carpeta `decompiled/`**: código fuente decompilado de cada app, uno por subcarpeta (`analyzer/pipeline.py: DECOMPILED_DIR`). Puede ocupar bastante espacio; está excluida de git.
 - **`templates/`**: plantillas Jinja2 estándar de Flask, cargadas automáticamente desde esa carpeta por convención — no requiere configuración adicional.
-- **`static/`**: hoja de estilos (`style.css`), servida por la ruta estática por defecto de Flask (`/static/...`).
+- **`static/`**: hoja de estilos (`style.css`) y la librería `mermaid.min.js` vendorizada (descargada una sola vez desde jsDelivr, servida localmente para que el diagrama de flujo de datos funcione sin internet), ambas por la ruta estática por defecto de Flask (`/static/...`).
 - **Servidores conocidos como no disponibles**: lista `KNOWN_UNREACHABLE_SERVERS` en `analyzer/enrich.py` (actualmente solo `naamrt-qcs11`) — para agregar o quitar un servidor de esta lista hace falta editar el código, no hay una pantalla de configuración para esto todavía.
 - **Driver ODBC usado**: `"ODBC Driver 17 for SQL Server"`, valor por defecto del parámetro `driver` en `analyzer/db_introspect.py: connect()` — puede pasarse otro valor al llamar la función, pero no es configurable desde la interfaz web.
 - **`app.secret_key`**: valor fijo en `app.py`, usado únicamente para firmar los mensajes flash de la sesión (no hay login ni datos sensibles de usuario en esta app).
@@ -297,6 +304,7 @@ QAPV-LegacyAppAnalyzer/
 │   ├── enrich.py               # Orquesta la introspeccion de BD para una app ya analizada
 │   ├── db.py                   # Capa de persistencia SQLite (esquema, migraciones, CRUD)
 │   ├── report.py               # Renderizador del reporte Markdown (usado en pantalla y export)
+│   ├── diagram.py              # Genera el diagrama Mermaid de flujo de datos por app
 │   └── export_office.py        # Exportadores a Excel (.xlsx) y Word (.docx)
 │
 ├── templates/                  # Plantillas Jinja2
@@ -310,7 +318,8 @@ QAPV-LegacyAppAnalyzer/
 │   └── findings.html              # Registro acumulativo de Hallazgos
 │
 ├── static/
-│   └── style.css               # Estilos de toda la interfaz (sin frameworks CSS externos)
+│   ├── style.css               # Estilos de toda la interfaz (sin frameworks CSS externos)
+│   └── mermaid.min.js          # Libreria Mermaid vendorizada (diagramas de flujo, sin CDN)
 │
 ├── decompiled/                  # Codigo fuente decompilado por app (generado, gitignored)
 └── reports/                     # Reporte .md por app (generado, gitignored)
@@ -326,6 +335,7 @@ QAPV-LegacyAppAnalyzer/
 - **`analyzer/enrich.py`**: capa de orquestación entre lo ya encontrado estáticamente (qué SPs/tablas/conexiones tiene una app) y `db_introspect.py` (cómo consultarlos).
 - **`analyzer/db.py`**: toda la persistencia SQLite vive aquí; ninguna otra parte del código ejecuta SQL contra `qapv_analyzer.db` directamente.
 - **`analyzer/report.py`** / **`analyzer/export_office.py`**: comparten las mismas funciones de agrupado/deduplicado (`_group_by_method`, `_rows_for_method`) para que el reporte en pantalla, el `.md`, el `.xlsx` y el `.docx` nunca puedan mostrar información distinta entre sí.
+- **`analyzer/diagram.py`**: toma los mismos `SqlFinding`/`LocalIOFinding` ya extraídos y genera el texto fuente de un diagrama Mermaid (agrupado por clase), que se renderiza en el navegador — no genera ninguna imagen en el servidor.
 
 ---
 
@@ -357,7 +367,8 @@ QAPV-LegacyAppAnalyzer/
 | Revisión de lógica de negocio con estado y notas | ✅ Implementado | `borrador` / `logica_revisada` / `listo_para_migrar`, preservado entre re-análisis. |
 | Registro acumulativo de Hallazgos | ✅ Implementado | Independiente del ciclo de vida de cada app (sobrevive re-análisis). |
 | Eliminar un análisis | ✅ Implementado | Borra la app y todo lo asociado (cascada) de la base. |
-| Indicador de progreso en tiempo real | ✅ Implementado | Contador de segundos + animación, en análisis individual y por lotes. |
+| Indicador de progreso en tiempo real | ✅ Implementado | Contador de segundos + animación, en análisis individual, por lotes y al elegir ejecutable. |
+| Diagrama de flujo de datos por app | ✅ Implementado | Mermaid, agrupado por clase, con truncado en apps con muchos hallazgos. Solo en la vista web, no en exportaciones. |
 | Autenticación / control de acceso | ❌ Pendiente | La aplicación no tiene login; pensada para un solo operador o red interna de confianza. |
 | Pruebas automatizadas | ❌ Pendiente | No existen tests unitarios/de integración en el repositorio todavía. |
 | Corrección de colisión de nombres en descubrimiento por lote | ❌ Pendiente | Si dos `.exe` distintos quedan en la misma carpeta de proyecto, podrían recibir el mismo nombre calculado — conocido, no corregido (ver [Limitaciones actuales](#limitaciones-actuales)). |
@@ -417,6 +428,7 @@ De forma honesta, esto es lo que **todavía no** cubre la herramienta:
 - **Sin mecanismo de compartir el acumulado entre varios usuarios** — como `reports/` y `qapv_analyzer.db` están excluidos del repositorio (por contener datos sensibles), cada persona que clona el proyecto empieza desde cero; no existe hoy un flujo de sincronización de ese acumulado entre el equipo.
 - **Lista de servidores conocidos como no disponibles hardcodeada** — `KNOWN_UNREACHABLE_SERVERS` en `analyzer/enrich.py` requiere editar código para actualizarse, no hay pantalla de configuración.
 - **Sin exportación consolidada multi-app** — cada exportación (Markdown/Excel/Word) es de una app a la vez; no existe un reporte combinado de varias apps en un solo archivo.
+- **El diagrama de flujo de datos es un resumen, no un detalle exhaustivo** — agrupa por clase (no por función) y trunca el dibujo si una app supera un límite de nodos, para mantenerlo legible; la tabla detallada del reporte sigue siendo la fuente completa. Tampoco se incluye todavía en las exportaciones a Word/Excel, solo en la vista web.
 
 ---
 
