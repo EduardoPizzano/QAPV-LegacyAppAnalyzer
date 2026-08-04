@@ -102,7 +102,7 @@ def _batch_name(root_path: str, exe_path: str) -> str:
 
 @app.route("/")
 def index():
-    return render_template("index.html", apps=db.list_apps(), selected_id=None)
+    return render_template("index.html", apps=db.group_apps_for_sidebar(), selected_id=None)
 
 
 @app.route("/analyze", methods=["POST"])
@@ -164,7 +164,7 @@ def discover():
 
     return render_template(
         "discover_results.html", root_path=raw_path, candidates=candidates, groups=dict(groups),
-        apps=db.list_apps(), selected_id=None,
+        apps=db.group_apps_for_sidebar(), selected_id=None,
     )
 
 
@@ -232,7 +232,7 @@ def app_detail(app_id):
     dataflow_diagram = diagram.build_dataflow_diagram(sql_findings, io_findings)
     return render_template(
         "result.html", data=data, report_html=report_html, dataflow_diagram=dataflow_diagram,
-        apps=db.list_apps(), selected_id=app_id,
+        apps=db.group_apps_for_sidebar(), selected_id=app_id,
     )
 
 
@@ -345,7 +345,7 @@ def search():
 @app.route("/findings")
 def findings():
     return render_template(
-        "findings.html", findings=db.list_findings(), apps=db.list_apps(), selected_id=None,
+        "findings.html", findings=db.list_findings(), apps=db.group_apps_for_sidebar(), selected_id=None,
     )
 
 

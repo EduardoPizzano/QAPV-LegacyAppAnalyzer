@@ -338,6 +338,64 @@ def list_apps() -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def group_apps_for_sidebar() -> list[dict]:
+    """Agrupa list_apps() para la barra lateral usando la convencion de nombre
+    'CarpetaRaiz/Modulo' (ver app.py: _batch_name()). Solo una raiz con 2+
+    modulos analizados se convierte en un grupo colapsable (hoy: VINS1,
+    AFL.Dashboard, INVENTA2-2TEST) — una raiz con un solo modulo se aplana de
+    vuelta a un item suelto (agrupar un solo elemento no aporta nada, solo
+    agrega un clic extra), deduplicando el nombre visible cuando raiz y
+    modulo son literalmente el mismo texto (ej. 'ItemTrack/ItemTrack' ->
+    'ItemTrack'). Todo (grupos y apps sueltas por igual) se ordena por
+    actividad mas reciente, igual que list_apps() — un grupo usa el
+    analyzed_at mas reciente de sus miembros para su posicion."""
+    from collections import defaultdict
+
+    apps = [dict(r) for r in list_apps()]
+    by_root: dict[str, list[tuple[str, dict]]] = defaultdict(list)
+    standalone: list[dict] = []
+    for a in apps:
+        if "/" in a["name"]:
+            root, module = a["name"].split("/", 1)
+            by_root[root].append((module, a))
+        else:
+            standalone.append(a)
+
+    reviewed_statuses = {"logica_revisada", "listo_para_migrar"}
+    items: list[dict] = []
+
+    for root, members in by_root.items():
+        if len(members) > 1:
+            member_list = []
+            for module, a in members:
+                a2 = dict(a)
+                a2["module_display"] = module
+                member_list.append(a2)
+            reviewed = sum(1 for a in member_list if a["review_status"] in reviewed_statuses)
+            items.append({
+                "kind": "group",
+                "root": root,
+                "members": member_list,
+                "reviewed_count": reviewed,
+                "total_count": len(member_list),
+                "sort_key": max(a["analyzed_at"] for a in member_list),
+            })
+        else:
+            module, a = members[0]
+            display_name = module if module == root else a["name"]
+            items.append({
+                "kind": "single", "app": a, "display_name": display_name, "sort_key": a["analyzed_at"],
+            })
+
+    for a in standalone:
+        items.append({
+            "kind": "single", "app": a, "display_name": a["name"], "sort_key": a["analyzed_at"],
+        })
+
+    items.sort(key=lambda it: it["sort_key"], reverse=True)
+    return items
+
+
 def get_app(app_id: int) -> dict:
     with get_conn() as conn:
         app = conn.execute("SELECT * FROM apps WHERE id = ?", (app_id,)).fetchone()

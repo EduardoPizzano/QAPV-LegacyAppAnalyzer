@@ -93,7 +93,7 @@ QAPV-LegacyAppAnalyzer/
 
 - **Raíz del proyecto**: contiene los dos puntos de entrada (`app.py`, `main.py`) y los artefactos generados (`qapv_analyzer.db`, `decompiled/`, `reports/`). No hay separación en `src/` — el paquete `analyzer/` vive directamente junto a los entry points.
 - **`analyzer/`**: paquete Python puro, **sin ningún import de Flask** en ninguno de sus módulos (verificado — `Flask`, `render_template`, `request`, etc. solo aparecen en `app.py`). Esto significa que toda la lógica de análisis puede probarse o reutilizarse (por ejemplo desde un script o un notebook) sin levantar un servidor web. Es la capa que un desarrollador nuevo debe entender primero.
-- **`templates/`**: plantillas Jinja2, cargadas por convención de Flask (`templates/` en la raíz del proyecto, sin configuración explícita de `template_folder`). Cada plantilla extiende `base.html` (layout mínimo) o `library_base.html` (layout con barra lateral de apps analizadas).
+- **`templates/`**: plantillas Jinja2, cargadas por convención de Flask (`templates/` en la raíz del proyecto, sin configuración explícita de `template_folder`). Cada plantilla extiende `base.html` (layout mínimo) o `library_base.html` (layout con barra lateral de apps analizadas, agrupadas por familia vía `db.group_apps_for_sidebar()` — ver el componente `analyzer/db.py`).
 - **`static/`**: un único archivo (`style.css`), servido por la ruta estática por defecto de Flask (`/static/<filename>`). No hay build step (sin Sass/Less/bundlers) — es CSS plano.
 - **`decompiled/`**: árbol de salida de `ilspycmd`, un subdirectorio por app (nombrado igual que `apps.name` en la base de datos, incluyendo la barra `/` de apps por lotes, p. ej. `decompiled/AFL.Dashboard/AFL.Scrap/`). Se regenera completo en cada re-análisis; no se versiona por tamaño.
 - **`reports/`**: un archivo `.md` por app, con la misma convención de nombre/subcarpeta que `decompiled/`. No se versiona porque puede contener credenciales reales encontradas en el código legacy (ver [Seguridad](#seguridad)).
@@ -232,9 +232,9 @@ Para cada componente: responsabilidad, entradas, salidas y dependencias — tal 
 - **Dependencias**: `db.py` (para leer el análisis existente), `db_introspect.py`.
 
 ### `analyzer/db.py`
-- **Responsabilidad**: único módulo que ejecuta SQL contra `qapv_analyzer.db`. Define el esquema completo, sus migraciones incrementales, y todas las operaciones CRUD/búsqueda.
+- **Responsabilidad**: único módulo que ejecuta SQL contra `qapv_analyzer.db`. Define el esquema completo, sus migraciones incrementales, y todas las operaciones CRUD/búsqueda. También incluye `group_apps_for_sidebar()`, que agrupa el resultado de `list_apps()` usando la convención de nombre `CarpetaRaiz/Modulo` (ver `app.py: _batch_name()`): una raíz con 2+ módulos analizados se agrupa en un `dict` de tipo `"group"` (con `reviewed_count`/`total_count` para el contador de progreso mostrado en la barra lateral); una raíz con un solo módulo se aplana de vuelta a un `dict` de tipo `"single"`, deduplicando el nombre visible cuando raíz y módulo son el mismo texto (ej. `ItemTrack/ItemTrack` → `ItemTrack`). Todo el resultado (grupos y apps sueltas) se reordena por el `analyzed_at` más reciente de cada uno, para conservar el mismo criterio de orden que `list_apps()`. Se recalcula en cada request (sin caché) — negligible en costo dado el volumen actual de apps, mismo criterio de rendimiento ya aplicado al diagrama de flujo de datos.
 - **Entrada**: dataclasses de `extract.py`/`security.py`/`techstack.py`, o parámetros primitivos (ids, strings).
-- **Salida**: `sqlite3.Row`/`dict`, o `int` (ids autogenerados).
+- **Salida**: `sqlite3.Row`/`dict`, o `int` (ids autogenerados). `group_apps_for_sidebar()` devuelve `list[dict]` heterogéneo (`kind: "group"` o `kind: "single"`), consumido por `templates/library_base.html`.
 - **Dependencias**: `extract.py`, `security.py`, `techstack.py` (solo para los tipos de las funciones que reciben/devuelven).
 
 ### `analyzer/report.py`

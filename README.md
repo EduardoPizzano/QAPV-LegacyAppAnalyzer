@@ -125,6 +125,12 @@ Específicamente para el inventario de aplicaciones legacy de AFL previo a la mi
 - Se renderiza en el navegador con [Mermaid.js](https://mermaid.js.org/) vendorizado localmente en `static/` — no depende de internet ni de un CDN en tiempo de ejecución.
 - Solo existe en la vista web; no forma parte todavía de las exportaciones a Word/Excel (ver [Limitaciones actuales](#limitaciones-actuales)).
 
+### 🗂️ Barra lateral agrupada por familia de apps
+- Las apps analizadas en lote comparten el nombre `CarpetaRaiz/Modulo` (ej. `AFL.Dashboard/AFL.Scrap`); cuando una carpeta raíz tiene **2 o más** módulos analizados, la barra lateral los agrupa bajo un encabezado colapsable con el nombre de la raíz y un contador de progreso (ej. "INVENTA2-2TEST — 6/6 revisadas"), expandido por defecto.
+- Una raíz con un solo módulo se aplana de vuelta a un ítem suelto (evita un grupo de un solo elemento) — si el nombre de módulo es idéntico a la raíz (ej. `ItemTrack/ItemTrack`) se muestra deduplicado (`ItemTrack`).
+- Encabezados de grupo con un fondo distinto al de sus módulos hijos, para diferenciarlos de un vistazo.
+- Todo (grupos y apps sueltas) se ordena por la actividad más reciente, igual que antes de agrupar.
+
 ### 🗃️ Base de datos acumulativa
 - SQLite (`qapv_analyzer.db`) con upsert por nombre de app: re-analizar una app reemplaza su análisis anterior en vez de duplicarlo.
 - Preserva el estado de revisión de lógica de negocio (`review_status`/`review_notes`) a través de re-análisis.
@@ -369,6 +375,7 @@ QAPV-LegacyAppAnalyzer/
 | Eliminar un análisis | ✅ Implementado | Borra la app y todo lo asociado (cascada) de la base. |
 | Indicador de progreso en tiempo real | ✅ Implementado | Contador de segundos + animación, en análisis individual, por lotes y al elegir ejecutable. |
 | Diagrama de flujo de datos por app | ✅ Implementado | Mermaid, agrupado por clase, con truncado en apps con muchos hallazgos. Solo en la vista web, no en exportaciones. |
+| Agrupación de apps por familia en la barra lateral | ✅ Implementado | Solo raíces con 2+ módulos forman grupo colapsable; singletons se aplanan y deduplican. |
 | Autenticación / control de acceso | ❌ Pendiente | La aplicación no tiene login; pensada para un solo operador o red interna de confianza. |
 | Pruebas automatizadas | ❌ Pendiente | No existen tests unitarios/de integración en el repositorio todavía. |
 | Corrección de colisión de nombres en descubrimiento por lote | ❌ Pendiente | Si dos `.exe` distintos quedan en la misma carpeta de proyecto, podrían recibir el mismo nombre calculado — conocido, no corregido (ver [Limitaciones actuales](#limitaciones-actuales)). |

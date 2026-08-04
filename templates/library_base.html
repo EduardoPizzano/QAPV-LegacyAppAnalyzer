@@ -6,21 +6,50 @@
         <a class="btn secondary full" href="{{ url_for('search') }}">Buscar en todo</a>
         <a class="btn secondary full" href="{{ url_for('findings') }}">⚠ Hallazgos</a>
         <ul class="report-list">
-            {% for a in apps %}
-            <li class="{% if selected_id == a.id %}active{% endif %}">
-                <a href="{{ url_for('app_detail', app_id=a.id) }}">
-                    <strong>{{ a.name }}</strong>
-                    {% if a.review_status == 'listo_para_migrar' %}
+            {% for item in apps %}
+            {% if item.kind == 'group' %}
+            <li class="app-group-item">
+                <details class="app-group" open>
+                    <summary>
+                        <strong>{{ item.root }}</strong>
+                        <span class="muted">{{ item.reviewed_count }}/{{ item.total_count }} revisadas</span>
+                    </summary>
+                    <ul class="report-list nested">
+                        {% for a in item.members %}
+                        <li class="{% if selected_id == a.id %}active{% endif %}">
+                            <a href="{{ url_for('app_detail', app_id=a.id) }}">
+                                <strong>{{ a.module_display }}</strong>
+                                {% if a.review_status == 'listo_para_migrar' %}
+                                <span class="badge status-ready">Listo</span>
+                                {% elif a.review_status == 'logica_revisada' %}
+                                <span class="badge status-reviewed">Revisado</span>
+                                {% endif %}
+                                {% if a.sp_count %}
+                                <span class="badge badge-sp" title="{{ a.sp_count }} Stored Procedure(s) detectado(s) en el codigo">SP</span>
+                                {% endif %}
+                                <span class="muted">{{ a.analyzed_at }}</span>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </details>
+            </li>
+            {% else %}
+            <li class="{% if selected_id == item.app.id %}active{% endif %}">
+                <a href="{{ url_for('app_detail', app_id=item.app.id) }}">
+                    <strong>{{ item.display_name }}</strong>
+                    {% if item.app.review_status == 'listo_para_migrar' %}
                     <span class="badge status-ready">Listo</span>
-                    {% elif a.review_status == 'logica_revisada' %}
+                    {% elif item.app.review_status == 'logica_revisada' %}
                     <span class="badge status-reviewed">Revisado</span>
                     {% endif %}
-                    {% if a.sp_count %}
-                    <span class="badge badge-sp" title="{{ a.sp_count }} Stored Procedure(s) detectado(s) en el codigo">SP</span>
+                    {% if item.app.sp_count %}
+                    <span class="badge badge-sp" title="{{ item.app.sp_count }} Stored Procedure(s) detectado(s) en el codigo">SP</span>
                     {% endif %}
-                    <span class="muted">{{ a.analyzed_at }}</span>
+                    <span class="muted">{{ item.app.analyzed_at }}</span>
                 </a>
             </li>
+            {% endif %}
             {% else %}
             <li class="muted empty">Aun no hay reportes.</li>
             {% endfor %}
