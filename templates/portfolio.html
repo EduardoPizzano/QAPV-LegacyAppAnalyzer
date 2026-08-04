@@ -1,0 +1,112 @@
+{% extends "library_base.html" %}
+{% block title %}Portafolio — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>Diccionario de datos consolidado</h2>
+    <p class="muted">
+        Una fila por tabla real, deduplicada entre todas las apps que la usan — agregacion de solo
+        lectura sobre lo ya extraido (<code>db_tables</code>), sin analisis nuevo. Si dos apps
+        reportan un esquema distinto para la "misma" tabla, se marca explicitamente en vez de
+        ocultarlo.
+    </p>
+    {% if not table_dictionary %}
+    <p class="muted">Aun no hay tablas extraidas via introspeccion de BD (solo lectura).</p>
+    {% else %}
+    <table>
+        <tr>
+            <th>Tabla</th>
+            <th># Apps</th>
+            <th>Apps</th>
+            <th>Columnas</th>
+            <th>Consistencia</th>
+        </tr>
+        {% for t in table_dictionary %}
+        <tr>
+            <td><code>{{ t.schema_name }}.{{ t.table_name }}</code></td>
+            <td>{{ t.app_count }}</td>
+            <td>
+                {% for a in t.apps %}
+                <a href="{{ url_for('app_detail', app_id=a.app_id) }}">{{ a.app_name }}</a>{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </td>
+            <td>{{ t.columns|map(attribute='name')|join(', ') }}</td>
+            <td>
+                {% if t.schema_consistent %}
+                <span class="muted">consistente</span>
+                {% else %}
+                <span class="badge sev-media" title="Dos o mas apps reportan columnas distintas para esta tabla">revisar</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Grafo de dependencias del portafolio</h2>
+    <p class="muted">
+        Que apps comparten una tabla/Stored Procedure, o comparten servidor de base de datos —
+        util para decidir orden de migracion (apps muy interconectadas conviene migrarlas juntas o
+        en secuencia deliberada, no de forma aislada).
+    </p>
+
+    <h3 style="font-size:0.95rem; margin-top:18px;">Tablas / Stored Procedures compartidos</h3>
+    {% if not dependency_graph.table_edges %}
+    <p class="muted">No se detectaron tablas/SPs compartidos entre apps.</p>
+    {% else %}
+    <table>
+        <tr><th>App A</th><th>App B</th><th>Recurso compartido</th></tr>
+        {% for e in dependency_graph.table_edges %}
+        <tr>
+            <td><a href="{{ url_for('app_detail', app_id=e.app_a_id) }}">{{ e.app_a_name }}</a></td>
+            <td><a href="{{ url_for('app_detail', app_id=e.app_b_id) }}">{{ e.app_b_name }}</a></td>
+            <td><code>{{ e.resource_name }}</code></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <h3 style="font-size:0.95rem; margin-top:18px;">Servidores de base de datos compartidos</h3>
+    {% if not dependency_graph.connection_edges %}
+    <p class="muted">No se detectaron servidores compartidos entre apps.</p>
+    {% else %}
+    <table>
+        <tr><th>App A</th><th>App B</th><th>Servidor</th></tr>
+        {% for e in dependency_graph.connection_edges %}
+        <tr>
+            <td><a href="{{ url_for('app_detail', app_id=e.app_a_id) }}">{{ e.app_a_name }}</a></td>
+            <td><a href="{{ url_for('app_detail', app_id=e.app_b_id) }}">{{ e.app_b_name }}</a></td>
+            <td><code>{{ e.resource_name }}</code></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Catálogo de patrones recurrentes</h2>
+    <p class="muted">
+        Agrupa los hallazgos ya registrados por categoría conocida (coincidencia de palabras clave,
+        no clustering semántico — un hallazgo puede contar en más de una categoría). "Sin
+        categorizar" queda visible a propósito en vez de forzarse u ocultarse.
+    </p>
+    {% if not pattern_catalog %}
+    <p class="muted">Aun no hay hallazgos registrados.</p>
+    {% else %}
+    <table>
+        <tr><th>Categoría</th><th># Hallazgos</th><th># Apps</th><th>Apps</th></tr>
+        {% for c in pattern_catalog %}
+        <tr {% if c.category == 'Sin categorizar' %}class="muted"{% endif %}>
+            <td>{{ c.category }}</td>
+            <td>{{ c.count }}</td>
+            <td>{{ c.app_count }}</td>
+            <td>{{ c.apps|join(', ') }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+</div>
+
+{% endblock %}

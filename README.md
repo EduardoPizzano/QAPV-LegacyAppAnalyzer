@@ -132,7 +132,7 @@ Específicamente para el inventario de aplicaciones legacy de AFL previo a la mi
 - Todo (grupos y apps sueltas) se ordena por la actividad más reciente, igual que antes de agrupar.
 
 ### 🗃️ Base de datos acumulativa
-- SQLite (`qapv_analyzer.db`) con upsert por nombre de app: re-analizar una app reemplaza su análisis anterior en vez de duplicarlo.
+- SQLite (`qapv_analyzer.db`) con upsert por nombre de app: re-analizar una app reemplaza su análisis anterior en vez de duplicarlo. *(Diseño en transición — ver `adr/0000-application-identity.md`: el upsert va a dejar de basarse en el nombre de la app, un identificador conocido como imperfecto, en favor de una identidad estable e interna. Mientras no se implemente, el comportamiento aquí descrito es el vigente.)*
 - Preserva el estado de revisión de lógica de negocio (`review_status`/`review_notes`) a través de re-análisis.
 - Registro cruzado de "Hallazgos", independiente del ciclo de vida de cada app (sobrevive aunque la app se re-analice).
 
@@ -146,6 +146,13 @@ Específicamente para el inventario de aplicaciones legacy de AFL previo a la mi
 
 ### ⚠️ Registro de Hallazgos
 - Página dedicada y acumulativa de riesgos/bugs confirmados durante la revisión de lógica de negocio, con severidad, app, ruta de origen y descripción — para no tener que reabrir cada reporte individual.
+- Cada hallazgo tiene un ciclo de vida explícito (`OPEN` → `ACKNOWLEDGED` → `RESOLVED` / `FALSE_POSITIVE` / `IGNORED`), con fecha del último cambio — nunca se pierde silenciosamente ni se "resuelve" sin una acción explícita.
+
+### 📊 Portafolio (diccionario de datos, dependencias y patrones)
+- Diccionario de datos consolidado: una fila por tabla real, deduplicada entre todas las apps que la usan, marcando explícitamente si dos apps reportan un esquema distinto para la misma tabla.
+- Grafo de dependencias entre apps: qué apps comparten una tabla/Stored Procedure, y qué apps comparten servidor de base de datos — útil para decidir qué apps migrar juntas.
+- Catálogo de patrones recurrentes: agrupa los hallazgos ya registrados por categoría conocida (créditos en texto plano, código muerto, inyección SQL, manejo de errores silencioso, etc.), para ver de un vistazo qué problemas se repiten en cuántas apps sin tener que releer cada hallazgo individual.
+- Pura agregación de solo lectura sobre lo ya extraído — sin análisis nuevo, sin tocar ninguna app legacy.
 
 ### ⏱️ Experiencia de uso en tiempo real
 - Indicador de progreso con contador de segundos transcurridos y animación mientras se analiza una app individual o un lote, para dejar claro que el proceso sigue trabajando en análisis largos.
@@ -321,7 +328,8 @@ QAPV-LegacyAppAnalyzer/
 │   ├── discover_results.html     # Resultado del escaneo + progreso en tiempo real por lote
 │   ├── result.html                # Reporte completo de una app + revision + exportaciones
 │   ├── search.html                # Busqueda cruzada por tabla/SP o por conexion
-│   └── findings.html              # Registro acumulativo de Hallazgos
+│   ├── findings.html              # Registro acumulativo de Hallazgos (con ciclo de vida)
+│   └── portfolio.html             # Diccionario de datos + grafo de dependencias (v0.5)
 │
 ├── static/
 │   ├── style.css               # Estilos de toda la interfaz (sin frameworks CSS externos)
@@ -376,6 +384,10 @@ QAPV-LegacyAppAnalyzer/
 | Indicador de progreso en tiempo real | ✅ Implementado | Contador de segundos + animación, en análisis individual, por lotes y al elegir ejecutable. |
 | Diagrama de flujo de datos por app | ✅ Implementado | Mermaid, agrupado por clase, con truncado en apps con muchos hallazgos. Solo en la vista web, no en exportaciones. |
 | Agrupación de apps por familia en la barra lateral | ✅ Implementado | Solo raíces con 2+ módulos forman grupo colapsable; singletons se aplanan y deduplican. |
+| Ciclo de vida de hallazgos (`OPEN`/`ACKNOWLEDGED`/`RESOLVED`/`FALSE_POSITIVE`/`IGNORED`) | ✅ Implementado | v0.5. Sin autenticación de usuarios todavía (`status_changed_by` queda vacío). |
+| Diccionario de datos consolidado (portafolio) | ✅ Implementado | v0.5. Marca explícitamente si dos apps reportan esquemas distintos para la misma tabla. |
+| Grafo de dependencias entre apps (tablas/SPs y servidores compartidos) | ✅ Implementado | v0.5. Vista tabular, sin visualización gráfica todavía. |
+| Catálogo de patrones recurrentes | ✅ Implementado | v0.5. Heurística de palabras clave sobre hallazgos ya registrados, no clustering semántico. |
 | Autenticación / control de acceso | ❌ Pendiente | La aplicación no tiene login; pensada para un solo operador o red interna de confianza. |
 | Pruebas automatizadas | ❌ Pendiente | No existen tests unitarios/de integración en el repositorio todavía. |
 | Corrección de colisión de nombres en descubrimiento por lote | ❌ Pendiente | Si dos `.exe` distintos quedan en la misma carpeta de proyecto, podrían recibir el mismo nombre calculado — conocido, no corregido (ver [Limitaciones actuales](#limitaciones-actuales)). |
@@ -427,7 +439,7 @@ De forma honesta, esto es lo que **todavía no** cubre la herramienta:
 - **SQL dinámico complejo** (por ejemplo `string[] strArray = {...}; string.Concat(strArray)`) puede quedar parcialmente resuelto o marcado como "revisar manualmente".
 - **La introspección de base de datos solo soporta SQL Server** — Oracle se detecta en el código (driver usado, llamadas a paquetes PL/SQL), pero no hay extracción real de esquema/definiciones para Oracle todavía.
 - **`pyodbc` no está declarado en `requirements.txt`** pese a ser una dependencia real de `analyzer/db_introspect.py` — hoy funciona porque está instalado manualmente en el entorno virtual, pero un `pip install -r requirements.txt` limpio no lo instalaría.
-- **Colisión de nombres en el descubrimiento por lote**: si dos ejecutables distintos quedan en la misma carpeta de proyecto (por ejemplo un `.exe` viejo olvidado junto al actual), ambos calculan el mismo nombre `CarpetaRaiz/Proyecto` y el segundo análisis sobrescribe silenciosamente al primero en la base (upsert por nombre). Confirmado que esto ya ocurrió en la práctica con algunas apps de `AFL.Dashboard`; identificado pero no corregido.
+- **Colisión de nombres en el descubrimiento por lote**: si dos ejecutables distintos quedan en la misma carpeta de proyecto (por ejemplo un `.exe` viejo olvidado junto al actual), ambos calculan el mismo nombre `CarpetaRaiz/Proyecto` y el segundo análisis sobrescribe silenciosamente al primero en la base (upsert por nombre). Confirmado que esto ya ocurrió en la práctica con algunas apps de `AFL.Dashboard`; identificado pero no corregido. *(Ya existe una decisión aprobada para resolverlo de raíz — ver `adr/0002-identity-resolution-policy.md`: este escenario pasaría a resolverse como una identidad `Candidate` pendiente de confirmación humana, nunca como una sobreescritura silenciosa. Pendiente de implementación.)*
 - **No analiza aplicaciones que no sean .NET** — por ejemplo el componente Python (`waitress`/Apache) que lanza `CentiServerMPO`, fuera de alcance de esta herramienta por diseño.
 - **Sin autenticación ni control de acceso** — pensada para un operador único o una red interna de confianza; no debe exponerse en una red no confiable tal cual está.
 - **Sin pruebas automatizadas** — no hay carpeta de tests en el repositorio todavía.

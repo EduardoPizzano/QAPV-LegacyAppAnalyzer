@@ -1,6 +1,7 @@
 """SQLite persistence layer — accumulates every analyzed app into one searchable DB."""
 
 import json
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -94,8 +95,44 @@ CREATE TABLE IF NOT EXISTS findings (
     severity TEXT,
     title TEXT,
     description TEXT,
-    created_at TEXT
+    created_at TEXT,
+    status TEXT NOT NULL DEFAULT 'OPEN',
+    status_changed_at TEXT,
+    status_changed_by TEXT
 );
+"""
+
+# Read models (ADR-0003 / VISION.md decision #4): capas de agregacion de
+# solo lectura sobre las tablas de analisis, pensadas como el contrato que
+# consume la interfaz (y, a futuro, cualquier motor cliente-servidor) en vez
+# de que cada consumidor repita sus propios JOINs contra las tablas base.
+# Se crean/reemplazan en cada init_db() (CREATE VIEW no admite ALTER, asi
+# que "migrar" una vista es simplemente recrearla).
+VIEWS = """
+DROP VIEW IF EXISTS vw_table_dictionary;
+CREATE VIEW vw_table_dictionary AS
+SELECT
+    dt.schema_name,
+    dt.table_name,
+    dt.columns_json,
+    dt.foreign_keys_json,
+    a.id AS app_id,
+    a.name AS app_name
+FROM db_tables dt
+JOIN apps a ON a.id = dt.app_id;
+
+DROP VIEW IF EXISTS vw_dependency_graph;
+CREATE VIEW vw_dependency_graph AS
+SELECT DISTINCT
+    a1.id AS app_a_id, a1.name AS app_a_name,
+    a2.id AS app_b_id, a2.name AS app_b_name,
+    'tabla_o_sp' AS resource_type,
+    sf1.target AS resource_name
+FROM sql_findings sf1
+JOIN sql_findings sf2 ON sf2.target = sf1.target AND sf2.app_id > sf1.app_id
+JOIN apps a1 ON a1.id = sf1.app_id
+JOIN apps a2 ON a2.id = sf2.app_id
+WHERE sf1.target IS NOT NULL AND sf1.category IN ('query', 'stored_procedure');
 """
 
 
@@ -104,6 +141,11 @@ def get_conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # ADR-0003: WAL mejora la concurrencia lectura-mientras-escritura frente
+    # al modo rollback-journal por defecto. No resuelve escritura-contra-
+    # escritura simultanea -- ver ADR-0003 para el techo real y la politica
+    # de evolucion hacia un motor cliente-servidor si la contencion persiste.
+    conn.execute("PRAGMA journal_mode = WAL")
     try:
         yield conn
         conn.commit()
@@ -134,6 +176,17 @@ def init_db() -> None:
             conn.execute("ALTER TABLE db_procedures ADD COLUMN parameters_json TEXT")
         if "result_columns_json" not in db_procedures_cols:
             conn.execute("ALTER TABLE db_procedures ADD COLUMN result_columns_json TEXT")
+        findings_cols = {row["name"] for row in conn.execute("PRAGMA table_info(findings)")}
+        if "status" not in findings_cols:
+            conn.execute("ALTER TABLE findings ADD COLUMN status TEXT NOT NULL DEFAULT 'OPEN'")
+        if "status_changed_at" not in findings_cols:
+            conn.execute("ALTER TABLE findings ADD COLUMN status_changed_at TEXT")
+        if "status_changed_by" not in findings_cols:
+            conn.execute("ALTER TABLE findings ADD COLUMN status_changed_by TEXT")
+        # Las vistas se recrean siempre (DROP + CREATE) en cada arranque, no
+        # solo la primera vez -- son baratas de regenerar y asi nunca quedan
+        # desincronizadas si su definicion cambia entre versiones del codigo.
+        conn.executescript(VIEWS)
 
 
 def save_analysis(
@@ -277,21 +330,45 @@ def save_db_objects(
 FINDING_SEVERITIES = ("critica", "alta", "media", "info")
 _SEVERITY_ORDER = {s: i for i, s in enumerate(FINDING_SEVERITIES)}
 
+# Ciclo de vida de un hallazgo (mejora de diseno de bajo impacto, no un ADR
+# -- ver conversacion del 2026-08-04 previa a v0.5). Deliberadamente un
+# status TEXT con un conjunto cerrado de valores, no una columna booleana
+# nueva por cada estado posible (evita la proliferacion de columnas que
+# tendriamos si "resolved", "acknowledged", etc. fueran flags separados).
+FINDING_STATUSES = ("OPEN", "ACKNOWLEDGED", "RESOLVED", "FALSE_POSITIVE", "IGNORED")
+
 
 def add_finding(app_name: str, severity: str, title: str, description: str) -> int:
     """Cumulative cross-app findings registry — keyed by app NAME, not app_id,
     so findings survive re-analysis (save_analysis's upsert-by-name deletes
     and reinserts the apps row, which would cascade-delete anything FK'd to
-    the old app_id). Never touches the legacy app itself — pure bookkeeping."""
+    the old app_id). Never touches the legacy app itself — pure bookkeeping.
+    Every finding starts as status='OPEN' — see FINDING_STATUSES."""
     if severity not in FINDING_SEVERITIES:
         raise ValueError(f"Severidad invalida: {severity}")
     with get_conn() as conn:
+        now = datetime.now().isoformat(timespec="seconds")
         cur = conn.execute(
-            "INSERT INTO findings (app_name, severity, title, description, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (app_name, severity, title, description, datetime.now().isoformat(timespec="seconds")),
+            "INSERT INTO findings (app_name, severity, title, description, created_at, "
+            "status, status_changed_at) VALUES (?, ?, ?, ?, ?, 'OPEN', ?)",
+            (app_name, severity, title, description, now, now),
         )
         return cur.lastrowid
+
+
+def set_finding_status(finding_id: int, status: str, changed_by: str | None = None) -> None:
+    """Registra un cambio de estado explicito sobre un hallazgo (Principio 3
+    de ARCHITECTURAL_PRINCIPLES.md: ante la incertidumbre, preservar
+    evidencia — nunca un hallazgo desaparece o se marca resuelto sin una
+    accion explicita y su rastro). `changed_by` es nullable a proposito: no
+    hay autenticacion de usuarios todavia, solo se deja el campo listo."""
+    if status not in FINDING_STATUSES:
+        raise ValueError(f"Estado de hallazgo invalido: {status}")
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE findings SET status = ?, status_changed_at = ?, status_changed_by = ? WHERE id = ?",
+            (status, datetime.now().isoformat(timespec="seconds"), changed_by, finding_id),
+        )
 
 
 def list_findings() -> list[dict]:
@@ -303,6 +380,7 @@ def list_findings() -> list[dict]:
             dict(r) for r in conn.execute(
                 """
                 SELECT f.id, f.app_name, f.severity, f.title, f.description, f.created_at,
+                       f.status, f.status_changed_at, f.status_changed_by,
                        a.id AS current_app_id, a.source_path
                 FROM findings f
                 LEFT JOIN apps a ON a.name = f.app_name
@@ -457,3 +535,170 @@ def search_by_connection(term: str) -> list[sqlite3.Row]:
             """,
             (f"%{term}%",),
         ).fetchall()
+
+
+# ---------------------------------------------------------------------------
+# Capacidades de portafolio (v0.5, VISION.md seccion 7) — agregaciones de
+# solo lectura sobre datos ya extraidos por el pipeline de analisis. Ninguna
+# de estas funciones ejecuta extraccion nueva; consumen vw_table_dictionary /
+# vw_dependency_graph (ver VIEWS arriba) como su fuente de datos.
+# ---------------------------------------------------------------------------
+
+def get_table_dictionary() -> list[dict]:
+    """Diccionario de datos consolidado (item 1 del orden de construccion de
+    v0.5): una fila por tabla real (schema.tabla), deduplicada entre todas
+    las apps que la usan, con la lista de apps y una advertencia explicita
+    si dos apps reportan un esquema distinto para la "misma" tabla (senal
+    real de drift entre analisis, no un error a ocultar — Principio 3)."""
+    with get_conn() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM vw_table_dictionary ORDER BY schema_name, table_name, app_name"
+        )]
+
+    by_table: dict[tuple[str, str], dict] = {}
+    for r in rows:
+        key = (r["schema_name"], r["table_name"])
+        entry = by_table.setdefault(key, {
+            "schema_name": r["schema_name"], "table_name": r["table_name"],
+            "apps": [], "columns_json_variants": set(),
+        })
+        entry["apps"].append({"app_id": r["app_id"], "app_name": r["app_name"]})
+        entry["columns_json_variants"].add(r["columns_json"] or "")
+
+    result = []
+    for entry in by_table.values():
+        variants = entry.pop("columns_json_variants")
+        entry["columns"] = json.loads(next(iter(variants))) if variants else []
+        entry["schema_consistent"] = len(variants) <= 1
+        entry["app_count"] = len(entry["apps"])
+        result.append(entry)
+    result.sort(key=lambda e: (e["schema_name"], e["table_name"]))
+    return result
+
+
+def get_dependency_graph() -> dict:
+    """Grafo de dependencias del portafolio (item 2 del orden de construccion
+    de v0.5): que apps comparten una tabla/SP, y que apps comparten servidor
+    de base de datos. Dos tipos de arista distintos, calculados por caminos
+    distintos: tabla/SP es una agregacion relacional pura (vw_dependency_graph);
+    servidor requiere parsear el connection string (reutiliza
+    db_introspect.parse_dotnet_connection_string — no se duplica ese regex)."""
+    from . import db_introspect
+
+    with get_conn() as conn:
+        table_edges = [dict(r) for r in conn.execute(
+            "SELECT * FROM vw_dependency_graph ORDER BY app_a_name, app_b_name, resource_name"
+        )]
+        conn_rows = [dict(r) for r in conn.execute(
+            """
+            SELECT apps.id AS app_id, apps.name AS app_name, settings.default_value
+            FROM settings JOIN apps ON apps.id = settings.app_id
+            WHERE settings.category = 'sql_or_oracle'
+            """
+        )]
+
+    apps_by_server: dict[str, set[tuple[int, str]]] = {}
+    for r in conn_rows:
+        parsed = db_introspect.parse_dotnet_connection_string(r["default_value"])
+        server = (parsed.get("server") or "").strip().lower()
+        if not server:
+            continue
+        apps_by_server.setdefault(server, set()).add((r["app_id"], r["app_name"]))
+
+    connection_edges = []
+    seen_pairs = set()
+    for server, apps_set in apps_by_server.items():
+        if len(apps_set) < 2:
+            continue
+        apps_sorted = sorted(apps_set, key=lambda t: t[1])
+        for i in range(len(apps_sorted)):
+            for j in range(i + 1, len(apps_sorted)):
+                a, b = apps_sorted[i], apps_sorted[j]
+                pair_key = (a[0], b[0], server)
+                if pair_key in seen_pairs:
+                    continue
+                seen_pairs.add(pair_key)
+                connection_edges.append({
+                    "app_a_id": a[0], "app_a_name": a[1],
+                    "app_b_id": b[0], "app_b_name": b[1],
+                    "resource_type": "servidor", "resource_name": server,
+                })
+
+    return {"table_edges": table_edges, "connection_edges": connection_edges}
+
+
+# Catalogo de patrones recurrentes (item 3 del orden de construccion de v0.5).
+# Categorias definidas a partir del texto real de los 95 hallazgos ya
+# registrados (no inventadas) — coincidencia de palabras clave sobre
+# titulo+descripcion, deliberadamente simple: no es clustering semantico ni
+# NLP, es una heuristica de regex, igual de honesta sobre su propio limite
+# que analyzer/extract.py lo es sobre el suyo. Un hallazgo puede coincidir
+# con mas de una categoria; el que no coincide con ninguna queda visible en
+# "Sin categorizar" en vez de forzarse u ocultarse (Principio 3).
+PATTERN_CATEGORIES = {
+    "Inyeccion SQL / concatenacion sin parametros": re.compile(
+        r"(?i)sql injection|inyecci[oó]n sql|concatenaci[oó]n(?:\s+de\s+strings?)?\s*(?:sin|,)"
+    ),
+    "Credenciales en texto plano / hardcodeadas": re.compile(
+        r"(?i)texto plano|hardcode|password.*(claro|visible)"
+    ),
+    "Manejo de errores silencioso": re.compile(
+        r"(?i)silenc|catch\s+vac[ií]|traga(?:das|n)?\s+excepci|oculta.*(fall|error)"
+    ),
+    "Riesgo de caida por timer/thread sin manejo de excepciones": re.compile(
+        r"(?i)timer.*sin manejo|riesgo de (ca[ií]da|crash)|async void"
+    ),
+    "Codigo muerto / nunca invocado": re.compile(
+        r"(?i)c[oó]digo muerto|nunca (se usa|invocad|se invoca)|sin usar|hu[eé]rfan|inalcanzable"
+    ),
+    "Falta de transaccion / atomicidad": re.compile(
+        r"(?i)sin transacci[oó]n|atomicidad|TransactionScope"
+    ),
+    "Certificacion de operador nunca validada": re.compile(
+        r"(?i)certificaci[oó]n.*(nunca|no se valid)|cert_end_date"
+    ),
+    "Falso exito / perdida silenciosa de datos": re.compile(
+        r"(?i)falso.?exito|p[eé]rdida silenciosa|no inserta nada"
+    ),
+    "Autenticacion debil / sin re-verificar permisos": re.compile(
+        r"(?i)autenticaci[oó]n d[eé]bil|sin (volver a pedir|password de supervisor)|no distingue nivel"
+    ),
+    "Contaminacion de decompilacion (proyecto ajeno)": re.compile(
+        r"(?i)contaminad|Roslyn Compiler Server"
+    ),
+    "Bypass de autorizacion / control de permisos ausente": re.compile(
+        r"(?i)bypass|sin.*(autorizaci[oó]n|control de permisos)"
+    ),
+}
+
+
+def get_pattern_catalog() -> list[dict]:
+    """Agrupa los hallazgos ya existentes (list_findings()) por categoria
+    recurrente conocida (PATTERN_CATEGORIES). Pura sintesis de solo lectura
+    sobre datos ya guardados — no analiza nada nuevo, no toca ninguna app."""
+    from collections import defaultdict
+
+    findings = list_findings()
+    by_category: dict[str, list[dict]] = defaultdict(list)
+    for f in findings:
+        haystack = f"{f['title']} {f['description']}"
+        matched_any = False
+        for category, pattern in PATTERN_CATEGORIES.items():
+            if pattern.search(haystack):
+                by_category[category].append(f)
+                matched_any = True
+        if not matched_any:
+            by_category["Sin categorizar"].append(f)
+
+    result = []
+    for category, items in by_category.items():
+        apps = sorted({i["app_name"] for i in items})
+        result.append({
+            "category": category,
+            "count": len(items),
+            "app_count": len(apps),
+            "apps": apps,
+            "findings": items,
+        })
+    result.sort(key=lambda c: (c["category"] == "Sin categorizar", -c["count"]))
+    return result

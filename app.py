@@ -345,7 +345,8 @@ def search():
 @app.route("/findings")
 def findings():
     return render_template(
-        "findings.html", findings=db.list_findings(), apps=db.group_apps_for_sidebar(), selected_id=None,
+        "findings.html", findings=db.list_findings(), statuses=db.FINDING_STATUSES,
+        apps=db.group_apps_for_sidebar(), selected_id=None,
     )
 
 
@@ -354,6 +355,36 @@ def delete_finding_route(finding_id):
     db.delete_finding(finding_id)
     flash("Hallazgo eliminado.")
     return redirect(url_for("findings"))
+
+
+@app.route("/findings/status/<int:finding_id>", methods=["POST"])
+def set_finding_status_route(finding_id):
+    """Registra un cambio de estado explicito sobre un hallazgo (ver
+    analyzer/db.py: set_finding_status — sin autenticacion de usuarios
+    todavia, changed_by queda vacio por ahora)."""
+    status = request.form.get("status", "")
+    try:
+        db.set_finding_status(finding_id, status)
+    except ValueError as e:
+        flash(str(e))
+    else:
+        flash(f"Hallazgo #{finding_id} marcado como {status}.")
+    return redirect(url_for("findings"))
+
+
+@app.route("/portfolio")
+def portfolio():
+    """Capacidades de portafolio (v0.5): diccionario de datos consolidado y
+    grafo de dependencias entre apps — pura agregacion sobre datos ya
+    extraidos, sin analisis nuevo. Ver analyzer/db.py: get_table_dictionary()
+    / get_dependency_graph()."""
+    return render_template(
+        "portfolio.html",
+        table_dictionary=db.get_table_dictionary(),
+        dependency_graph=db.get_dependency_graph(),
+        pattern_catalog=db.get_pattern_catalog(),
+        apps=db.group_apps_for_sidebar(), selected_id=None,
+    )
 
 
 if __name__ == "__main__":

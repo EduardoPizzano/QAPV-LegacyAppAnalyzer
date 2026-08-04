@@ -2,6 +2,8 @@
 
 Documento técnico dirigido **exclusivamente a desarrolladores** que vayan a mantener, extender o depurar este proyecto. Describe únicamente lo que existe hoy en el código — no hay funcionalidades aspiracionales aquí, esas viven en la sección [Roadmap Técnico](#roadmap-técnico) y en `README.md`.
 
+> **Decisiones de arquitectura formales**: cambios importantes al diseño descrito aquí se registran como Architecture Decision Records en `adr/` (ver `adr/0000-application-identity.md` en adelante), apoyados en los principios consolidados en `ARCHITECTURAL_PRINCIPLES.md`. Cuando un ADR aprobado todavía no está implementado, este documento lo señala explícitamente en la sección afectada — el resto del texto sigue describiendo el comportamiento real del código, no el destino planeado.
+
 ---
 
 # Arquitectura General
@@ -178,7 +180,7 @@ sequenceDiagram
 Para cada componente: responsabilidad, entradas, salidas y dependencias — tal como existen hoy en el código.
 
 ### `app.py`
-- **Responsabilidad**: exponer toda la funcionalidad vía HTTP (Flask). Contiene únicamente lógica de request/response — nunca lógica de análisis propia. Define las rutas: `/`, `/analyze`, `/discover`, `/analyze_batch`, `/analyze_one`, `/apps/<id>`, `/apps/<id>/enrich`, `/apps/<id>/review`, `/apps/<id>/export/<fmt>`, `/apps/<id>/delete`, `/search`, `/findings`, `/findings/delete/<id>`.
+- **Responsabilidad**: exponer toda la funcionalidad vía HTTP (Flask). Contiene únicamente lógica de request/response — nunca lógica de análisis propia. Define las rutas: `/`, `/analyze`, `/discover`, `/analyze_batch`, `/analyze_one`, `/apps/<id>`, `/apps/<id>/enrich`, `/apps/<id>/review`, `/apps/<id>/export/<fmt>`, `/apps/<id>/delete`, `/search`, `/findings`, `/findings/delete/<id>`, `/findings/status/<id>` (v0.5), `/portfolio` (v0.5).
 - **Entradas**: formularios HTML (`request.form`), JSON (`request.get_json`, solo en `/analyze_one`), parámetros de ruta/query.
 - **Salidas**: HTML renderizado (Jinja2), JSON (`/analyze_one`), archivos descargables (`/apps/<id>/export/<fmt>`), redirects con mensajes flash.
 - **Dependencias**: `analyzer.db`, `analyzer.enrich`, `analyzer.export_office`, `analyzer.decompile` (solo `DecompileError`, `discover_assemblies`, `project_label`), `analyzer.pipeline` (`run_analysis`), `analyzer.report` (`reconstruct_from_db`, `render`, `render_from_db`), `markdown` (para convertir el reporte a HTML en pantalla), Flask.
@@ -235,7 +237,17 @@ Para cada componente: responsabilidad, entradas, salidas y dependencias — tal 
 - **Responsabilidad**: único módulo que ejecuta SQL contra `qapv_analyzer.db`. Define el esquema completo, sus migraciones incrementales, y todas las operaciones CRUD/búsqueda. También incluye `group_apps_for_sidebar()`, que agrupa el resultado de `list_apps()` usando la convención de nombre `CarpetaRaiz/Modulo` (ver `app.py: _batch_name()`): una raíz con 2+ módulos analizados se agrupa en un `dict` de tipo `"group"` (con `reviewed_count`/`total_count` para el contador de progreso mostrado en la barra lateral); una raíz con un solo módulo se aplana de vuelta a un `dict` de tipo `"single"`, deduplicando el nombre visible cuando raíz y módulo son el mismo texto (ej. `ItemTrack/ItemTrack` → `ItemTrack`). Todo el resultado (grupos y apps sueltas) se reordena por el `analyzed_at` más reciente de cada uno, para conservar el mismo criterio de orden que `list_apps()`. Se recalcula en cada request (sin caché) — negligible en costo dado el volumen actual de apps, mismo criterio de rendimiento ya aplicado al diagrama de flujo de datos.
 - **Entrada**: dataclasses de `extract.py`/`security.py`/`techstack.py`, o parámetros primitivos (ids, strings).
 - **Salida**: `sqlite3.Row`/`dict`, o `int` (ids autogenerados). `group_apps_for_sidebar()` devuelve `list[dict]` heterogéneo (`kind: "group"` o `kind: "single"`), consumido por `templates/library_base.html`.
-- **Dependencias**: `extract.py`, `security.py`, `techstack.py` (solo para los tipos de las funciones que reciben/devuelven).
+- **Dependencias**: `extract.py`, `security.py`, `techstack.py` (solo para los tipos de las funciones que reciben/devuelven). `get_dependency_graph()` importa `db_introspect.py` (solo `parse_dotnet_connection_string`, sin abrir ninguna conexión) para no duplicar el regex de parseo de connection strings.
+
+**Read Models de portafolio (v0.5, ver `ARCHITECTURAL_PRINCIPLES.md` y `adr/0003-*.md`)**: `db.py` define dos vistas SQL de solo lectura (`VIEWS`, recreadas con `DROP`+`CREATE` en cada `init_db()` — una vista no admite `ALTER`, así que "migrar" una vista es simplemente redefinirla):
+- `vw_table_dictionary` — una fila por `(tabla, app)`, consumida por `get_table_dictionary()`, que agrupa en Python por tabla y marca `schema_consistent=False` si dos apps reportan columnas distintas para la misma tabla (nunca oculta la discrepancia).
+- `vw_dependency_graph` — aristas app↔app que comparten una tabla/SP (JOIN relacional puro). `get_dependency_graph()` la combina con aristas de servidor compartido, calculadas en Python (no en SQL, porque requieren parsear el connection string).
+
+**Catálogo de patrones recurrentes** (`get_pattern_catalog()`, item 3 del orden de construcción de v0.5): agrupa `list_findings()` por categoría conocida (`PATTERN_CATEGORIES`, un `dict[str, re.Pattern]` con regex sobre título+descripción). Deliberadamente una heurística de palabras clave, no clustering semántico — igual de honesta sobre su propio límite que `extract.py` lo es sobre el suyo. Un hallazgo puede coincidir con varias categorías; el que no coincide con ninguna queda en `"Sin categorizar"`, visible, no oculto (Principio 3 de `ARCHITECTURAL_PRINCIPLES.md`). Validado contra los 95 hallazgos reales del inventario: 59% categorizado (credenciales en texto plano y código muerto son las categorías más frecuentes, consistente con lo ya observado cualitativamente durante las revisiones).
+
+**Ciclo de vida de hallazgos**: `findings` ahora tiene `status` (`OPEN`/`ACKNOWLEDGED`/`RESOLVED`/`FALSE_POSITIVE`/`IGNORED`, ver `FINDING_STATUSES`), `status_changed_at`, `status_changed_by` (nullable — sin autenticación de usuarios todavía). `add_finding()` inserta siempre en `OPEN`; `set_finding_status()` es el único punto que lo cambia, validando contra `FINDING_STATUSES`. Deliberadamente un `status TEXT` con un conjunto cerrado de valores, no una columna booleana por estado (evita la proliferación de columnas que ya se veía venir con `resolved`/`acknowledged`/etc. como flags separados).
+
+**WAL habilitado** (`PRAGMA journal_mode = WAL` en `get_conn()`, ver `adr/0003-*.md`): mejora la concurrencia lectura-mientras-escritura frente al modo rollback-journal anterior. No resuelve escritura-contra-escritura simultánea — ver ADR-0003 para el techo real y la política de evolución hacia un motor cliente-servidor si la contención persiste.
 
 ### `analyzer/report.py`
 - **Responsabilidad doble**: (1) renderizar un análisis a Markdown, y (2) proveer las funciones de agrupado/deduplicado de hallazgos SQL (`_group_by_method`, `_rows_for_method`) que **también** usa `export_office.py`. Esta segunda responsabilidad hace que el nombre del módulo ("report") no cubra del todo lo que hace (ver [Observaciones Técnicas](#observaciones-técnicas)).
@@ -404,12 +416,17 @@ erDiagram
         text title
         text description
         text created_at
+        text status "OPEN por defecto, ver FINDING_STATUSES"
+        text status_changed_at
+        text status_changed_by "nullable, sin auth todavia"
     }
 ```
 
 ### Por qué `findings` no tiene FK (decisión deliberada)
 
 `save_analysis()` implementa el upsert como **`DELETE FROM apps WHERE name = ?` seguido de un `INSERT`** — es decir, re-analizar una app **le asigna un `id` nuevo**. Cualquier tabla hija con `ON DELETE CASCADE` sobre el `id` viejo se borra junto con esa fila. Para que un Hallazgo (una observación manual, cara de producir) no se pierda cada vez que alguien vuelve a correr el análisis de una app, `findings` se vincula por **nombre**, no por `id`, y sus lecturas hacen un `LEFT JOIN` en tiempo real contra la tabla `apps` actual (`db.list_findings()`) para seguir mostrando un link funcional. `review_status`/`review_notes` de `apps` resuelven el mismo problema de otra forma: se leen explícitamente **antes** del `DELETE` y se reinsertan a mano en el `INSERT` (ver `save_analysis()`).
+
+> **Nota (2026-08-04)**: esta sección describe el diseño **actual**, todavía vigente en el código. Ya existe una decisión aprobada que lo va a reemplazar — ver `adr/0000-application-identity.md` y `adr/0001-preserve-app-identity-across-reanalysis.md`: la identidad de una app pasará a ser un `identity_id` estable e independiente de `name`/`source_path` (distinto del `id` autoincremental descrito aquí, que seguirá existiendo como clave técnica de fila), y `save_analysis()` dejará de recrear la fila en cada re-análisis. Cuando eso se implemente, esta sección debe actualizarse; mientras tanto, el comportamiento aquí descrito sigue siendo el real. `findings` seguirá referenciando por `app_name` hasta que se decida su convergencia a `identity_id` (ver "Consecuencias" de ADR-0000) — no es parte del alcance de ADR-0001.
 
 ### Índices
 
@@ -710,7 +727,7 @@ Decisiones de seguridad tal como están implementadas en el código (no solo dec
 - **Secuencial, sin paralelismo real**: tanto el análisis por lotes (el bucle `next(i)` en el JavaScript de `discover_results.html`, que llama a `/analyze_one` una vez a la vez y espera la respuesta antes de seguir) como `analyze_batch` (bucle `for` síncrono en `app.py`) procesan un ejecutable a la vez. Esto es intencional para el indicador de progreso, pero significa que el tiempo total de un lote es la suma del tiempo de cada app, no el máximo.
 - **Sin caché de decompilación**: cada análisis vuelve a invocar `ilspycmd` y a re-escanear todos los `.cs` con regex desde cero, incluso si el binario de origen no cambió desde el último análisis. No hay ningún hash/mtime comparado contra un análisis previo.
 - **Lectura completa de archivos en memoria**: `extract.py`/`techstack.py` usan `Path.read_text()` (carga el archivo entero) por cada `.cs`/`.csproj` — adecuado para el tamaño típico de estas apps legacy (WinForms/WPF de escritorio), no diseñado para codebases masivos.
-- **SQLite de archivo único, sin pool de conexiones**: cada operación abre y cierra su propia conexión (`get_conn()` context manager) — correcto para el patrón de uso actual (una request HTTP a la vez, sin concurrencia real de escritura), pero no está pensado para muchos escritores simultáneos.
+- **SQLite de archivo único, sin pool de conexiones**: cada operación abre y cierra su propia conexión (`get_conn()` context manager) — correcto para el patrón de uso actual (una request HTTP a la vez, sin concurrencia real de escritura), pero no está pensado para muchos escritores simultáneos. Desde ADR-0003, `get_conn()` habilita `PRAGMA journal_mode = WAL`, que mejora la concurrencia lectura-mientras-escritura — no resuelve escritura-contra-escritura simultánea, ver ADR-0003 para el techo real y la política de evolución.
 - **Sin índices en columnas de FK** (ver [Base de Datos](#base-de-datos)) — cada lookup por `app_id` es un table scan; irrelevante hoy por el volumen de datos, pero es el primer cuello de botella esperable si crece.
 - **Diagrama de flujo de datos calculado en cada request, sin caché**: `diagram.build_dataflow_diagram()` recorre todos los `sql_findings`/`io_findings` de la app cada vez que se abre `/apps/<id>` — es una simple agregación en memoria (sin I/O), así que el costo es despreciable incluso en la app con más hallazgos del inventario actual (162 SPs). El límite `MAX_NODES = 80` no existe por costo de generación del texto, sino por costo de **renderizado en el navegador**: Mermaid se vuelve lento e ilegible bastante antes de los cientos de nodos.
 

@@ -170,6 +170,11 @@ table td code, table td p code { font-size: 0.82rem; word-break: break-word; }
 .badge.sev-alta { background: #fbe1de; color: #c0392b; }
 .badge.sev-media { background: #fdf1d0; color: #b7822a; }
 .badge.sev-info { background: #e1eef8; color: #1c6fc9; }
+.badge.status-open { background: #eef2f6; color: #6b7684; }
+.badge.status-acknowledged { background: #fdf1d0; color: #b7822a; }
+.badge.status-resolved { background: #dcf3e3; color: #1c7a3d; }
+.badge.status-false_positive { background: #f4f6f8; color: #9aa1a8; }
+.badge.status-ignored { background: #f4f6f8; color: #9aa1a8; }
 nav.tabs { margin-bottom: 18px; }
 nav.tabs a { margin-right: 16px; color: #17324d; font-weight: 600; text-decoration: none; }
 nav.tabs a.active { border-bottom: 2px solid #1c6fc9; }

@@ -18,6 +18,7 @@
             <th>App</th>
             <th>Hallazgo</th>
             <th>Detalle</th>
+            <th>Estado</th>
             <th></th>
         </tr>
         {% for f in findings %}
@@ -33,6 +34,17 @@
             </td>
             <td>{{ f.title }}</td>
             <td>{{ f.description }}</td>
+            <td>
+                <span class="badge status-{{ f.status|lower }}" title="{% if f.status_changed_at %}Cambiado {{ f.status_changed_at }}{% if f.status_changed_by %} por {{ f.status_changed_by }}{% endif %}{% else %}Sin cambios desde su creacion{% endif %}">{{ f.status }}</span>
+                <form method="post" action="{{ url_for('set_finding_status_route', finding_id=f.id) }}" style="display:inline;">
+                    <select name="status" style="font-size:0.72rem; padding:2px; margin-top:4px;">
+                        {% for s in statuses %}
+                        <option value="{{ s }}" {% if f.status == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="secondary" style="margin:4px 0 0; padding:3px 8px; font-size:0.72rem;">Cambiar</button>
+                </form>
+            </td>
             <td>
                 <form method="post" action="{{ url_for('delete_finding_route', finding_id=f.id) }}">
                     <button type="submit" class="danger" onclick="return confirm('¿Eliminar este hallazgo?');">Borrar</button>
