@@ -18,7 +18,7 @@ THIRD_PARTY_ASSEMBLY_PATTERN = re.compile(
     r"PresentationCore|PresentationFramework|Newtonsoft.*|GalaSoft.*|"
     r"MaterialDesign.*|CommonServiceLocator|Oracle\..*|EntityFramework.*|"
     r"log4net|NLog|Serilog.*|ICSharpCode.*|DevExpress.*|Telerik.*|"
-    r"ClosedXML|EPPlus|iTextSharp.*|WindowsAPICodePack.*|Costura.*|"
+    r"ClosedXML|DocumentFormat\.OpenXml.*|EPPlus|iTextSharp.*|WindowsAPICodePack.*|Costura.*|"
     r"Antlr3.*|Autofac.*|AutoMapper.*|Castle\..*|Dapper|FluentValidation.*|"
     r"Google\..*|Grpc.*|Ionic\.Zip.*|Mono\..*|Polly|protobuf-net|"
     r"RestSharp|StackExchange.*|Unity(\..+)?"

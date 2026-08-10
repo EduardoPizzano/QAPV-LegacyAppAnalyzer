@@ -1,0 +1,55 @@
+{
+  "settings": [
+    {
+      "name": "connectionString",
+      "default_value": "Data Source=AST-PB1\\MSSQLSERVER01;Initial Catalog=AHype;User ID=sa;Password=sa7",
+      "is_connection_string": true,
+      "category": "sql_or_oracle",
+      "source_file": "app.config"
+    },
+    {
+      "name": "CX",
+      "default_value": "Server=NAAMRT-QCS10; Database=QAPVR2; User Id=quality; Password=apodaca;",
+      "is_connection_string": true,
+      "category": "sql_or_oracle",
+      "source_file": "app.config"
+    },
+    {
+      "name": "CXEXFO",
+      "default_value": "Server=naamrt-qcs10;Database=IQ12001B;UID=quality;PWD=apodaca",
+      "is_connection_string": true,
+      "category": "sql_or_oracle",
+      "source_file": "app.config"
+    },
+    {
+      "name": "CXAFLPrueba",
+      "default_value": "Server=NAAMRT-QCS10; Database=AFLPrueba; User Id=quality; Password=apodaca;",
+      "is_connection_string": true,
+      "category": "sql_or_oracle",
+      "source_file": "app.config"
+    },
+    {
+      "name": "CXAFL",
+      "default_value": "Server=NAAMRT-QCS10; Database=AFL1; User Id=quality; Password=apodaca;",
+      "is_connection_string": true,
+      "category": "sql_or_oracle",
+      "source_file": "app.config"
+    },
+    {
+      "name": "CXNORLAND",
+      "default_value": "Provider=Microsoft.ACE.OLEDB.12.0;User ID=Admin;Data Source=",
+      "is_connection_string": true,
+      "category": "sql_or_oracle",
+      "source_file": "app.config"
+    },
+    {
+      "name": "CXEXFO2",
+      "default_value": "Server=naamrt-qcs10;Database=IQSMTY;UID=quality;PWD=apodaca",
+      "is_connection_string": true,
+      "category": "sql_or_oracle",
+      "source_file": "app.config"
+    }
+  ],
+  "sql_findings": [],
+  "io_findings": []
+}

@@ -1,0 +1,453 @@
+{
+  "label": "antes",
+  "apps": 61,
+  "settings_total": 382,
+  "sql_findings_total": 3477,
+  "io_findings_total": 710,
+  "findings_total": 206,
+  "db_procedures_total": 87,
+  "db_tables_total": 301,
+  "settings_by_extractor": {
+    "SIN_EVIDENCE": 382
+  },
+  "settings_by_pattern": {
+    "SIN_EVIDENCE": 382
+  },
+  "confidence_buckets": {
+    "gt90": 0,
+    "b80_90": 0,
+    "b50_80": 0,
+    "lt50_gt0": 0,
+    "sin_evidence": 382,
+    "total": 382
+  },
+  "by_app": [
+    {
+      "id": 214,
+      "name": "AFL.Dashboard/AFL.Dashboard",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 223,
+      "name": "AFL.Dashboard/AFL.Entrega",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 222,
+      "name": "AFL.Dashboard/AFL.LiberacionYEntrega",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 221,
+      "name": "AFL.Dashboard/AFL.ReciboShopPack",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 220,
+      "name": "AFL.Dashboard/AFL.RegistroOperacion",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 219,
+      "name": "AFL.Dashboard/AFL.ReporteImpresiones",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 218,
+      "name": "AFL.Dashboard/AFL.ReporteImpresiones - Copy",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 217,
+      "name": "AFL.Dashboard/AFL.Scrap",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 216,
+      "name": "AFL.Dashboard/Classes.Borrar",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 215,
+      "name": "AFLProdMon/AFLProdMon",
+      "total_settings": 4,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 227,
+      "name": "Andon/Andon",
+      "total_settings": 3,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 211,
+      "name": "CabLabelConfigurator/CabLabelConfigurator",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 210,
+      "name": "CentiRL1/CentiRL1",
+      "total_settings": 7,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 225,
+      "name": "CentiServerMPO",
+      "total_settings": 0,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 193,
+      "name": "CompareImages/App472",
+      "total_settings": 0,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 192,
+      "name": "CompareImages/CompareImages",
+      "total_settings": 0,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 213,
+      "name": "CopyJDSU",
+      "total_settings": 6,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 194,
+      "name": "DataCenter2ORA",
+      "total_settings": 25,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 191,
+      "name": "DataTransfer",
+      "total_settings": 72,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 212,
+      "name": "EndFiberClean/EndFiberClean",
+      "total_settings": 6,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 226,
+      "name": "EpoxyLabel",
+      "total_settings": 0,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 209,
+      "name": "EpoxyLabel/EpoxyLabel",
+      "total_settings": 0,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 208,
+      "name": "FaceLab/FaceLab",
+      "total_settings": 11,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 207,
+      "name": "FaceLabUnion/FaceLabUnion",
+      "total_settings": 12,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 206,
+      "name": "FaceUnion/FaceUnion",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 205,
+      "name": "GeometryConfigurator/GeometryConfigurator",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 202,
+      "name": "INVENTA2-2TEST/AlmacenDiagnostico",
+      "total_settings": 0,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 200,
+      "name": "INVENTA2-2TEST/InventaServerTest2",
+      "total_settings": 0,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 198,
+      "name": "INVENTA2-2TEST/InventaVales - rebuild",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 197,
+      "name": "INVENTA2-2TEST/InventaValesPlanta2",
+      "total_settings": 3,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 201,
+      "name": "INVENTA2-2TEST/SGI",
+      "total_settings": 4,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 199,
+      "name": "INVENTA2-2TEST/WebApplication1",
+      "total_settings": 0,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 204,
+      "name": "InterAFL/InterAFL",
+      "total_settings": 7,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 203,
+      "name": "InterConfig/InterConfig",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 196,
+      "name": "ItemTrack/ItemTrack",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 195,
+      "name": "LabelConfigurator/FacebookConfigurator",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 190,
+      "name": "LabelPrint/LabelPrint",
+      "total_settings": 12,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 189,
+      "name": "LightValidation/LightValidation",
+      "total_settings": 18,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 181,
+      "name": "MPOEndFace - Copy (11) - Copy/EndFaceVal",
+      "total_settings": 15,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 188,
+      "name": "MetaPolarityConfigurator/MetaPolarityConfigurator",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 182,
+      "name": "MonTemp2/MonTemp2",
+      "total_settings": 3,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 187,
+      "name": "Monitor1/Monitor1",
+      "total_settings": 7,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 186,
+      "name": "MonitorFAWPF/MonitorFAWPF",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 185,
+      "name": "MonitorFinalAudit/MonitorFinalAudit",
+      "total_settings": 9,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 184,
+      "name": "MonitorJobStart/MonitorJobStart",
+      "total_settings": 8,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 183,
+      "name": "MonitorPF1/MonitorPF1",
+      "total_settings": 5,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 180,
+      "name": "NewVaLabel/NewVaLabel",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 179,
+      "name": "OTDR/OTDR",
+      "total_settings": 19,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 178,
+      "name": "PolarityProfileConfigurator/PolarityProfileConfigurator",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 177,
+      "name": "PullTest/PullTest",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 176,
+      "name": "QAPV2/QAConfigurator",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 175,
+      "name": "QAPV2/QAPV2",
+      "total_settings": 8,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 224,
+      "name": "RL1Interface",
+      "total_settings": 5,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 170,
+      "name": "RLAltaConfig/RLAltaConfig",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 174,
+      "name": "ReferenceControlWpf/ReferenceControlWpf",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 173,
+      "name": "Reflect/Reflect",
+      "total_settings": 7,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 172,
+      "name": "ReportViewer/ReportViewer",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 171,
+      "name": "RibbonConfigurator/RibbonConfigurator",
+      "total_settings": 1,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 229,
+      "name": "VINS1/Modbus",
+      "total_settings": 0,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 228,
+      "name": "VINS1/Test_FiberDetector",
+      "total_settings": 2,
+      "with_evidence": 0,
+      "avg_confidence": null
+    },
+    {
+      "id": 230,
+      "name": "VINS1/VINS1",
+      "total_settings": 68,
+      "with_evidence": 0,
+      "avg_confidence": null
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "settings": [
+    {
+      "name": "CX",
+      "default_value": "Server=NAAMRT-QCS25; Database=QAPVMLN; User Id=quality; Password=apodaca;",
+      "is_connection_string": true,
+      "category": "sql_or_oracle",
+      "source_file": "DedupCase.Properties\\Settings.cs"
+    }
+  ],
+  "sql_findings": [],
+  "io_findings": []
+}

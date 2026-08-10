@@ -1,0 +1,39 @@
+{
+  "settings": [],
+  "sql_findings": [
+    {
+      "file": "Program.cs",
+      "class_name": "Program",
+      "method": "GetSumTransferida",
+      "kind": "SqlConnection",
+      "category": "query",
+      "target": null,
+      "is_stored_procedure": false,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": false
+    },
+    {
+      "file": "Program.cs",
+      "class_name": "Program",
+      "method": "GetSumTransferida",
+      "kind": "SqlCommand",
+      "category": "query",
+      "target": null,
+      "is_stored_procedure": false,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": false
+    },
+    {
+      "file": "Program.cs",
+      "class_name": "Program",
+      "method": "GetSumTransferida",
+      "kind": "CommandText",
+      "category": "query",
+      "target": "InventarioTrans",
+      "is_stored_procedure": false,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": false
+    }
+  ],
+  "io_findings": []
+}

@@ -28,6 +28,9 @@
                                 {% if a.sp_count %}
                                 <span class="badge badge-sp" title="{{ a.sp_count }} Stored Procedure(s) detectado(s) en el codigo">SP</span>
                                 {% endif %}
+                                {% if a.sin_bd_detectado %}
+                                <span class="badge badge-no-db" title="No se encontraron conexiones ni SQL en el codigo -- revisar si es una version vieja, un launcher sin BD propia, o un gap real del extractor">Sin BD</span>
+                                {% endif %}
                                 <span class="muted">{{ a.analyzed_at }}</span>
                             </a>
                         </li>
@@ -35,7 +38,7 @@
                     </ul>
                 </details>
             </li>
-            {% else %}
+            {% elif item.kind == 'single' %}
             <li class="{% if selected_id == item.app.id %}active{% endif %}">
                 <a href="{{ url_for('app_detail', app_id=item.app.id) }}">
                     <strong>{{ item.display_name }}</strong>
@@ -47,8 +50,30 @@
                     {% if item.app.sp_count %}
                     <span class="badge badge-sp" title="{{ item.app.sp_count }} Stored Procedure(s) detectado(s) en el codigo">SP</span>
                     {% endif %}
+                    {% if item.app.sin_bd_detectado %}
+                    <span class="badge badge-no-db" title="No se encontraron conexiones ni SQL en el codigo -- revisar si es una version vieja, un launcher sin BD propia, o un gap real del extractor">Sin BD</span>
+                    {% endif %}
                     <span class="muted">{{ item.app.analyzed_at }}</span>
                 </a>
+            </li>
+            {% elif item.kind == 'obsolete_section' %}
+            <li class="app-group-item obsolete-section">
+                <details class="app-group">
+                    <summary>
+                        <strong>🗄 Obsoletos</strong>
+                        <span class="muted">{{ item.apps|length }}</span>
+                    </summary>
+                    <ul class="report-list nested">
+                        {% for a in item.apps %}
+                        <li class="{% if selected_id == a.id %}active{% endif %}">
+                            <a href="{{ url_for('app_detail', app_id=a.id) }}">
+                                <strong>{{ a.name }}</strong>
+                                <span class="muted">{{ a.analyzed_at }}</span>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </details>
             </li>
             {% endif %}
             {% else %}

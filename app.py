@@ -16,7 +16,7 @@ from pathlib import Path
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
 
-from analyzer import db, diagram, enrich, export_office
+from analyzer import db, diagram, enrich, export_office, priority_report
 from analyzer.decompile import DecompileError, discover_assemblies, project_label
 from analyzer.pipeline import run_analysis
 from analyzer.report import reconstruct_from_db, render, render_from_db
@@ -225,7 +225,7 @@ def app_detail(app_id):
         return redirect(url_for("index"))
     report_html = md.markdown(
         render_from_db(data),
-        extensions=["tables", "fenced_code", "codehilite"],
+        extensions=["tables", "fenced_code", "codehilite", "md_in_html"],
         extension_configs={"codehilite": {"guess_lang": False, "pygments_style": "vs", "noclasses": False}},
     )
     _, _, _, sql_findings, io_findings, *_rest = reconstruct_from_db(data)
@@ -374,16 +374,49 @@ def set_finding_status_route(finding_id):
 
 @app.route("/portfolio")
 def portfolio():
-    """Capacidades de portafolio (v0.5): diccionario de datos consolidado y
-    grafo de dependencias entre apps — pura agregacion sobre datos ya
-    extraidos, sin analisis nuevo. Ver analyzer/db.py: get_table_dictionary()
-    / get_dependency_graph()."""
+    """Capacidades de portafolio (v0.5): diccionario de datos consolidado,
+    grafo de dependencias, catalogo de patrones y Priority & Complexity
+    Engine — pura agregacion sobre datos ya extraidos, sin analisis nuevo.
+    Ver analyzer/db.py: get_table_dictionary() / get_dependency_graph() /
+    get_pattern_catalog() / get_priority_and_complexity(). La tabla de
+    prioridad muestra solo un resumen por app (badge + evidencia breve,
+    via priority_report.short_evidence — no recalcula nada); el reporte
+    completo de apoyo a la decision vive en /apps/<id>/priority_report."""
+    priority_rows = db.get_priority_and_complexity()
+    for r in priority_rows:
+        r["short_evidence"] = {
+            key: priority_report.short_evidence(key, f) for key, f in r["factors"].items()
+        }
     return render_template(
         "portfolio.html",
         table_dictionary=db.get_table_dictionary(),
         dependency_graph=db.get_dependency_graph(),
         pattern_catalog=db.get_pattern_catalog(),
+        priority_and_complexity=priority_rows,
+        factor_weights=db.FACTOR_WEIGHTS,
+        severity_weight=db.SEVERITY_WEIGHT,
         apps=db.group_apps_for_sidebar(), selected_id=None,
+    )
+
+
+@app.route("/apps/<int:app_id>/priority_report")
+def priority_report_view(app_id):
+    """Reporte de apoyo a la decision para una app (resumen ejecutivo,
+    narrativa, tabla de factores con Evidencia/Interpretacion separadas,
+    observaciones arquitectonicas, conclusion). Presentacion pura sobre
+    get_priority_and_complexity() — ver analyzer/priority_report.py."""
+    report = priority_report.build_report(app_id)
+    if report is None:
+        flash("App no encontrada.")
+        return redirect(url_for("portfolio"))
+    # Narrativa/conclusion son prosa con enfasis **markdown** simple (misma
+    # libreria ya usada en app_detail() para renderizar reportes) -- nada
+    # nuevo que instalar.
+    report["narrativa_html"] = md.markdown(report["narrativa"])
+    report["conclusion_html"] = md.markdown(report["conclusion"])
+    return render_template(
+        "priority_report.html", report=report,
+        apps=db.group_apps_for_sidebar(), selected_id=app_id,
     )
 
 

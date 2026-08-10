@@ -11,11 +11,12 @@ header {
     padding: 16px 32px;
 }
 header h1 { margin: 0; font-size: 1.3rem; }
-header a { color: white; text-decoration: none; }
+header a { color: white; text-decoration: none; display: flex; align-items: center; gap: 12px; }
+header .brand-logo { height: 32px; width: auto; }
 main {
-    max-width: 1400px;
-    margin: 24px auto;
-    padding: 0 24px 48px;
+    width: 100%;
+    margin: 0;
+    padding: 24px 24px 48px;
 }
 .library {
     display: flex;
@@ -82,6 +83,32 @@ main {
 .content { flex: 1; min-width: 0; }
 .report-body table { display: block; overflow-x: auto; white-space: nowrap; }
 .report-body table td, .report-body table th { white-space: normal; }
+
+/* Tabla "Funciones -> SQL / Stored Procedures" -- envuelta en su propio div
+   (ver analyzer/report.py) para poder darle mas espacio a la columna
+   SQL/Query (la mas densa de informacion) sin afectar las demas tablas del
+   reporte. El scroll horizontal para pantallas angostas vive en el WRAPPER,
+   no en la tabla, para que table-layout:fixed si tenga efecto (no aplica
+   sobre un <table> con display:block, que es lo que usan las demas tablas). */
+.table-sql-findings { overflow-x: auto; }
+.table-sql-findings table {
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+    min-width: 1200px;
+    white-space: normal;
+}
+.table-sql-findings th:nth-child(1), .table-sql-findings td:nth-child(1) { width: 6%; }   /* Clase */
+.table-sql-findings th:nth-child(2), .table-sql-findings td:nth-child(2) { width: 8%; }   /* Funcion */
+.table-sql-findings th:nth-child(3), .table-sql-findings td:nth-child(3) { width: 5%; }   /* Conexion */
+.table-sql-findings th:nth-child(4), .table-sql-findings td:nth-child(4) { width: 6%; }   /* Tipo */
+.table-sql-findings th:nth-child(5), .table-sql-findings td:nth-child(5) { width: 9%; }   /* Tabla / SP */
+.table-sql-findings th:nth-child(6), .table-sql-findings td:nth-child(6) { width: 36%; }  /* SQL / Query -- la columna que importa */
+.table-sql-findings th:nth-child(7), .table-sql-findings td:nth-child(7) { width: 10%; }  /* Parametros */
+.table-sql-findings th:nth-child(8), .table-sql-findings td:nth-child(8) { width: 10%; }  /* Columnas de resultado */
+.table-sql-findings th:nth-child(9), .table-sql-findings td:nth-child(9) { width: 7%; }   /* Evidencia */
+.table-sql-findings th:nth-child(10), .table-sql-findings td:nth-child(10) { width: 3%; } /* Confianza */
+.table-sql-findings td:nth-child(6) code { word-break: break-word; }
 .progress-track {
     background: #e8edf2;
     border-radius: 6px;
@@ -166,6 +193,8 @@ table td code, table td p code { font-size: 0.82rem; word-break: break-word; }
 .badge.status-ready { background: #dcf3e3; color: #1c7a3d; }
 .badge.status-reviewed { background: #e1eef8; color: #1c6fc9; }
 .badge.badge-sp { background: #f3e8ff; color: #7c3aed; font-weight: 600; }
+.badge.status-obsolete { background: #f4f6f8; color: #6b7684; font-style: italic; }
+.badge.badge-no-db { background: #fdf1d0; color: #b7822a; }
 .badge.sev-critica { background: #c0392b; color: white; font-weight: 600; }
 .badge.sev-alta { background: #fbe1de; color: #c0392b; }
 .badge.sev-media { background: #fdf1d0; color: #b7822a; }
@@ -175,6 +204,24 @@ table td code, table td p code { font-size: 0.82rem; word-break: break-word; }
 .badge.status-resolved { background: #dcf3e3; color: #1c7a3d; }
 .badge.status-false_positive { background: #f4f6f8; color: #9aa1a8; }
 .badge.status-ignored { background: #f4f6f8; color: #9aa1a8; }
+.badge.pri-alta { background: #c0392b; color: white; font-weight: 600; }
+.badge.pri-media { background: #fdf1d0; color: #b7822a; }
+.badge.pri-baja { background: #dcf3e3; color: #1c7a3d; }
+.badge.pendiente-negocio { background: #f4f6f8; color: #9aa1a8; font-style: italic; }
+details.factor-evidence summary { cursor: pointer; font-size: 0.8rem; color: #1c6fc9; }
+details.factor-evidence ul { margin: 6px 0 0; padding-left: 18px; font-size: 0.78rem; color: #454d55; }
+
+/* Reporte de Priority & Complexity (analyzer/priority_report.py) */
+.exec-summary { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0 4px; }
+.exec-stat { background: #f4f6f8; border: 1px solid #e2e6ea; border-radius: 8px; padding: 10px 14px; min-width: 160px; }
+.exec-stat .label { font-size: 0.72rem; color: #6b7684; text-transform: uppercase; letter-spacing: 0.03em; }
+.exec-stat .value { margin-top: 4px; }
+.evidencia-cell { background: #f4f6f8; border-radius: 6px; padding: 6px 10px; font-size: 0.82rem; }
+.interpretacion-cell { background: #eef6ff; border-radius: 6px; padding: 6px 10px; font-size: 0.82rem; font-style: italic; color: #17324d; }
+.section-tag { display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #6b7684; margin-bottom: 4px; }
+.badge.inferencia { background: #f3e8ff; color: #7c3aed; }
+.badge.dato-calculado { background: #e1eef8; color: #1c6fc9; }
+.obs-item { border-left: 3px solid #dfe4e9; padding: 6px 0 6px 12px; margin-bottom: 12px; }
 nav.tabs { margin-bottom: 18px; }
 nav.tabs a { margin-right: 16px; color: #17324d; font-weight: 600; text-decoration: none; }
 nav.tabs a.active { border-bottom: 2px solid #1c6fc9; }

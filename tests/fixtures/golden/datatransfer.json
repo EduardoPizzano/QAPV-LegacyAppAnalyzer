@@ -1,0 +1,28 @@
+{
+  "settings": [],
+  "sql_findings": [
+    {
+      "file": "DataTransfer.cs",
+      "class_name": "DataTransfer",
+      "method": "ValidaGEO_Ribbon",
+      "kind": "SqlConnection",
+      "category": "query",
+      "target": null,
+      "is_stored_procedure": false,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": true
+    },
+    {
+      "file": "DataTransfer.cs",
+      "class_name": "DataTransfer",
+      "method": "ValidaGEO_Ribbon",
+      "kind": "SqlCommand",
+      "category": "query",
+      "target": null,
+      "is_stored_procedure": false,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": true
+    }
+  ],
+  "io_findings": []
+}

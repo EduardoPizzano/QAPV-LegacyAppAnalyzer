@@ -109,4 +109,74 @@
     {% endif %}
 </div>
 
+<div class="card">
+    <h2>Priority &amp; Complexity Engine</h2>
+    <p class="muted">
+        Recomendacion de prioridad de migracion por app, calculada exclusivamente a partir de
+        evidencia ya existente en la base de datos (sin analisis nuevo, sin IA, sin heuristicas
+        opacas). Se basa en los 6 factores automaticos acordados para v0.5: complejidad tecnica,
+        riesgo, dependencias, reglas de negocio detectadas (proxy), complejidad de integracion y
+        reutilizacion potencial (derivada del catalogo de patrones de arriba). <strong>Cantidad de
+        usuarios</strong> y <strong>criticidad operacional</strong> no se calculan — no son
+        derivables del codigo — y se muestran siempre como pendientes de que los analistas
+        funcionales las completen.
+    </p>
+
+    <details class="factor-evidence">
+        <summary>Ver pesos utilizados en el calculo (unico lugar donde se definen)</summary>
+        <ul>
+            <li><strong>Peso por factor</strong> (aporte al score de prioridad final; negativo = baja la prioridad levemente):
+                {% for k, w in factor_weights.items() %}{{ k }}: {{ w }}{% if not loop.last %}, {% endif %}{% endfor %}
+            </li>
+            <li><strong>Peso por severidad</strong> (usado para sumar el factor "riesgo"):
+                {% for k, w in severity_weight.items() %}{{ k }}: {{ w }}{% if not loop.last %}, {% endif %}{% endfor %}
+            </li>
+            <li>Cada factor se bucketea en Baja/Media/Alta por terciles del portafolio actual (no umbrales fijos), igual que el resto de v0.5.</li>
+        </ul>
+    </details>
+
+    {% if not priority_and_complexity %}
+    <p class="muted">Aun no hay apps analizadas.</p>
+    {% else %}
+    <p class="muted">
+        Vista de comparacion rapida entre apps. Para el reporte completo de una app (resumen
+        ejecutivo, narrativa, evidencia e interpretacion separadas, observaciones arquitectonicas y
+        conclusion) usa el enlace "Ver reporte" de cada fila.
+    </p>
+    <table style="margin-top:14px;">
+        <tr>
+            <th>App</th>
+            <th>Prioridad</th>
+            <th>Complejidad tecnica</th>
+            <th>Riesgo</th>
+            <th>Dependencias</th>
+            <th>Reglas de negocio</th>
+            <th>Complejidad integracion</th>
+            <th>Reutilizacion potencial</th>
+            <th>Usuarios / Criticidad</th>
+            <th></th>
+        </tr>
+        {% for r in priority_and_complexity %}
+        <tr>
+            <td><a href="{{ url_for('app_detail', app_id=r.app_id) }}">{{ r.app_name }}</a></td>
+            <td><span class="badge pri-{{ r.prioridad|lower }}">{{ r.prioridad }}</span></td>
+            {% for key in ['complejidad_tecnica', 'riesgo', 'dependencias', 'reglas_negocio', 'complejidad_integracion', 'reutilizacion_potencial'] %}
+            <td>
+                {% set f = r.factors[key] %}
+                {% if f.bucket %}
+                <span class="badge pri-{{ f.bucket|lower }}">{{ f.bucket }}</span>
+                {% else %}
+                <span class="badge pendiente-negocio">Sin evidencia</span>
+                {% endif %}
+                <br><span class="muted" style="font-size:0.72rem;">{{ r.short_evidence[key] }}</span>
+            </td>
+            {% endfor %}
+            <td><span class="badge pendiente-negocio">{{ r.pendiente_negocio.cantidad_usuarios }}</span></td>
+            <td><a class="btn secondary" style="white-space:nowrap;" href="{{ url_for('priority_report_view', app_id=r.app_id) }}">Ver reporte</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+</div>
+
 {% endblock %}

@@ -4,6 +4,7 @@ import json
 import re
 from collections import defaultdict
 
+from .evidence import Evidence
 from .extract import LocalIOFinding, SettingEntry, SqlFinding
 from .security import SecurityFlag
 from .techstack import TechStack
@@ -24,8 +25,8 @@ def _group_by_method(findings: list[SqlFinding]) -> dict[tuple[str, str], list[S
 
 def _rows_for_method(group: list[SqlFinding]):
     """Yields (query_text, connection_hint, category, target, parameters,
-    result_columns) rows for one method, collapsing SqlConnection/SqlCommand
-    boilerplate once the real query is resolved."""
+    result_columns, evidence) rows for one method, collapsing SqlConnection/
+    SqlCommand boilerplate once the real query is resolved."""
     conn_hint = "?"
     for f in group:
         m = CONN_VAR.search(f.raw)
@@ -36,19 +37,29 @@ def _rows_for_method(group: list[SqlFinding]):
     literal_rows = []
     for f in group:
         text = f.resolved if f.resolved else f.raw
-        if '"' in text:
-            literal_rows.append((text, f.category, f.target, f.parameters, f.result_columns))
+        # "Tiene contenido real que mostrar" solia significar simplemente
+        # 'contiene una comilla' porque `resolved`/`raw` SIEMPRE retenian las
+        # comillas literales de C# verbatim -- eso deja de ser cierto con el
+        # Incremento 3A: `_reconstruct_dynamic_sql()` devuelve SQL ya limpio
+        # (sin las comillas de C#, ver _unescape_csharp_literal), asi que una
+        # query resuelta sin ninguna comilla EMBEBIDA en su propio texto
+        # (ej. "SELECT JobId, PartNo FROM DJItem WHERE Active = 1") fallaba
+        # este chequeo por accidente. La senal correcta es simplemente si el
+        # finding fue resuelto en absoluto, o si el raw ya trae un literal
+        # inline (el caso preexistente que este chequeo si debia cubrir).
+        if f.resolved is not None or '"' in f.raw:
+            literal_rows.append((text, f.category, f.target, f.parameters, f.result_columns, f.evidence))
 
     if literal_rows:
         seen = set()
-        for text, category, target, parameters, result_columns in literal_rows:
+        for text, category, target, parameters, result_columns, evidence in literal_rows:
             if text not in seen:
                 seen.add(text)
-                yield text, conn_hint, category, target, parameters, result_columns
+                yield text, conn_hint, category, target, parameters, result_columns, evidence
     else:
         yield (
             "(conexion detectada, query no resuelta automaticamente — revisar manualmente)",
-            conn_hint, "?", None, [], [],
+            conn_hint, "?", None, [], [], Evidence(),
         )
 
 
@@ -102,10 +113,14 @@ def render(
     other_settings = [s for s in settings if s.category == "other"]
 
     if conn_settings:
-        lines.append("| Setting | Valor por defecto | Archivo |")
-        lines.append("|---|---|---|")
+        lines.append("| Setting | Valor por defecto | Archivo | Evidencia | Confianza |")
+        lines.append("|---|---|---|---|---|")
         for s in conn_settings:
-            lines.append(f"| `{s.name}` | `{_escape(s.default_value)}` | {s.source_file} |")
+            ev = s.evidence
+            evidencia = f"{ev.extractor}, linea {ev.line_number}" if ev.line_number else ev.extractor
+            lines.append(
+                f"| `{s.name}` | `{_escape(s.default_value)}` | {s.source_file} | {evidencia} | {ev.confidence}% |"
+            )
     else:
         lines.append("_No se encontraron connection strings. Puede que el Settings.cs no se haya incluido "
                       "en la decompilacion, o que la app no use `ApplicationSettingsBase` para su conexion._")
@@ -138,19 +153,32 @@ def render(
                       "decompilado. Revisar manualmente — puede ser una app sin SQL propio (launcher, watchdog, "
                       "o vista MVVM sin el ViewModel incluido)._")
     else:
-        lines.append("| Clase | Funcion | Conexion | Tipo | Tabla / SP | SQL / Query | Parametros | Columnas de resultado |")
-        lines.append("|---|---|---|---|---|---|---|---|")
+        # markdown="1" (extension md_in_html, ver app.py) -- necesario para que
+        # la tabla markdown de adentro se siga procesando como tabla real en
+        # vez de quedar como texto crudo; el div solo existe para poder darle
+        # a la columna SQL/Query mas espacio vía CSS (.table-sql-findings en
+        # static/style.css) sin afectar las demas tablas del reporte.
+        lines.append('<div class="table-sql-findings" markdown="1">')
+        lines.append("")
+        lines.append(
+            "| Clase | Funcion | Conexion | Tipo | Tabla / SP | SQL / Query | Parametros | "
+            "Columnas de resultado | Evidencia | Confianza |"
+        )
+        lines.append("|---|---|---|---|---|---|---|---|---|---|")
         for (class_name, method), group in _group_by_method(sql_findings).items():
-            for row_text, conn_hint, category, target, params, result_columns in _rows_for_method(group):
+            for row_text, conn_hint, category, target, params, result_columns, evidence in _rows_for_method(group):
                 tipo = "Stored Procedure" if category == "stored_procedure" else (
                     "PL/SQL (Oracle)" if category == "oracle_package_call" else "Query"
                 )
                 params_cell = "<br>".join(f"`{_escape(p)}`" for p in params) if params else ""
                 cols_cell = ", ".join(f"`{_escape(c)}`" for c in result_columns) if result_columns else ""
+                evidencia = f"{evidence.extractor}, linea {evidence.line_number}" if evidence.line_number else evidence.extractor
                 lines.append(
                     f"| `{class_name}` | `{method}` | {conn_hint} | {tipo} | {target or '?'} "
-                    f"| `{_escape(row_text)}` | {params_cell} | {cols_cell} |"
+                    f"| `{_escape(row_text)}` | {params_cell} | {cols_cell} | {evidencia} | {evidence.confidence}% |"
                 )
+        lines.append("")
+        lines.append("</div>")
     lines.append("")
 
     if db_procedures or db_tables or db_intro_notes:
@@ -250,10 +278,6 @@ def reconstruct_from_db(data: dict):
     """Rebuilds the dataclasses from a db.get_app() dict. Shared by the Markdown
     renderer and the Excel/Word exporters so screen display and every export
     format stay identical without duplicating the rebuild logic."""
-    from .extract import LocalIOFinding, SettingEntry, SqlFinding
-    from .security import SecurityFlag
-    from .techstack import TechStack
-
     app_row = data["app"]
     tech = TechStack(
         language="C#",
@@ -266,6 +290,20 @@ def reconstruct_from_db(data: dict):
             name=s["name"], default_value=s["default_value"],
             is_connection_string=bool(s["is_connection_string"]),
             category=s["category"], source_file=s["source_file"],
+            # Filas guardadas antes de Fase 2 tienen estas columnas en NULL --
+            # Evidence(extractor="UNKNOWN"...) ya documenta eso via sus propios
+            # defaults, así que solo se pasa `extractor`/`confidence` cuando la
+            # fila SI los tiene (evita pisar el default honesto con None).
+            evidence=(
+                Evidence(
+                    source_file=s["source_file"], line_number=s["line_number"],
+                    snippet=s["snippet"], extractor=s["extractor"], pattern=s["pattern"],
+                    confidence=s["confidence"], analyzer_version=s["analyzer_version"],
+                    created_at=s["created_at"],
+                )
+                if s["extractor"]
+                else Evidence()
+            ),
         )
         for s in data["settings"]
     ]
@@ -276,6 +314,19 @@ def reconstruct_from_db(data: dict):
             is_stored_procedure=bool(f["is_stored_procedure"]),
             parameters=json.loads(f["parameters"]) if f["parameters"] else [],
             result_columns=json.loads(f["result_columns"]) if f["result_columns"] else [],
+            # Mismo patron que SettingEntry arriba: filas de antes del
+            # Incremento 3A no tienen estas columnas pobladas -- Evidence()
+            # por defecto documenta eso ("UNKNOWN"/20%), no se inventa nada.
+            evidence=(
+                Evidence(
+                    source_file=f["file"], line_number=f["line_number"],
+                    snippet=f["snippet"], extractor=f["extractor"], pattern=f["pattern"],
+                    confidence=f["confidence"], analyzer_version=f["analyzer_version"],
+                    created_at=f["created_at"],
+                )
+                if f["extractor"]
+                else Evidence()
+            ),
         )
         for f in data["sql_findings"]
     ]

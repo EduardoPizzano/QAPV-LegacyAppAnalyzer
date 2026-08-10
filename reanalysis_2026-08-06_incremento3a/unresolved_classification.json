@@ -1,0 +1,152 @@
+{
+  "total_groups": 1201,
+  "generic_only_groups": 522,
+  "causa_counts": {
+    "concatenacion_simple_plus": 345,
+    "variable_con_ramificacion": 35,
+    "literal_simple_no_capturado": 131,
+    "variable_sin_literal_identificable": 3,
+    "trigger_no_localizado": 4,
+    "stringbuilder_con_ramificacion": 4
+  },
+  "ejemplos": {
+    "concatenacion_simple_plus": [
+      {
+        "app": "AFL.Dashboard/AFL.Dashboard",
+        "file": "ClassLib\\Class1.cs",
+        "class": "Class1",
+        "method": "UpdateJobLinea",
+        "raw": "using (SqlCommand sqlCommand = new SqlCommand(cmdText, sqlConnection)) { sqlCommand.CommandType = CommandType.Text;"
+      },
+      {
+        "app": "AFL.Dashboard/AFL.Dashboard",
+        "file": "ClassLib\\Class1.cs",
+        "class": "Class1",
+        "method": "JobStatus",
+        "raw": "using SqlCommand sqlCommand = new SqlCommand(cmdText, sqlConnection);"
+      },
+      {
+        "app": "AFL.Dashboard/AFL.Dashboard",
+        "file": "ClassLib\\Class1.cs",
+        "class": "Class1",
+        "method": "UpdateJobStatus",
+        "raw": "using (SqlCommand sqlCommand = new SqlCommand(cmdText, sqlConnection)) { sqlCommand.CommandType = CommandType.Text;"
+      }
+    ],
+    "variable_con_ramificacion": [
+      {
+        "app": "AFL.Dashboard/AFL.Dashboard",
+        "file": "ClassLib\\Class1.cs",
+        "class": "Class1",
+        "method": "BuscaCantidad",
+        "raw": "using (SqlCommand sqlCommand = new SqlCommand(cmdText, connection)) { sqlCommand.CommandType = CommandType.Text;"
+      },
+      {
+        "app": "AFL.Dashboard/AFL.Entrega",
+        "file": "ClassLib\\Class1.cs",
+        "class": "Class1",
+        "method": "BuscaCantidad",
+        "raw": "using (SqlCommand sqlCommand = new SqlCommand(cmdText, connection)) { sqlCommand.CommandType = CommandType.Text;"
+      },
+      {
+        "app": "AFL.Dashboard/AFL.LiberacionYEntrega",
+        "file": "ClassLib\\Class1.cs",
+        "class": "Class1",
+        "method": "BuscaCantidad",
+        "raw": "using (SqlCommand sqlCommand = new SqlCommand(cmdText, connection)) { sqlCommand.CommandType = CommandType.Text;"
+      }
+    ],
+    "literal_simple_no_capturado": [
+      {
+        "app": "AFL.Dashboard/AFL.Dashboard",
+        "file": "ClassLib\\Class1.cs",
+        "class": "Class1",
+        "method": "GrabaOperacion",
+        "raw": "using (SqlCommand sqlCommand = new SqlCommand(cmdText, sqlConnection)) { sqlCommand.CommandType = CommandType.Text;"
+      },
+      {
+        "app": "AFL.Dashboard/AFL.Entrega",
+        "file": "ClassLib\\Class1.cs",
+        "class": "Class1",
+        "method": "GrabaOperacion",
+        "raw": "using (SqlCommand sqlCommand = new SqlCommand(cmdText, sqlConnection)) { sqlCommand.CommandType = CommandType.Text;"
+      },
+      {
+        "app": "AFL.Dashboard/AFL.LiberacionYEntrega",
+        "file": "ClassLib\\Class1.cs",
+        "class": "Class1",
+        "method": "GrabaOperacion",
+        "raw": "using (SqlCommand sqlCommand = new SqlCommand(cmdText, sqlConnection)) { sqlCommand.CommandType = CommandType.Text;"
+      }
+    ],
+    "variable_sin_literal_identificable": [
+      {
+        "app": "AFLProdMon/AFLProdMon",
+        "file": "AFLProdMon.Helpers\\Repository.cs",
+        "class": "Repository",
+        "method": "ConsultaProduccion",
+        "raw": "using SqlCommand sqlCommand = new SqlCommand();"
+      },
+      {
+        "app": "AFLProdMon/AFLProdMon",
+        "file": "AFLProdMon.Helpers\\Repository.cs",
+        "class": "Repository",
+        "method": "ConsultaDemeritos",
+        "raw": "using SqlCommand sqlCommand = new SqlCommand();"
+      },
+      {
+        "app": "DataCenter2ORA",
+        "file": "DataCenter2ORA\\Form1.cs",
+        "class": "Form1",
+        "method": "button2_Click",
+        "raw": "OracleCommand oracleCommand = new OracleCommand();"
+      }
+    ],
+    "trigger_no_localizado": [
+      {
+        "app": "DataTransfer",
+        "file": "DataTransfer\\DataTransfer.cs",
+        "class": "DataTransfer",
+        "method": "GeneraPuntas",
+        "raw": "using SqlCommand sqlCommand2 = new SqlCommand(cmdText2, connection2);"
+      },
+      {
+        "app": "FaceLabUnion/FaceLabUnion",
+        "file": "FaceLab\\Form1.cs",
+        "class": "Form1",
+        "method": "GeneraPuntas",
+        "raw": "using SqlCommand sqlCommand2 = new SqlCommand(cmdText2, connection2);"
+      },
+      {
+        "app": "FaceUnion/FaceUnion",
+        "file": "FaceUnion\\Form1.cs",
+        "class": "Form1",
+        "method": "GeneraPuntas",
+        "raw": "using SqlCommand sqlCommand2 = new SqlCommand(cmdText2, connection2);"
+      }
+    ],
+    "stringbuilder_con_ramificacion": [
+      {
+        "app": "DataTransfer",
+        "file": "DataTransfer\\DataTransfer.cs",
+        "class": "DataTransfer",
+        "method": "PuntaPreviaOK",
+        "raw": "using SqlCommand sqlCommand = new SqlCommand(stringBuilder.ToString(), sqlConnection);"
+      },
+      {
+        "app": "ItemTrack/ItemTrack",
+        "file": "ItemTrack.Model\\Repository.cs",
+        "class": "Repository",
+        "method": "BuscaUltimosJobs",
+        "raw": "using SqlCommand sqlCommand = new SqlCommand();"
+      },
+      {
+        "app": "ItemTrack/ItemTrack",
+        "file": "ItemTrack.Model\\Repository.cs",
+        "class": "Repository",
+        "method": "ConsultarAsync",
+        "raw": "cmd.CommandText = sql.ToString();"
+      }
+    ]
+  }
+}

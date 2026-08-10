@@ -3,6 +3,7 @@
 import json
 import re
 import sqlite3
+from collections import defaultdict
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -100,6 +101,26 @@ CREATE TABLE IF NOT EXISTS findings (
     status_changed_at TEXT,
     status_changed_by TEXT
 );
+
+-- Fase 1 del Validation Framework (VALIDATION_FRAMEWORK.md seccion 4.1).
+-- Tabla nueva, vacia hasta que una fase futura instrumente extract.py para
+-- generar Unknowns reales -- ver analyzer/unknown.py para la forma
+-- conceptual (UnknownRecord) que esta tabla refleja. Keyed por app_name,
+-- mismo patron que `findings`, para sobrevivir re-analisis (ADR-0001).
+CREATE TABLE IF NOT EXISTS unknowns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    app_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    reason_code TEXT NOT NULL,
+    impact TEXT NOT NULL,
+    evidence_file TEXT,
+    evidence_class TEXT,
+    evidence_method TEXT,
+    evidence_line INTEGER,
+    suggested_action TEXT,
+    priority TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 # Read models (ADR-0003 / VISION.md decision #4): capas de agregacion de
@@ -183,6 +204,31 @@ def init_db() -> None:
             conn.execute("ALTER TABLE findings ADD COLUMN status_changed_at TEXT")
         if "status_changed_by" not in findings_cols:
             conn.execute("ALTER TABLE findings ADD COLUMN status_changed_by TEXT")
+
+        # Fase 1 del Validation Framework (VALIDATION_FRAMEWORK.md seccion
+        # 0.2): columnas de Evidence, aditivas y NULLABLE -- NULL en una fila
+        # ya existente significa "analizada antes de que esta capacidad
+        # existiera", nunca "desconocido" (ver KNOWN_LIMITATIONS.md L9/L23 y
+        # Paso 5 de esta fase). No se agrega una columna `source_file` propia
+        # en sql_findings/io_findings porque ya existe `file` con el mismo
+        # proposito (evidence.source_file mapea a esa columna cuando se
+        # conecte en una fase futura); en `settings` ya existe literalmente
+        # `source_file`. Ningun extractor escribe en estas columnas todavia
+        # -- quedan NULL para toda fila nueva y vieja hasta Fase 2+.
+        for table in ("sql_findings", "settings", "io_findings"):
+            cols = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+            for column, coltype in (
+                ("line_number", "INTEGER"),
+                ("snippet", "TEXT"),
+                ("extractor", "TEXT"),
+                ("pattern", "TEXT"),
+                ("confidence", "INTEGER"),
+                ("analyzer_version", "TEXT"),
+                ("created_at", "TEXT"),
+            ):
+                if column not in cols:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
+
         # Las vistas se recrean siempre (DROP + CREATE) en cada arranque, no
         # solo la primera vez -- son baratas de regenerar y asi nunca quedan
         # desincronizadas si su definicion cambia entre versiones del codigo.
@@ -233,23 +279,31 @@ def save_analysis(
         app_id = cur.lastrowid
 
         conn.executemany(
-            "INSERT INTO settings (app_id, name, default_value, is_connection_string, category, source_file) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO settings (app_id, name, default_value, is_connection_string, category, source_file, "
+            "line_number, snippet, extractor, pattern, confidence, analyzer_version, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                (app_id, s.name, s.default_value, int(s.is_connection_string), s.category, s.source_file)
+                (
+                    app_id, s.name, s.default_value, int(s.is_connection_string), s.category, s.source_file,
+                    s.evidence.line_number, s.evidence.snippet, s.evidence.extractor, s.evidence.pattern,
+                    s.evidence.confidence, s.evidence.analyzer_version, s.evidence.created_at,
+                )
                 for s in settings
             ],
         )
 
         conn.executemany(
             "INSERT INTO sql_findings (app_id, file, class_name, method, kind, category, target, "
-            "is_stored_procedure, raw, resolved, parameters, result_columns) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "is_stored_procedure, raw, resolved, parameters, result_columns, "
+            "line_number, snippet, extractor, pattern, confidence, analyzer_version, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     app_id, f.file, f.class_name, f.method, f.kind, f.category, f.target,
                     int(f.is_stored_procedure), f.raw, f.resolved, json.dumps(f.parameters),
                     json.dumps(f.result_columns),
+                    f.evidence.line_number, f.evidence.snippet, f.evidence.extractor, f.evidence.pattern,
+                    f.evidence.confidence, f.evidence.analyzer_version, f.evidence.created_at,
                 )
                 for f in sql_findings
             ],
@@ -268,7 +322,7 @@ def save_analysis(
         return app_id
 
 
-REVIEW_STATUSES = ("borrador", "logica_revisada", "listo_para_migrar")
+REVIEW_STATUSES = ("borrador", "logica_revisada", "listo_para_migrar", "obsoleta")
 
 
 def set_review(app_id: int, status: str, notes: str) -> None:
@@ -402,14 +456,25 @@ def list_apps() -> list[sqlite3.Row]:
     (cuantos SqlFinding de categoria 'stored_procedure' tiene la app) para
     mostrar una marca visual de "esta app llama Stored Procedures" sin tener
     que abrir el reporte completo — se calcula desde lo ya extraido del
-    codigo, no depende de que la introspeccion de BD haya podido conectarse."""
+    codigo, no depende de que la introspeccion de BD haya podido conectarse.
+
+    sin_bd_detectado (1/0): mismo patron que sp_count -- señal AUTOMATICA
+    (no una marca manual) de que el extractor no encontro NINGUNA conexion ni
+    hallazgo SQL para esta app. No afirma "esta app es obsoleta" (podria ser
+    un launcher/watchdog legitimo sin BD propia, ej. CentiServerMPO) -- solo
+    marca "revisar con mas atencion", igual que el caso real que lo motivo
+    (LabelControl, una version historica de AFL.Dashboard de antes de que se
+    conectara a BD)."""
     with get_conn() as conn:
         return conn.execute(
             """
             SELECT apps.id, apps.name, apps.source_path, apps.analyzed_at, apps.dotnet_target,
                    apps.ui_framework, apps.db_drivers, apps.review_status,
                    (SELECT COUNT(*) FROM sql_findings sf
-                    WHERE sf.app_id = apps.id AND sf.category = 'stored_procedure') AS sp_count
+                    WHERE sf.app_id = apps.id AND sf.category = 'stored_procedure') AS sp_count,
+                   (SELECT COUNT(*) FROM settings s WHERE s.app_id = apps.id) = 0
+                       AND (SELECT COUNT(*) FROM sql_findings sf2 WHERE sf2.app_id = apps.id) = 0
+                       AS sin_bd_detectado
             FROM apps
             ORDER BY apps.analyzed_at DESC
             """
@@ -426,10 +491,18 @@ def group_apps_for_sidebar() -> list[dict]:
     modulo son literalmente el mismo texto (ej. 'ItemTrack/ItemTrack' ->
     'ItemTrack'). Todo (grupos y apps sueltas por igual) se ordena por
     actividad mas reciente, igual que list_apps() — un grupo usa el
-    analyzed_at mas reciente de sus miembros para su posicion."""
-    from collections import defaultdict
+    analyzed_at mas reciente de sus miembros para su posicion.
 
+    Las apps marcadas manualmente como obsoletas (review_status='obsoleta',
+    ver set_review()) se sacan del listado principal ANTES de agrupar -- no
+    compiten por espacio con las apps activas ni participan del agrupamiento
+    por raiz (si TODOS los miembros de una raiz quedan obsoletos, como
+    LabelControl, esa raiz simplemente deja de aparecer arriba). Van en su
+    propia seccion plana al final, sin importar el orden de actividad."""
     apps = [dict(r) for r in list_apps()]
+    obsolete_apps = [a for a in apps if a["review_status"] == "obsoleta"]
+    apps = [a for a in apps if a["review_status"] != "obsoleta"]
+
     by_root: dict[str, list[tuple[str, dict]]] = defaultdict(list)
     standalone: list[dict] = []
     for a in apps:
@@ -471,6 +544,11 @@ def group_apps_for_sidebar() -> list[dict]:
         })
 
     items.sort(key=lambda it: it["sort_key"], reverse=True)
+
+    if obsolete_apps:
+        obsolete_apps.sort(key=lambda a: a["analyzed_at"], reverse=True)
+        items.append({"kind": "obsolete_section", "apps": obsolete_apps})
+
     return items
 
 
@@ -676,8 +754,6 @@ def get_pattern_catalog() -> list[dict]:
     """Agrupa los hallazgos ya existentes (list_findings()) por categoria
     recurrente conocida (PATTERN_CATEGORIES). Pura sintesis de solo lectura
     sobre datos ya guardados — no analiza nada nuevo, no toca ninguna app."""
-    from collections import defaultdict
-
     findings = list_findings()
     by_category: dict[str, list[dict]] = defaultdict(list)
     for f in findings:
@@ -702,3 +778,307 @@ def get_pattern_catalog() -> list[dict]:
         })
     result.sort(key=lambda c: (c["category"] == "Sin categorizar", -c["count"]))
     return result
+
+
+def _bucket_by_percentile(values: list[float], value: float) -> str:
+    """Bucketea un valor en Baja/Media/Alta usando terciles calculados sobre
+    el portafolio ACTUAL, no umbrales fijos — se recalculan solos conforme
+    se analizan mas apps, en vez de numeros magicos que habria que reajustar
+    a mano cada vez que crece el inventario."""
+    if not values or max(values) == 0:
+        return "Baja"
+    ordered = sorted(values)
+    p33 = ordered[len(ordered) // 3]
+    p66 = ordered[(2 * len(ordered)) // 3]
+    if value <= p33:
+        return "Baja"
+    if value <= p66:
+        return "Media"
+    return "Alta"
+
+
+# ---------------------------------------------------------------------------
+# Priority & Complexity Engine (item 4 del orden de construccion de v0.5 /
+# factores de 0.3 en VISION.md). Sintesis de solo lectura sobre datos ya
+# existentes (findings, security_flags, sql_findings, db_tables, io_findings,
+# vw_dependency_graph, catalogo de patrones) -- no ejecuta extraccion nueva
+# sobre ninguna app. Cero IA, cero heuristica opaca: cada factor es una
+# cuenta o suma explicita sobre filas reales, con su evidencia adjunta para
+# que la recomendacion se pueda auditar hasta la fila de origen (Principio 3).
+#
+# "Cantidad de usuarios" y "criticidad operacional" NUNCA se calculan aqui --
+# no son derivables de ningun archivo .cs ni de la BD introspectada, quedan
+# en manos de los analistas funcionales (0 bis de VISION.md) y se muestran
+# siempre como PENDIENTE_DE_INFORMACION_DE_NEGOCIO, nunca como 0 o vacio.
+# ---------------------------------------------------------------------------
+
+PENDIENTE_DE_INFORMACION_DE_NEGOCIO = "PENDIENTE DE INFORMACION DE NEGOCIO"
+
+# Peso de cada severidad al sumar el factor "riesgo" -- unico lugar donde se
+# define. Mismo vocabulario para hallazgos curados (findings) y flags de
+# seguridad automaticos (security_flags); security_flags nunca usa 'critica'.
+SEVERITY_WEIGHT = {"critica": 3, "alta": 2, "media": 1, "info": 0}
+
+# Peso de cada factor en el score de prioridad final -- unico lugar donde se
+# define y documenta. Positivo = sube la prioridad de atenderla pronto;
+# negativo = la baja levemente (a igual riesgo/dependencias, conviene
+# priorizar primero lo mas simple de resolver -- misma logica de "retorno
+# inmediato" de la regla 0.6 del roadmap, aplicada aqui a nivel de app
+# individual). Cambiar estos numeros no requiere tocar el resto del motor.
+FACTOR_WEIGHTS = {
+    "riesgo": 2.0,
+    "dependencias": 1.5,
+    "reutilizacion_potencial": 0.5,
+    "reglas_negocio": 0.5,
+    "complejidad_tecnica": -0.5,
+    "complejidad_integracion": -0.5,
+}
+
+_BUCKET_ORDINAL = {"Baja": 0, "Media": 1, "Alta": 2}
+
+_IO_OPERATION_LABELS = [
+    (re.compile(r"^(File|Directory|Stream)"), "Archivos"),
+    (re.compile(r"Http|WebClient|WebRequest"), "Red / HTTP"),
+    (re.compile(r"Print"), "Impresion"),
+    (re.compile(r"SerialPort"), "Puerto serial"),
+    (re.compile(r"Process\.Start"), "Proceso externo"),
+    (re.compile(r"SmtpClient"), "Correo (SMTP)"),
+]
+
+
+def _label_io_operation(operation: str) -> str:
+    for pattern, label in _IO_OPERATION_LABELS:
+        if pattern.search(operation or ""):
+            return label
+    return "Otro"
+
+
+def _factor_complejidad_tecnica(apps: list[dict], conn) -> dict[int, dict]:
+    """Superficie de logica de datos a replicar: cuantas consultas/SP
+    distintos detecta el codigo y cuantas tablas reales fueron introspectadas
+    desde la BD (evidencia verificable hoy, no una estimacion)."""
+    sql_rows = conn.execute(
+        "SELECT app_id, target FROM sql_findings WHERE target IS NOT NULL"
+    ).fetchall()
+    table_rows = conn.execute("SELECT app_id, schema_name, table_name FROM db_tables").fetchall()
+
+    targets_by_app: dict[int, set[str]] = defaultdict(set)
+    for r in sql_rows:
+        targets_by_app[r["app_id"]].add(r["target"])
+    tables_by_app: dict[int, set[str]] = defaultdict(set)
+    for r in table_rows:
+        tables_by_app[r["app_id"]].add(f"{r['schema_name']}.{r['table_name']}")
+
+    result = {}
+    for a in apps:
+        targets = sorted(targets_by_app.get(a["id"], set()))
+        tables = sorted(tables_by_app.get(a["id"], set()))
+        evidence = [f"{len(targets)} consulta(s)/SP distintos detectados en el codigo"]
+        if targets:
+            evidence[-1] += ": " + ", ".join(targets[:8]) + ("..." if len(targets) > 8 else "")
+        evidence.append(f"{len(tables)} tabla(s) con esquema real introspectado desde la BD")
+        if tables:
+            evidence[-1] += ": " + ", ".join(tables[:8]) + ("..." if len(tables) > 8 else "")
+        result[a["id"]] = {"raw": len(targets) + len(tables), "evidence": evidence}
+    return result
+
+
+def _factor_riesgo(apps: list[dict], conn) -> dict[int, dict]:
+    """Suma ponderada (SEVERITY_WEIGHT) de hallazgos curados (findings,
+    revision de logica de negocio cross-app) + flags de seguridad
+    automaticos (security_flags, generados por analyzer/security.py en cada
+    analisis) -- las dos fuentes de "riesgo" que ya existen en la BD."""
+    findings_rows = conn.execute("SELECT app_name, severity, title FROM findings").fetchall()
+    flag_rows = conn.execute("SELECT app_id, severity, description FROM security_flags").fetchall()
+
+    findings_by_name: dict[str, list] = defaultdict(list)
+    for r in findings_rows:
+        findings_by_name[r["app_name"]].append(r)
+    flags_by_app: dict[int, list] = defaultdict(list)
+    for r in flag_rows:
+        flags_by_app[r["app_id"]].append(r)
+
+    result = {}
+    for a in apps:
+        fnd = findings_by_name.get(a["name"], [])
+        flags = flags_by_app.get(a["id"], [])
+        raw = sum(SEVERITY_WEIGHT.get(r["severity"], 0) for r in fnd)
+        raw += sum(SEVERITY_WEIGHT.get(r["severity"], 0) for r in flags)
+        evidence = [f"Hallazgo [{r['severity']}]: {r['title']}" for r in fnd]
+        evidence += [f"Flag de seguridad automatico [{r['severity']}]: {r['description']}" for r in flags]
+        result[a["id"]] = {"raw": raw, "evidence": evidence}
+    return result
+
+
+def _factor_dependencias(apps: list[dict], dep_graph: dict) -> dict[int, dict]:
+    """Grado de cada app en el grafo de dependencias del portafolio ya
+    calculado (get_dependency_graph()) -- tablas/SPs y servidores
+    compartidos. No recalcula el grafo, solo lo cuenta por app."""
+    edges_by_app: dict[int, list[str]] = defaultdict(list)
+    for edge in dep_graph["table_edges"] + dep_graph["connection_edges"]:
+        edges_by_app[edge["app_a_id"]].append(
+            f"{edge['app_b_name']} (comparte {edge['resource_type']} '{edge['resource_name']}')"
+        )
+        edges_by_app[edge["app_b_id"]].append(
+            f"{edge['app_a_name']} (comparte {edge['resource_type']} '{edge['resource_name']}')"
+        )
+    return {a["id"]: {"raw": len(edges_by_app.get(a["id"], [])), "evidence": edges_by_app.get(a["id"], [])} for a in apps}
+
+
+def _factor_reglas_negocio(apps: list[dict], conn) -> dict[int, dict]:
+    """Aproximacion honesta (VISION.md 0.3): todavia no existe un catalogo
+    estructurado de reglas de negocio (esa es una capacidad futura, v0.9) --
+    hasta entonces se cuenta cuantas lineas no vacias tiene la revision de
+    logica de negocio (review_notes) como proxy explicito del volumen de
+    reglas documentadas. Una app que aun no tuvo esa revision (review_status
+    = 'borrador') no tiene evidencia todavia: se marca sin_evidencia en vez
+    de asumir un valor de 0 (Principio 3 -- nunca inferir silenciosamente)."""
+    rows = conn.execute("SELECT id, review_status, review_notes FROM apps").fetchall()
+    by_id = {r["id"]: r for r in rows}
+
+    result = {}
+    for a in apps:
+        r = by_id.get(a["id"])
+        if not r or r["review_status"] == "borrador":
+            result[a["id"]] = {
+                "raw": None,
+                "sin_evidencia": True,
+                "evidence": ["Aun no se realizo la revision de logica de negocio de esta app (review_status='borrador')."],
+            }
+            continue
+        n = len([line for line in (r["review_notes"] or "").splitlines() if line.strip()])
+        result[a["id"]] = {
+            "raw": n,
+            "evidence": [
+                f"Proxy: {n} linea(s) no vacias documentadas en la revision de logica de negocio "
+                f"(review_notes) -- no es un conteo real de reglas discretas, ver limitacion en VISION.md 0.3."
+            ],
+        }
+    return result
+
+
+def _factor_complejidad_integracion(apps: list[dict], conn) -> dict[int, dict]:
+    """Cuantas integraciones externas (archivos, red/HTTP, impresion,
+    puerto serial, proceso externo, correo) detecta analyzer/extract.py --
+    eje de complejidad distinto al de datos/SQL (VISION.md trata ambos como
+    factores separados)."""
+    io_rows = conn.execute("SELECT app_id, operation FROM io_findings").fetchall()
+    ops_by_app: dict[int, list[str]] = defaultdict(list)
+    for r in io_rows:
+        ops_by_app[r["app_id"]].append(r["operation"])
+
+    result = {}
+    for a in apps:
+        ops = ops_by_app.get(a["id"], [])
+        by_label: dict[str, int] = defaultdict(int)
+        for op in ops:
+            by_label[_label_io_operation(op)] += 1
+        evidence = [f"{count} integracion(es) de tipo '{label}'" for label, count in sorted(by_label.items(), key=lambda kv: -kv[1])]
+        result[a["id"]] = {"raw": len(ops), "evidence": evidence}
+    return result
+
+
+def _factor_reutilizacion_potencial(apps: list[dict], pattern_catalog: list[dict]) -> dict[int, dict]:
+    """Deriva la reutilizacion potencial exclusivamente del Catalogo de
+    patrones recurrentes (get_pattern_catalog(), no se reanaliza nada aqui):
+    si esta app tiene hallazgos en una categoria que TAMBIEN aparece en otras
+    apps, resolverla/generalizarla aqui es conocimiento reutilizable en el
+    resto del portafolio, no un problema aislado de esta app."""
+    by_app: dict[str, list[dict]] = defaultdict(list)
+    for category in pattern_catalog:
+        if category["category"] == "Sin categorizar" or category["app_count"] < 2:
+            continue
+        apps_in_category = sorted({f["app_name"] for f in category["findings"]})
+        for app_name in apps_in_category:
+            others = [n for n in apps_in_category if n != app_name]
+            by_app[app_name].append({"categoria": category["category"], "otras_apps": others})
+
+    result = {}
+    for a in apps:
+        entries = by_app.get(a["name"], [])
+        raw = sum(len(e["otras_apps"]) for e in entries)
+        evidence = [
+            f"Comparte el patron '{e['categoria']}' con {len(e['otras_apps'])} otra(s) app(s): {', '.join(e['otras_apps'])}"
+            for e in entries
+        ]
+        result[a["id"]] = {"raw": raw, "evidence": evidence}
+    return result
+
+
+# Registro de factores automaticos (6 de los 8 acordados en VISION.md 0.3).
+# Agregar un factor nuevo en el futuro = escribir una funcion con la firma
+# (apps, ctx) -> {app_id: {"raw":.., "evidence":[...]}} y sumar una entrada
+# aqui + su peso en FACTOR_WEIGHTS -- el resto del motor (bucketing, score,
+# armado de la explicacion) no necesita cambiar (VISION.md seccion "Evolucion
+# futura").
+FACTOR_CALCULATORS = [
+    ("complejidad_tecnica", lambda apps, ctx: _factor_complejidad_tecnica(apps, ctx["conn"])),
+    ("riesgo", lambda apps, ctx: _factor_riesgo(apps, ctx["conn"])),
+    ("dependencias", lambda apps, ctx: _factor_dependencias(apps, ctx["dep_graph"])),
+    ("reglas_negocio", lambda apps, ctx: _factor_reglas_negocio(apps, ctx["conn"])),
+    ("complejidad_integracion", lambda apps, ctx: _factor_complejidad_integracion(apps, ctx["conn"])),
+    ("reutilizacion_potencial", lambda apps, ctx: _factor_reutilizacion_potencial(apps, ctx["pattern_catalog"])),
+]
+
+
+def get_priority_and_complexity() -> list[dict]:
+    """Priority & Complexity Engine (item 4 del orden de construccion de
+    v0.5). Combina los 6 factores automaticos de FACTOR_CALCULATORS en una
+    recomendacion de prioridad por app, con la evidencia completa de cada
+    factor y el desglose exacto del calculo (para que sea rastreable hasta
+    la fila de origen, no una caja negra). "Cantidad de usuarios" y
+    "criticidad operacional" nunca se calculan -- ver pendiente_negocio."""
+    apps = [dict(r) for r in list_apps()]
+    dep_graph = get_dependency_graph()
+    pattern_catalog = get_pattern_catalog()
+
+    with get_conn() as conn:
+        ctx = {"conn": conn, "dep_graph": dep_graph, "pattern_catalog": pattern_catalog}
+        factor_values = {key: calc(apps, ctx) for key, calc in FACTOR_CALCULATORS}
+
+    # Terciles por factor calculados solo sobre apps CON evidencia -- una app
+    # "sin_evidencia" no debe abaratar artificialmente el umbral de las demas.
+    raw_values_by_factor: dict[str, list[float]] = {}
+    for key, _ in FACTOR_CALCULATORS:
+        raw_values_by_factor[key] = [
+            factor_values[key][a["id"]]["raw"]
+            for a in apps
+            if not factor_values[key].get(a["id"], {}).get("sin_evidencia")
+        ]
+
+    rows = []
+    for a in apps:
+        app_id = a["id"]
+        factors = {key: dict(factor_values[key].get(app_id, {"raw": 0, "evidence": []})) for key, _ in FACTOR_CALCULATORS}
+
+        score = 0.0
+        breakdown = []
+        for key, weight in FACTOR_WEIGHTS.items():
+            f = factors[key]
+            if f.get("sin_evidencia"):
+                f["bucket"] = None
+                continue
+            bucket = _bucket_by_percentile(raw_values_by_factor[key], f["raw"] or 0)
+            f["bucket"] = bucket
+            aporte = weight * _BUCKET_ORDINAL[bucket]
+            score += aporte
+            breakdown.append({"factor": key, "peso": weight, "bucket": bucket, "aporte": round(aporte, 2)})
+
+        rows.append({
+            "app_id": app_id,
+            "app_name": a["name"],
+            "factors": factors,
+            "pendiente_negocio": {
+                "cantidad_usuarios": PENDIENTE_DE_INFORMACION_DE_NEGOCIO,
+                "criticidad_operacional": PENDIENTE_DE_INFORMACION_DE_NEGOCIO,
+            },
+            "priority_score": round(score, 2),
+            "priority_score_breakdown": breakdown,
+        })
+
+    priority_vals = [r["priority_score"] for r in rows]
+    for r in rows:
+        r["prioridad"] = _bucket_by_percentile(priority_vals, r["priority_score"])
+
+    rows.sort(key=lambda r: -r["priority_score"])
+    return rows

@@ -55,20 +55,28 @@ def build_xlsx(
     for f in security_flags:
         sec_ws.append([f.severity, f.description, f.location])
 
-    conn_ws = new_sheet("Conexiones y config", ["Setting", "Valor por defecto", "Archivo", "Categoria"])
+    conn_ws = new_sheet(
+        "Conexiones y config",
+        ["Setting", "Valor por defecto", "Archivo", "Categoria", "Extractor", "Linea", "Confianza"],
+    )
     for s in settings:
-        conn_ws.append([s.name, s.default_value, s.source_file, s.category])
+        conn_ws.append([
+            s.name, s.default_value, s.source_file, s.category,
+            s.evidence.extractor, s.evidence.line_number, s.evidence.confidence,
+        ])
 
     sql_ws = new_sheet(
         "Funciones-SQL-SP",
-        ["Clase", "Funcion", "Conexion", "Tipo", "Tabla o SP", "SQL / Query", "Parametros", "Columnas resultado"],
+        ["Clase", "Funcion", "Conexion", "Tipo", "Tabla o SP", "SQL / Query", "Parametros", "Columnas resultado",
+         "Extractor", "Linea", "Confianza"],
     )
     for (class_name, method), group in _group_by_method(sql_findings).items():
-        for row_text, conn_hint, category, target, params, result_columns in _rows_for_method(group):
+        for row_text, conn_hint, category, target, params, result_columns, evidence in _rows_for_method(group):
             sql_ws.append([
                 class_name, method, conn_hint, _tipo_label(category), target or "?", row_text,
                 "\n".join(params) if params else "",
                 ", ".join(result_columns) if result_columns else "",
+                evidence.extractor, evidence.line_number, evidence.confidence,
             ])
             if params:
                 sql_ws.cell(row=sql_ws.max_row, column=7).alignment = Alignment(wrap_text=True, vertical="top")
@@ -181,22 +189,28 @@ def build_docx(
 
     doc.add_heading("Connection strings y configuraciones", level=2)
     _add_table(
-        doc, ["Setting", "Valor por defecto", "Archivo", "Categoria"],
-        [(s.name, s.default_value, s.source_file, s.category) for s in settings],
+        doc, ["Setting", "Valor por defecto", "Archivo", "Categoria", "Extractor", "Linea", "Confianza"],
+        [
+            (s.name, s.default_value, s.source_file, s.category,
+             s.evidence.extractor, s.evidence.line_number, s.evidence.confidence)
+            for s in settings
+        ],
     )
 
     doc.add_heading("Funciones -> SQL / Stored Procedures", level=2)
     sql_rows = []
     for (class_name, method), group in _group_by_method(sql_findings).items():
-        for row_text, conn_hint, category, target, params, result_columns in _rows_for_method(group):
+        for row_text, conn_hint, category, target, params, result_columns, evidence in _rows_for_method(group):
             sql_rows.append((
                 class_name, method, conn_hint, _tipo_label(category), target or "?", row_text,
                 "; ".join(params) if params else "",
                 ", ".join(result_columns) if result_columns else "",
+                evidence.extractor, evidence.line_number, evidence.confidence,
             ))
     _add_table(
         doc,
-        ["Clase", "Funcion", "Conexion", "Tipo", "Tabla o SP", "SQL / Query", "Parametros", "Columnas resultado"],
+        ["Clase", "Funcion", "Conexion", "Tipo", "Tabla o SP", "SQL / Query", "Parametros", "Columnas resultado",
+         "Extractor", "Linea", "Confianza"],
         sql_rows,
     )
 

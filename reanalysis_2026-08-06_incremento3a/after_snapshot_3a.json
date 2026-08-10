@@ -1,0 +1,395 @@
+{
+  "label": "despues",
+  "apps": 61,
+  "db_procedures_total": 87,
+  "db_tables_total": 301,
+  "sql_query_total": 3163,
+  "sql_resolved_total": 723,
+  "sql_by_extractor": {
+    "HARDCODED_METHOD_LITERAL": 232,
+    "PARTIAL_RECONSTRUCTION": 491,
+    "UNKNOWN": 2440
+  },
+  "sql_by_pattern": {
+    "SIN_EVIDENCE": 2440,
+    "STRING_VAR_ASSIGN": 723
+  },
+  "confidence_buckets": {
+    "gt90": 0,
+    "b80_90": 723,
+    "b50_80": 0,
+    "lt50_gt0": 2440,
+    "sin_evidence": 0,
+    "total": 3163
+  },
+  "total_groups": 1201,
+  "generic_only_groups": 87,
+  "by_app": [
+    {
+      "id": 292,
+      "name": "AFL.Dashboard/AFL.Dashboard",
+      "total_queries": 65,
+      "resolved_queries": 24
+    },
+    {
+      "id": 293,
+      "name": "AFL.Dashboard/AFL.Entrega",
+      "total_queries": 63,
+      "resolved_queries": 24
+    },
+    {
+      "id": 294,
+      "name": "AFL.Dashboard/AFL.LiberacionYEntrega",
+      "total_queries": 63,
+      "resolved_queries": 24
+    },
+    {
+      "id": 295,
+      "name": "AFL.Dashboard/AFL.ReciboShopPack",
+      "total_queries": 65,
+      "resolved_queries": 24
+    },
+    {
+      "id": 296,
+      "name": "AFL.Dashboard/AFL.RegistroOperacion",
+      "total_queries": 65,
+      "resolved_queries": 24
+    },
+    {
+      "id": 297,
+      "name": "AFL.Dashboard/AFL.ReporteImpresiones",
+      "total_queries": 65,
+      "resolved_queries": 24
+    },
+    {
+      "id": 298,
+      "name": "AFL.Dashboard/AFL.ReporteImpresiones - Copy",
+      "total_queries": 43,
+      "resolved_queries": 15
+    },
+    {
+      "id": 299,
+      "name": "AFL.Dashboard/AFL.Scrap",
+      "total_queries": 63,
+      "resolved_queries": 24
+    },
+    {
+      "id": 300,
+      "name": "AFL.Dashboard/Classes.Borrar",
+      "total_queries": 6,
+      "resolved_queries": 3
+    },
+    {
+      "id": 301,
+      "name": "AFLProdMon/AFLProdMon",
+      "total_queries": 165,
+      "resolved_queries": 49
+    },
+    {
+      "id": 302,
+      "name": "Andon/Andon",
+      "total_queries": 22,
+      "resolved_queries": 8
+    },
+    {
+      "id": 303,
+      "name": "CabLabelConfigurator/CabLabelConfigurator",
+      "total_queries": 29,
+      "resolved_queries": 3
+    },
+    {
+      "id": 304,
+      "name": "CentiRL1/CentiRL1",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 305,
+      "name": "CentiServerMPO",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 306,
+      "name": "CompareImages/App472",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 307,
+      "name": "CompareImages/CompareImages",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 308,
+      "name": "CopyJDSU",
+      "total_queries": 48,
+      "resolved_queries": 3
+    },
+    {
+      "id": 309,
+      "name": "DataCenter2ORA",
+      "total_queries": 37,
+      "resolved_queries": 3
+    },
+    {
+      "id": 310,
+      "name": "DataTransfer",
+      "total_queries": 366,
+      "resolved_queries": 111
+    },
+    {
+      "id": 311,
+      "name": "EndFiberClean/EndFiberClean",
+      "total_queries": 119,
+      "resolved_queries": 38
+    },
+    {
+      "id": 312,
+      "name": "EpoxyLabel",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 313,
+      "name": "EpoxyLabel/EpoxyLabel",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 314,
+      "name": "FaceLab/FaceLab",
+      "total_queries": 35,
+      "resolved_queries": 8
+    },
+    {
+      "id": 315,
+      "name": "FaceLabUnion/FaceLabUnion",
+      "total_queries": 103,
+      "resolved_queries": 34
+    },
+    {
+      "id": 316,
+      "name": "FaceUnion/FaceUnion",
+      "total_queries": 58,
+      "resolved_queries": 16
+    },
+    {
+      "id": 317,
+      "name": "GeometryConfigurator/GeometryConfigurator",
+      "total_queries": 25,
+      "resolved_queries": 0
+    },
+    {
+      "id": 318,
+      "name": "INVENTA2-2TEST/AlmacenDiagnostico",
+      "total_queries": 15,
+      "resolved_queries": 2
+    },
+    {
+      "id": 319,
+      "name": "INVENTA2-2TEST/InventaServerTest2",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 320,
+      "name": "INVENTA2-2TEST/InventaVales - rebuild",
+      "total_queries": 95,
+      "resolved_queries": 27
+    },
+    {
+      "id": 321,
+      "name": "INVENTA2-2TEST/InventaValesPlanta2",
+      "total_queries": 32,
+      "resolved_queries": 0
+    },
+    {
+      "id": 322,
+      "name": "INVENTA2-2TEST/SGI",
+      "total_queries": 102,
+      "resolved_queries": 13
+    },
+    {
+      "id": 323,
+      "name": "INVENTA2-2TEST/WebApplication1",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 324,
+      "name": "InterAFL/InterAFL",
+      "total_queries": 141,
+      "resolved_queries": 7
+    },
+    {
+      "id": 325,
+      "name": "InterConfig/InterConfig",
+      "total_queries": 260,
+      "resolved_queries": 18
+    },
+    {
+      "id": 326,
+      "name": "ItemTrack/ItemTrack",
+      "total_queries": 30,
+      "resolved_queries": 9
+    },
+    {
+      "id": 327,
+      "name": "LabelConfigurator/FacebookConfigurator",
+      "total_queries": 29,
+      "resolved_queries": 3
+    },
+    {
+      "id": 328,
+      "name": "LabelPrint/LabelPrint",
+      "total_queries": 7,
+      "resolved_queries": 0
+    },
+    {
+      "id": 329,
+      "name": "LightValidation/LightValidation",
+      "total_queries": 49,
+      "resolved_queries": 12
+    },
+    {
+      "id": 330,
+      "name": "MPOEndFace - Copy (11) - Copy/EndFaceVal",
+      "total_queries": 28,
+      "resolved_queries": 2
+    },
+    {
+      "id": 331,
+      "name": "MetaPolarityConfigurator/MetaPolarityConfigurator",
+      "total_queries": 23,
+      "resolved_queries": 0
+    },
+    {
+      "id": 332,
+      "name": "MonTemp2/MonTemp2",
+      "total_queries": 3,
+      "resolved_queries": 1
+    },
+    {
+      "id": 333,
+      "name": "Monitor1/Monitor1",
+      "total_queries": 17,
+      "resolved_queries": 7
+    },
+    {
+      "id": 334,
+      "name": "MonitorFAWPF/MonitorFAWPF",
+      "total_queries": 4,
+      "resolved_queries": 2
+    },
+    {
+      "id": 335,
+      "name": "MonitorFinalAudit/MonitorFinalAudit",
+      "total_queries": 23,
+      "resolved_queries": 5
+    },
+    {
+      "id": 336,
+      "name": "MonitorJobStart/MonitorJobStart",
+      "total_queries": 35,
+      "resolved_queries": 10
+    },
+    {
+      "id": 337,
+      "name": "MonitorPF1/MonitorPF1",
+      "total_queries": 14,
+      "resolved_queries": 4
+    },
+    {
+      "id": 338,
+      "name": "NewVaLabel/NewVaLabel",
+      "total_queries": 58,
+      "resolved_queries": 15
+    },
+    {
+      "id": 339,
+      "name": "OTDR/OTDR",
+      "total_queries": 66,
+      "resolved_queries": 24
+    },
+    {
+      "id": 340,
+      "name": "PolarityProfileConfigurator/PolarityProfileConfigurator",
+      "total_queries": 25,
+      "resolved_queries": 1
+    },
+    {
+      "id": 341,
+      "name": "PullTest/PullTest",
+      "total_queries": 18,
+      "resolved_queries": 7
+    },
+    {
+      "id": 342,
+      "name": "QAPV2/QAConfigurator",
+      "total_queries": 25,
+      "resolved_queries": 1
+    },
+    {
+      "id": 343,
+      "name": "QAPV2/QAPV2",
+      "total_queries": 22,
+      "resolved_queries": 6
+    },
+    {
+      "id": 344,
+      "name": "RL1Interface",
+      "total_queries": 46,
+      "resolved_queries": 1
+    },
+    {
+      "id": 345,
+      "name": "RLAltaConfig/RLAltaConfig",
+      "total_queries": 23,
+      "resolved_queries": 0
+    },
+    {
+      "id": 346,
+      "name": "ReferenceControlWpf/ReferenceControlWpf",
+      "total_queries": 113,
+      "resolved_queries": 3
+    },
+    {
+      "id": 347,
+      "name": "Reflect/Reflect",
+      "total_queries": 38,
+      "resolved_queries": 8
+    },
+    {
+      "id": 348,
+      "name": "ReportViewer/ReportViewer",
+      "total_queries": 7,
+      "resolved_queries": 4
+    },
+    {
+      "id": 349,
+      "name": "RibbonConfigurator/RibbonConfigurator",
+      "total_queries": 23,
+      "resolved_queries": 0
+    },
+    {
+      "id": 350,
+      "name": "VINS1/Modbus",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 351,
+      "name": "VINS1/Test_FiberDetector",
+      "total_queries": 0,
+      "resolved_queries": 0
+    },
+    {
+      "id": 352,
+      "name": "VINS1/VINS1",
+      "total_queries": 287,
+      "resolved_queries": 72
+    }
+  ]
+}

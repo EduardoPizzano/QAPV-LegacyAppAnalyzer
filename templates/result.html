@@ -31,6 +31,7 @@
             <option value="borrador" {% if data.app.review_status == 'borrador' or not data.app.review_status %}selected{% endif %}>Borrador (solo extraccion automatica)</option>
             <option value="logica_revisada" {% if data.app.review_status == 'logica_revisada' %}selected{% endif %}>Logica de negocio revisada</option>
             <option value="listo_para_migrar" {% if data.app.review_status == 'listo_para_migrar' %}selected{% endif %}>Listo para migrar</option>
+            <option value="obsoleta" {% if data.app.review_status == 'obsoleta' %}selected{% endif %}>Obsoleta (version vieja o sin uso)</option>
         </select>
 
         <label for="review_notes">Notas de la revision (validaciones, reglas de negocio, riesgos, casos borde)</label>

@@ -1,0 +1,61 @@
+{
+  "settings": [],
+  "sql_findings": [
+    {
+      "file": "SGI.ViewModel.Transacciones\\SurtirVM.cs",
+      "class_name": "SurtirVM",
+      "method": "Deshacer",
+      "kind": "SqlConnection",
+      "category": "stored_procedure",
+      "target": "connectionString",
+      "is_stored_procedure": true,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": false
+    },
+    {
+      "file": "SGI.ViewModel.Transacciones\\SurtirVM.cs",
+      "class_name": "SurtirVM",
+      "method": "Deshacer",
+      "kind": "SqlCommand",
+      "category": "query",
+      "target": null,
+      "is_stored_procedure": false,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": false
+    },
+    {
+      "file": "SGI.ViewModel.Transacciones\\SurtirVM.cs",
+      "class_name": "SurtirVM",
+      "method": "Deshacer",
+      "kind": "CommandText",
+      "category": "query",
+      "target": "ValesHistorico",
+      "is_stored_procedure": false,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": false
+    },
+    {
+      "file": "SGI.ViewModel.Transacciones\\SurtirVM.cs",
+      "class_name": "SurtirVM",
+      "method": "Deshacer",
+      "kind": "SqlCommand",
+      "category": "query",
+      "target": null,
+      "is_stored_procedure": false,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": false
+    },
+    {
+      "file": "SGI.ViewModel.Transacciones\\SurtirVM.cs",
+      "class_name": "SurtirVM",
+      "method": "Deshacer",
+      "kind": "CommandText",
+      "category": "query",
+      "target": null,
+      "is_stored_procedure": false,
+      "resolved_is_none": true,
+      "raw_contains_stringbuilder": true
+    }
+  ],
+  "io_findings": []
+}

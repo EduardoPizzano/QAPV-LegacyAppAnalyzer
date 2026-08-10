@@ -3,11 +3,17 @@
 <head>
     <meta charset="utf-8">
     <title>{% block title %}QAPV Legacy App Analyzer{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <header>
-    <h1><a href="{{ url_for('index') }}">QAPV Legacy App Analyzer</a></h1>
+    <h1>
+        <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='img/AFL_Logo.svg') }}" alt="AFL" class="brand-logo">
+            QAPV Legacy App Analyzer
+        </a>
+    </h1>
 </header>
 <main>
     {% with messages = get_flashed_messages() %}

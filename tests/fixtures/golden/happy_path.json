@@ -1,0 +1,41 @@
+{
+  "settings": [
+    {
+      "name": "CX",
+      "default_value": "Server=NAAMRT-QCS25; Database=QAPVMLN; User Id=quality; Password=apodaca;",
+      "is_connection_string": true,
+      "category": "sql_or_oracle",
+      "source_file": "HappyPath.Properties\\Settings.cs"
+    }
+  ],
+  "sql_findings": [
+    {
+      "file": "Form1.cs",
+      "class_name": "Form1",
+      "method": "CargaJobs",
+      "kind": "SqlConnection",
+      "category": "query",
+      "target": null,
+      "resolved_is_none": true
+    },
+    {
+      "file": "Form1.cs",
+      "class_name": "Form1",
+      "method": "CargaJobs",
+      "kind": "SqlCommand",
+      "category": "query",
+      "target": null,
+      "resolved_is_none": true
+    },
+    {
+      "file": "Form1.cs",
+      "class_name": "Form1",
+      "method": "CargaJobs",
+      "kind": "CommandText",
+      "category": "query",
+      "target": "DJItem",
+      "resolved_is_none": false
+    }
+  ],
+  "io_findings": []
+}
