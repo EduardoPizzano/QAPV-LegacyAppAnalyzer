@@ -93,7 +93,21 @@ def _appconfig_add_tag_locations(config_text: str) -> list[tuple[int, str]]:
     return locations
 
 
-def _find_appconfig_connection_strings(root: Path) -> list[SettingEntry]:
+def _is_skipped_top_level(path: Path, root: Path, skip_top_level: frozenset[str]) -> bool:
+    """True si la carpeta de nivel superior de `path` (relativa a `root`) esta
+    en `skip_top_level` -- el subconjunto que analyzer/classification.py
+    clasifico como THIRD_PARTY_OR_FRAMEWORK (DISENO_INCREMENTO_3_CLASIFICACION.md).
+    Sin `skip_top_level` (default), no se salta nada -- mismo comportamiento
+    de siempre."""
+    if not skip_top_level:
+        return False
+    parts = path.relative_to(root).parts
+    return bool(parts) and parts[0] in skip_top_level
+
+
+def _find_appconfig_connection_strings(
+    root: Path, skip_top_level: frozenset[str] = frozenset()
+) -> list[SettingEntry]:
     """Algunos apps leen su connection string directamente de app.config vía
     ConfigurationManager.ConnectionStrings["Name"] (patron ADO.NET clasico) sin
     pasar nunca por el Settings.cs generado por el designer -- invisible para el
@@ -111,6 +125,8 @@ def _find_appconfig_connection_strings(root: Path) -> list[SettingEntry]:
     (APP_CONFIG_EXPLICIT_CONNECTION, ver analyzer/confidence.py)."""
     entries: list[SettingEntry] = []
     for config_file in root.rglob("*.config"):
+        if _is_skipped_top_level(config_file, root, skip_top_level):
+            continue
         try:
             tree = ET.parse(config_file)
         except ET.ParseError:
@@ -150,7 +166,9 @@ def _find_appconfig_connection_strings(root: Path) -> list[SettingEntry]:
     return entries
 
 
-def find_settings(root: Path) -> list[SettingEntry]:
+def find_settings(
+    root: Path, skip_top_level: frozenset[str] = frozenset()
+) -> list[SettingEntry]:
     """Incremento Funcional 2 (VALIDATION_FRAMEWORK.md seccion 0/3): el
     mecanismo DefaultSettingValue -- el "dominante de descubrimiento de
     conexiones en este portafolio" segun analyzer/confidence.py -- ahora
@@ -162,6 +180,8 @@ def find_settings(root: Path) -> list[SettingEntry]:
     entries: list[SettingEntry] = []
     seen_values: set[str] = set()
     for cs_file in root.rglob("*.cs"):
+        if _is_skipped_top_level(cs_file, root, skip_top_level):
+            continue
         if "Settings" not in cs_file.name:
             continue
         text = cs_file.read_text(encoding="utf-8", errors="ignore")
@@ -209,7 +229,7 @@ def find_settings(root: Path) -> list[SettingEntry]:
     # app.config a veces mirrorea el mismo valor bajo otro nombre (ej.
     # "Namespace.Properties.Settings.CX") -- se deduplica por VALOR, no por
     # nombre, para no reportar la misma conexion real dos veces.
-    for entry in _find_appconfig_connection_strings(root):
+    for entry in _find_appconfig_connection_strings(root, skip_top_level=skip_top_level):
         if entry.default_value.strip() in seen_values:
             continue
         entries.append(entry)
@@ -775,10 +795,14 @@ def scan_file(cs_file: Path, root: Path) -> tuple[list[SqlFinding], list[LocalIO
     return sql_findings, io_findings
 
 
-def scan_project(root: Path) -> tuple[list[SqlFinding], list[LocalIOFinding]]:
+def scan_project(
+    root: Path, skip_top_level: frozenset[str] = frozenset()
+) -> tuple[list[SqlFinding], list[LocalIOFinding]]:
     all_sql: list[SqlFinding] = []
     all_io: list[LocalIOFinding] = []
     for cs_file in root.rglob("*.cs"):
+        if _is_skipped_top_level(cs_file, root, skip_top_level):
+            continue
         if "Settings" in cs_file.name:
             continue
         preview = cs_file.read_text(encoding="utf-8", errors="ignore")
