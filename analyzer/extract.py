@@ -290,8 +290,6 @@ TERNARY_HINT = re.compile(r"\)\s*\?\s*\(|[^=!<>]\?[^:.]*:")
 
 SB_DECLARE = re.compile(r"\bStringBuilder\s+(\w+)\b|\b(\w+)\s*=\s*new\s+StringBuilder\s*\(")
 
-STORED_PROC_TYPE = re.compile(r"CommandType\.StoredProcedure")
-
 SQL_KEYWORDS = re.compile(
     r"(?i)\b(select|insert\s+into|update|delete\s+from|with|create|alter|drop|exec(ute)?)\b"
 )
@@ -647,8 +645,35 @@ def _reconstruct_dynamic_sql(
     return text, confidence_key, "STRING_VAR_ASSIGN", line_idx
 
 
-def _classify_sql(text: str, command_type_is_sp_nearby: bool) -> tuple[str, Optional[str], bool]:
-    """Returns (category, target, is_stored_procedure)."""
+CONNECTION_KINDS = frozenset({"SqlConnection", "OracleConnection"})
+
+
+def _classify_sql(text: str, command_type_is_sp: bool, kind: str) -> tuple[str, Optional[str], bool]:
+    """Returns (category, target, is_stored_procedure).
+
+    `command_type_is_sp` debe ser evidencia atada a la MISMA variable de
+    comando que este texto esta clasificando (ver
+    _command_type_is_stored_procedure_for_var / scan_file) -- nunca una
+    senal de proximidad textual ciega a otro comando. Incremento 4
+    (DISENO_INCREMENTO_4_SP_CLASSIFICACION.md): sin un nombre limpio (schema_match
+    / name_match) atado a esa variable, NUNCA se fuerza stored_procedure --
+    antes existia un fallback (`text.strip()[:60]` como "nombre") que
+    producia clasificaciones sin sentido (una apertura de conexion, o el
+    SELECT de otro comando, marcados como SP con un target ilegible).
+
+    `kind` en CONNECTION_KINDS excluye stored_procedure de forma absoluta,
+    sin excepcion -- abrir una conexion nunca ejecuta un comando. Esto cubre
+    tambien el camino de deteccion por nombre limpio (`not has_keyword`),
+    que es independiente de `command_type_is_sp`: confirmado con evidencia
+    real en AFL_DataCenter/btnSO_Click, donde _capture_statement junta el
+    `using (new SqlConnection(...))` con la construccion de texto de un SP
+    real en la SIGUIENTE linea (sin ';' propia entre ambos) -- el literal
+    resultante tiene forma de nombre de SP valido, pero el trigger que se
+    esta clasificando sigue siendo la apertura de la conexion, no el SP.
+    Solo se excluye la rama de stored_procedure -- oracle_package_call y
+    deteccion de tabla siguen intactas para estos kinds, igual que antes."""
+    is_connection = kind in CONNECTION_KINDS
+
     pkg_match = ORACLE_PKG_CALL.search(text)
     if pkg_match:
         return "oracle_package_call", f"{pkg_match.group(1)}.{pkg_match.group(2)}", False
@@ -661,7 +686,7 @@ def _classify_sql(text: str, command_type_is_sp_nearby: bool) -> tuple[str, Opti
     literal_prefix = literal_match.group(1) if literal_match else text.lstrip('"$')
 
     has_keyword = SQL_KEYWORDS.search(text)
-    if command_type_is_sp_nearby or not has_keyword:
+    if not is_connection and (command_type_is_sp or not has_keyword):
         # Two SP-name shapes seen in these apps: "SpName 'arg1','arg2'" (SQL
         # Server allows calling a proc without EXEC when CommandType is Text)
         # and the standard "[schema].[SpName]" / "schema.SpName" shape used
@@ -672,8 +697,8 @@ def _classify_sql(text: str, command_type_is_sp_nearby: bool) -> tuple[str, Opti
         name_match = BARE_PROC_NAME.search(literal_prefix)
         if name_match and not has_keyword:
             return "stored_procedure", name_match.group(1), True
-        if command_type_is_sp_nearby:
-            return "stored_procedure", (name_match.group(1) if name_match else text.strip()[:60]), True
+        if command_type_is_sp and name_match:
+            return "stored_procedure", name_match.group(1), True
 
     for pattern in (TABLE_UPDATE, TABLE_FROM, TABLE_INTO):
         m = pattern.search(text)
@@ -681,6 +706,24 @@ def _classify_sql(text: str, command_type_is_sp_nearby: bool) -> tuple[str, Opti
             return "query", m.group(1), False
 
     return "query", None, False
+
+
+def _command_type_is_stored_procedure_for_var(
+    lines: list[str], start_idx: int, cmd_var: str, end_idx: int
+) -> bool:
+    """True si `cmd_var.CommandType = CommandType.StoredProcedure` aparece
+    atado a ESA MISMA variable de comando, en cualquier punto entre
+    start_idx y end_idx (acotado al cierre real del metodo, mismo limite ya
+    usado por _extract_parameters/_extract_result_columns) -- nunca por
+    proximidad textual ciega a otro comando (Incremento 4,
+    DISENO_INCREMENTO_4_SP_CLASSIFICACION.md). CommandType se asigna tanto
+    antes como despues de CommandText en este portafolio, asi que se busca
+    en todo el rango, no solo hacia adelante desde el trigger."""
+    pattern = re.compile(rf"\b{re.escape(cmd_var)}\.CommandType\s*=\s*CommandType\.StoredProcedure\b")
+    for i in range(start_idx, min(end_idx, len(lines))):
+        if pattern.search(lines[i]):
+            return True
+    return False
 
 
 def scan_file(cs_file: Path, root: Path) -> tuple[list[SqlFinding], list[LocalIOFinding]]:
@@ -745,20 +788,36 @@ def scan_file(cs_file: Path, root: Path) -> tuple[list[SqlFinding], list[LocalIO
                         )
 
             text_for_classification = resolved if resolved else raw
-            # CommandType.StoredProcedure is just as often set a few lines AFTER
-            # CommandText as before it (e.g. new SqlCommand(); cmd.CommandText = ...;
-            # cmd.CommandType = CommandType.StoredProcedure;) — scan a window on
-            # both sides rather than only looking backward.
-            context_window = " ".join(lines[max(0, idx - 5): min(len(lines), idx + 8)])
-            sp_nearby = bool(STORED_PROC_TYPE.search(context_window))
-            category, target, is_sp = _classify_sql(text_for_classification, sp_nearby)
 
-            parameters: list[str] = []
-            result_columns: list[str] = []
+            # Extraccion de variable de comando -- SIN CAMBIOS respecto al
+            # comportamiento previo, se sigue usando igual para parametros y
+            # result columns (abajo).
+            cmd_var = None
+            method_end_idx = None
             cmd_var_match = CMD_VAR.search(raw)
             if cmd_var_match:
                 cmd_var = cmd_var_match.group(1) or cmd_var_match.group(2)
                 method_end_idx = _find_method_end(lines, method_start_idx)
+
+            # Incremento 4 (DISENO_INCREMENTO_4_SP_CLASSIFICACION.md): la
+            # evidencia de "es un stored procedure" debe atarse a la MISMA
+            # variable de comando de este trigger, nunca a una ventana ciega
+            # de lineas. Una apertura de conexion (SqlConnection/
+            # OracleConnection) nunca ejecuta un comando -- se excluye por
+            # `kind` explicitamente, en vez de confiar solo en que CMD_VAR
+            # falle, porque `raw` a veces alcanza a incluir el inicio del
+            # SIGUIENTE statement (un `using(...) { ... new SqlCommand();`
+            # sin `;` propio hace que _capture_statement junte ambas lineas).
+            sp_cmd_var = cmd_var if kind not in CONNECTION_KINDS else None
+            command_type_is_sp = bool(
+                sp_cmd_var
+                and _command_type_is_stored_procedure_for_var(lines, method_start_idx, sp_cmd_var, method_end_idx)
+            )
+            category, target, is_sp = _classify_sql(text_for_classification, command_type_is_sp, kind)
+
+            parameters: list[str] = []
+            result_columns: list[str] = []
+            if cmd_var:
                 parameters = _extract_parameters(lines, idx, cmd_var, method_end_idx)
                 result_columns = _extract_result_columns(lines, idx, cmd_var, method_end_idx)
 
