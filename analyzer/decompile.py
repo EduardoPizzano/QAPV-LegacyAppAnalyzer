@@ -1,5 +1,6 @@
 """Wraps ilspycmd to decompile an assembly into a full project (source tree)."""
 
+import os
 import re
 import shutil
 import subprocess
@@ -33,20 +34,43 @@ class DecompileError(RuntimeError):
 # intermediates/tooling caches/VCS metadata — safe to skip everywhere.
 EXCLUDED_DIR_NAMES = {"obj", ".vs", ".git", "packages"}
 
+# Prefixes for runtime-generated folders these legacy console apps dump next
+# to their own .exe in bin\Debug (never dev-tool folders, so name-matching
+# instead of an exact set) — e.g. GeoStatsInter's bin\Debug\logs accumulated
+# so many files over the app's lifetime that even a non-recursive listing of
+# it alone didn't finish in 180s over SMB, making a scan of the project root
+# look permanently hung. A folder full of runtime logs never contains a
+# deployable .exe, so it's always safe to skip.
+EXCLUDED_DIR_PREFIXES = ("logs",)
+
+
+def _is_excluded_dir(name: str) -> bool:
+    lname = name.lower()
+    return lname in EXCLUDED_DIR_NAMES or lname.startswith(EXCLUDED_DIR_PREFIXES)
+
 
 def discover_assemblies(root: Path) -> list[Path]:
     """Recursively finds candidate .exe files under root — for solution folders
     that hold several projects side by side (e.g. AFL.Dashboard's Entrega/
     Liberacion/Recibo/Reportes/Scrap modules, each its own bin\\Debug\\*.exe),
     so the user can point at the solution root instead of each project folder
-    one at a time."""
+    one at a time.
+
+    Uses os.walk with in-place dirnames pruning (not Path.rglob + post-hoc
+    filtering) so excluded folders are never descended into. This matters a
+    lot when root is a project folder (not already bin\\Debug) on a network
+    share: rglob would still walk every file inside obj\\, packages\\, .git\\,
+    a runtime logs\\ folder, etc. over SMB before discarding those results,
+    which can make the scan look hung for minutes on a single project."""
     candidates = []
-    for exe in root.rglob("*.exe"):
-        if exe.stem.lower().endswith(".vshost"):
-            continue
-        if EXCLUDED_DIR_NAMES & {p.lower() for p in exe.parts}:
-            continue
-        candidates.append(exe)
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not _is_excluded_dir(d)]
+        for filename in filenames:
+            if not filename.lower().endswith(".exe"):
+                continue
+            if filename[: -len(".exe")].lower().endswith(".vshost"):
+                continue
+            candidates.append(Path(dirpath) / filename)
     return sorted(candidates)
 
 

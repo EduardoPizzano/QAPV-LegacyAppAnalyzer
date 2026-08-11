@@ -253,9 +253,25 @@ def save_analysis(
         # about the app's behavior, not a byproduct of the extractor — they
         # don't go stale just because we re-ran the scanner, so preserve them
         # across the delete+reinsert instead of resetting to "borrador".
+        #
+        # Also check by source_path (the physical .exe/.dll on disk), NOT just
+        # name: the same assembly can get analyzed under two different names
+        # (e.g. the single-file "/analyze" flow names it "GeoStatsInter", the
+        # root-folder "/discover" batch flow used to name the same exe
+        # "GeoStatsInter/GeoStatsInter") — without this, that produced two
+        # separate rows for one real app instead of one being recognized as a
+        # re-analysis of the other. When source_path already exists under a
+        # different name, keep that existing name (don't let whichever flow
+        # happens to run second silently rename an already-reviewed app).
         existing = conn.execute(
-            "SELECT review_status, review_notes FROM apps WHERE name = ?", (name,)
+            "SELECT name, review_status, review_notes FROM apps WHERE source_path = ?", (source_path,)
         ).fetchone()
+        if existing is None:
+            existing = conn.execute(
+                "SELECT name, review_status, review_notes FROM apps WHERE name = ?", (name,)
+            ).fetchone()
+        if existing is not None:
+            name = existing["name"]
         review_status = existing["review_status"] if existing else "borrador"
         review_notes = existing["review_notes"] if existing else None
 

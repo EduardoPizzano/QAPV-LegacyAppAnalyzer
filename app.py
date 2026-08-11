@@ -96,8 +96,27 @@ def _flash_enrich_summary(enrich_summary: dict) -> None:
 def _batch_name(root_path: str, exe_path: str) -> str:
     """Names a batch-discovered app as 'RootFolder/ModuleFolder' (e.g.
     'AFL.Dashboard/AFL.Scrap') so sibling modules of the same solution are
-    recognizable as a family instead of colliding on bare exe stems."""
-    return f"{Path(root_path).name}/{project_label(Path(exe_path))}"
+    recognizable as a family instead of colliding on bare exe stems.
+
+    When the root folder holds a single project whose module label is
+    identical to the root name (e.g. discovering root
+    "...\\QAPV_DATACENTER\\GeoStatsInter" finds only
+    "GeoStatsInter\\bin\\Debug\\GeoStatsInter.exe"), collapses to the bare
+    name instead of "GeoStatsInter/GeoStatsInter". Beyond being a redundant
+    label (group_apps_for_sidebar() already collapses this same case for
+    display), NOT collapsing it created a real bug: run_analysis() derives
+    its decompile output_dir from this name (DECOMPILED_DIR / app_name), so
+    "GeoStatsInter/GeoStatsInter" decompiles into a directory *nested inside*
+    the standalone "GeoStatsInter" app's own output_dir. The extractor then
+    picked up that standalone app's already-decompiled Program.cs as if it
+    were part of the new run, doubling every SQL/IO finding -- and
+    save_analysis's upsert-by-name meant the two analyses landed in separate
+    DB rows instead of one being recognized as a re-analysis of the other."""
+    root_name = Path(root_path).name
+    module = project_label(Path(exe_path))
+    if module == root_name:
+        return root_name
+    return f"{root_name}/{module}"
 
 
 @app.route("/")

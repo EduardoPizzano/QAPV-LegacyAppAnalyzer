@@ -1,6 +1,7 @@
 """Orchestrates decompile -> extract -> techstack -> security for one app.
 Used by both the CLI (main.py) and the web app."""
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,6 +37,15 @@ def run_analysis(assembly_path: Path, app_name: str | None = None) -> AnalysisRe
     assembly_path = Path(assembly_path)
     app_name = app_name or assembly_path.stem
     output_dir = DECOMPILED_DIR / app_name
+
+    # Empezar en limpio: si una corrida anterior (de este mismo app_name, o de
+    # un nombre distinto que por colision de rutas terminaba escribiendo aqui
+    # mismo -- ver _batch_name() en app.py) dejo archivos en output_dir, el
+    # truco de "carpetas antes/menos despues" de abajo solo detecta carpetas
+    # nuevas, no archivos sueltos preexistentes -- esos se cuelan en
+    # find_settings/scan_project como si fueran parte de ESTA corrida,
+    # duplicando hallazgos (bug real, ver GeoStatsInter 2026-08-11).
+    shutil.rmtree(output_dir, ignore_errors=True)
 
     # Evidencia de secuencia, no de nombre (DISENO_INCREMENTO_3_CLASIFICACION.md,
     # Decision 1): un mismo assembly se fragmenta en varias carpetas de nivel

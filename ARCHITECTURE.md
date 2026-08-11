@@ -450,7 +450,8 @@ Documentación fase por fase de cómo un binario se convierte en un reporte:
 
 ### 1. Descubrimiento
 - **Dónde**: `analyzer/decompile.py: discover_assemblies()` / `project_label()`.
-- **Qué hace**: recorre recursivamente (`Path.rglob("*.exe")`) una carpeta raíz, descarta `obj/`, `.vs/`, `.git/`, `packages/` y `*.vshost.exe`, y agrupa cada ejecutable por su carpeta de proyecto (la carpeta inmediatamente superior a `bin/`, con fallback al padre directo del `.exe`).
+- **Qué hace**: recorre una carpeta raíz con `os.walk()`, **podando `dirnames` in-place** (nunca desciende a `obj/`, `.vs/`, `.git/`, `packages/`, ni a ninguna carpeta cuyo nombre empiece con `logs` — `_is_excluded_dir()`) y descartando `*.vshost.exe`, agrupando cada ejecutable por su carpeta de proyecto (la carpeta inmediatamente superior a `bin/`, con fallback al padre directo del `.exe`).
+  - **Historial (2026-08-11)**: originalmente usaba `Path.rglob("*.exe")` y descartaba las carpetas excluidas *después* de recorrerlas por completo — sobre un share de red, eso significaba caminar todo `obj/`/`.git/`/`packages/` (potencialmente miles de archivos por SMB) antes de tirar el resultado. Un caso real (`GeoStatsInter`, cuyo `bin\Debug` además tenía carpetas de logs en tiempo de ejecución con tantos archivos que ni un listado no-recursivo terminaba en 180s) hacía que el escaneo pareciera colgado indefinidamente. `os.walk()` con poda evita entrar a esas carpetas en primer lugar.
 - **Disparado por**: `app.py: /discover` (escaneo por lotes). El análisis de un único archivo (`/analyze`) no pasa por esta fase — solo resuelve si la ruta dada es un archivo o una carpeta con uno/varios candidatos directos (`p.glob("*.exe")`, no recursivo).
 
 ### 2. Decompilación
@@ -459,6 +460,7 @@ Documentación fase por fase de cómo un binario se convierte en un reporte:
 - **Entrada**: ruta del `.exe`/`.dll`.
 - **Salida**: árbol de código fuente C# en `decompiled/<App>/`.
 - **Manejo de error**: `DecompileError` si `ilspycmd` no existe, si el archivo no existe, o si el proceso termina con código distinto de 0 (incluye `stdout`/`stderr` completos en el mensaje).
+- **Limpieza previa (2026-08-11, ver L28 en `KNOWN_LIMITATIONS.md`)**: `pipeline.py: run_analysis()` borra `output_dir` por completo (`shutil.rmtree`) antes de la primera llamada a `decompile()` de esa corrida, para que ningún archivo de un análisis anterior (con ese mismo `app_name`, o con un `app_name` distinto que por convención de rutas terminaba anidado dentro del mismo `output_dir`) se cuele en la extracción como si fuera parte de la corrida actual.
 
 ### 3. Análisis (detección de stack)
 - **Dónde**: `analyzer/techstack.py: detect()`.
@@ -471,7 +473,8 @@ Documentación fase por fase de cómo un binario se convierte en un reporte:
 
 ### 5. Persistencia
 - **Dónde**: `analyzer/db.py: save_analysis()`.
-- **Qué hace**: upsert por nombre (borra la fila anterior con el mismo `name`, preservando `review_status`/`review_notes`, y reinserta todo). Serializa `parameters`/`result_columns` de cada `SqlFinding` como JSON antes de guardarlos (columnas `TEXT`).
+- **Qué hace**: upsert por `source_path` primero, por `name` si no hay match por `source_path` (borra la fila existente, preservando `review_status`/`review_notes`, y reinserta todo con el `name` ya existente en ese caso — nunca lo renombra). Serializa `parameters`/`result_columns` de cada `SqlFinding` como JSON antes de guardarlos (columnas `TEXT`).
+  - **Por qué también por `source_path` (2026-08-11)**: el mismo `.exe` puede analizarse bajo dos `name` distintos según el flujo que lo dispare (`/analyze` directo al archivo vs. `/discover` por lotes, ver `app.py: _batch_name()`) — sin este chequeo, la segunda corrida creaba una fila `apps` nueva en vez de reemplazar la existente (confirmado con `GeoStatsInter`, que quedó duplicado además con hallazgos SQL/IO duplicados dentro de la fila nueva por la colisión de `output_dir` descrita en el paso 2). Ver `tests/test_save_analysis_dedup.py`.
 
 ### 6. Generación de reportes
 - **Dónde**: `analyzer/report.py: render()`.
@@ -572,7 +575,7 @@ Para cada nombre de tabla único: `get_table_columns()` (`INFORMATION_SCHEMA.COL
 ### Nomenclatura
 - `snake_case` para funciones, variables y módulos; `PascalCase` para clases/dataclasses.
 - Nombres de archivo/módulo en inglés (`decompile.py`, `enrich.py`); strings de cara al usuario (mensajes flash, texto de reportes, nombres de campos en Markdown) en **español**, consistente con el resto de la documentación del proyecto.
-- Los nombres de apps por lotes siguen la convención `CarpetaRaiz/NombreDeModulo` (`app.py: _batch_name()`), usada como clave de upsert en `apps.name`.
+- Los nombres de apps por lotes siguen la convención `CarpetaRaiz/NombreDeModulo` (`app.py: _batch_name()`), usada como clave de upsert en `apps.name` (aunque desde 2026-08-11 `save_analysis()` primero intenta upsert por `source_path`, ver paso 5 del pipeline). **Excepción**: si `CarpetaRaiz` y `NombreDeModulo` son el mismo texto (una raíz con un solo proyecto, ej. `GeoStatsInter`), `_batch_name()` devuelve el nombre plano en vez de `"GeoStatsInter/GeoStatsInter"` — mismo criterio que `db.py: group_apps_for_sidebar()` ya usaba para *mostrar* este caso, aplicado ahora en el origen para evitar además la colisión de `output_dir` del paso 2 del pipeline.
 
 ### Cómo crear un nuevo módulo de análisis
 1. Crear el archivo bajo `analyzer/`, sin importar Flask ni nada de `app.py`/`templates/`.
