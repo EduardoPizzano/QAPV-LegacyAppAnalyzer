@@ -81,14 +81,30 @@ def build_xlsx(
             if params:
                 sql_ws.cell(row=sql_ws.max_row, column=7).alignment = Alignment(wrap_text=True, vertical="top")
 
+    # Fase 4 (L16/L17): mismo criterio de separacion que report.py -- un
+    # hallazgo de Reflection/COM no comparte naturaleza con un acceso a
+    # archivo/impresora/red, se exporta en su propia hoja.
     io_ws = new_sheet("Archivos-Impresoras-Red", ["Clase", "Funcion", "Operacion", "Detalle"])
     seen = set()
     for f in io_findings:
+        if f.category == "reflection":
+            continue
         key = (f.class_name, f.method, f.raw)
         if key in seen:
             continue
         seen.add(key)
         io_ws.append([f.class_name, f.method, f.operation, f.raw])
+
+    reflection_rows = [f for f in io_findings if f.category == "reflection"]
+    if reflection_rows:
+        refl_ws = new_sheet("Reflection-COM", ["Clase", "Funcion", "API", "Detalle"])
+        seen = set()
+        for f in reflection_rows:
+            key = (f.class_name, f.method, f.raw)
+            if key in seen:
+                continue
+            seen.add(key)
+            refl_ws.append([f.class_name, f.method, f.operation, f.raw])
 
     if db_procedures:
         sp_ws = new_sheet("Definiciones SP (BD)", ["Schema.Objeto", "Estado", "Definicion"])
@@ -268,12 +284,31 @@ def build_docx(
     io_rows = []
     seen = set()
     for f in io_findings:
+        if f.category == "reflection":
+            continue
         key = (f.class_name, f.method, f.raw)
         if key in seen:
             continue
         seen.add(key)
         io_rows.append((f.class_name, f.method, f.operation, f.raw))
     _add_table(doc, ["Clase", "Funcion", "Operacion", "Detalle"], io_rows)
+
+    reflection_rows = [f for f in io_findings if f.category == "reflection"]
+    if reflection_rows:
+        doc.add_heading("Invocacion indirecta / tardia (Reflection, COM)", level=2)
+        doc.add_paragraph(
+            "El comportamiento real de estas llamadas depende de resolucion en tiempo de ejecucion "
+            "-- ningun analisis estatico puede saber con certeza que se invoca (KNOWN_LIMITATIONS.md L16/L17)."
+        )
+        refl_rows = []
+        seen = set()
+        for f in reflection_rows:
+            key = (f.class_name, f.method, f.raw)
+            if key in seen:
+                continue
+            seen.add(key)
+            refl_rows.append((f.class_name, f.method, f.operation, f.raw))
+        _add_table(doc, ["Clase", "Funcion", "API", "Detalle"], refl_rows)
 
     buf = io.BytesIO()
     doc.save(buf)

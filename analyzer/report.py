@@ -254,16 +254,48 @@ def render(
                     lines.append(f"- `{fk['column']}` -> `{fk['ref_table']}.{fk['ref_column']}` (`{fk['fk_name']}`)")
             lines.append("")
 
+    # Fase 4 (KNOWN_LIMITATIONS.md L16/L17): separado de la tabla de I/O de
+    # abajo a proposito -- invocacion indirecta/tardia (Reflection/COM) es un
+    # riesgo de naturaleza distinta a un acceso a archivo/impresora/red (el
+    # comportamiento real depende de resolucion en tiempo de ejecucion, ver
+    # analyzer/confidence.py: REFLECTION), no tendria sentido enterrarlo entre
+    # esos hallazgos con un nombre de "Operacion" que no deja claro por que
+    # esta ahi.
+    plain_io_findings = [f for f in io_findings if f.category != "reflection"]
+    reflection_findings = [f for f in io_findings if f.category == "reflection"]
+
     lines.append("## Archivos, impresoras, procesos y red en codigo")
     lines.append("")
-    if not io_findings:
+    if not plain_io_findings:
         lines.append("_No se detecto acceso directo a archivos/carpetas, impresoras (BarTender/PrintDocument), "
                       "puertos seriales, otros ejecutables (Process.Start) o llamadas HTTP/SMTP en el codigo._")
     else:
         lines.append("| Clase | Funcion | Operacion | Detalle |")
         lines.append("|---|---|---|---|")
         seen = set()
-        for f in io_findings:
+        for f in plain_io_findings:
+            key = (f.class_name, f.method, f.raw)
+            if key in seen:
+                continue
+            seen.add(key)
+            lines.append(f"| `{f.class_name}` | `{f.method}` | {f.operation} | `{_escape(f.raw)}` |")
+    lines.append("")
+
+    lines.append("## Invocacion indirecta / tardia (Reflection, COM)")
+    lines.append("")
+    if not reflection_findings:
+        lines.append("_No se detecto invocacion via Reflection (MethodInfo.Invoke, Activator.CreateInstance) "
+                      "ni COM/CLSID (Marshal.GetTypeFromCLSID) en el codigo._")
+    else:
+        lines.append(
+            "> ⚠️ El comportamiento real de estas llamadas depende de resolucion en tiempo de ejecucion "
+            "-- ningun analisis estatico puede saber con certeza que se invoca (KNOWN_LIMITATIONS.md L16/L17)."
+        )
+        lines.append("")
+        lines.append("| Clase | Funcion | API | Detalle |")
+        lines.append("|---|---|---|---|")
+        seen = set()
+        for f in reflection_findings:
             key = (f.class_name, f.method, f.raw)
             if key in seen:
                 continue
@@ -334,6 +366,11 @@ def reconstruct_from_db(data: dict):
         LocalIOFinding(
             file=f["file"], class_name=f["class_name"], method=f["method"],
             operation=f["operation"], raw=f["raw"],
+            # Filas guardadas antes de Fase 4 no tienen esta columna en el
+            # dict reconstruido desde una BD vieja sin migrar todavia --
+            # ".get" con el mismo default 'io' de la columna en si, nunca
+            # None (LocalIOFinding.category no acepta None).
+            category=f.get("category") or "io",
         )
         for f in data["io_findings"]
     ]

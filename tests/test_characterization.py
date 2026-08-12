@@ -175,24 +175,51 @@ class TestDataTransferStringBuilderGap:
 
 
 class TestDataTransferReflectionGap:
-    """GAP CONOCIDO (KNOWN_LIMITATIONS.md L16): PrintReportViewer.cs invoca
-    miembros NO PUBLICOS de Microsoft.Reporting.WinForms.ReportViewer via
-    MethodInfo.Invoke/Activator.CreateInstance -- el archivo entero no
-    dispara ni SQL_TRIGGER ni LOCAL_IO_TRIGGER, asi que scan_project() lo
-    salta por completo (ni siquiera lo abre a fondo). Cero rastro de que la
-    app depende de una API no documentada de un ensamblado de terceros."""
+    """GAP CERRADO por la Fase 4 (KNOWN_LIMITATIONS.md L16): PrintReportViewer.cs
+    invoca miembros NO PUBLICOS de Microsoft.Reporting.WinForms.ReportViewer via
+    MethodInfo.Invoke/Activator.CreateInstance -- antes el archivo entero no
+    disparaba ni SQL_TRIGGER ni LOCAL_IO_TRIGGER, asi que scan_project() lo
+    saltaba por completo.
 
-    def test_reflection_file_produces_zero_findings_today(self, fixture_root):
+    Decision de alcance deliberada (documentada aqui, no solo en el commit):
+    el extractor detecta los DOS puntos reales donde ocurre reflection en este
+    archivo (`current.Invoke(obj, parms)` dentro de `ExecuteFunction`, y
+    `Activator.CreateInstance(...)` dentro de `PrintByPriner`) -- NO las 7
+    llamadas a `ExecuteFunction(viewer, parms, "NombreDeMetodo")` que reenvian
+    a esos dos puntos (OnPrint/DoesStateAllowPrinting/CreateEMFDeviceInfo/etc.).
+    Reconocer que un metodo local arbitrario "es" un wrapper de reflection y
+    seguir sus llamadas exigiria rastrear ese wrapper entre metodos -- fuera
+    del alcance ya establecido para este extractor (VALIDATION_STRATEGY.md:
+    nada de analisis entre metodos, ver tambien CONDITIONAL_LINE/TERNARY_HINT
+    para el mismo principio aplicado a SQL dinamico). Los 2 hallazgos ya
+    documentan, con evidencia real, que la app depende de una API no
+    documentada de un ensamblado de terceros -- que es el riesgo que L16
+    señala; contar las 7 invocaciones especificas es un refinamiento futuro
+    si aparece evidencia de que aporta valor (Principio 4, ARCHITECTURAL_PRINCIPLES.md)."""
+
+    def test_reflection_invocations_are_detected_with_category_reflection(self, fixture_root):
         sql_findings, io_findings = scan_project(fixture_root("datatransfer"))
-        reflection_file_findings = [
-            f for f in (sql_findings + io_findings) if "PrintReportViewer.cs" in f.file
+        reflection_findings = [
+            f for f in io_findings if "PrintReportViewer.cs" in f.file and f.category == "reflection"
         ]
-        assert reflection_file_findings == [], (
-            "PrintReportViewer.cs ya genera algun finding -- si esto es intencional "
-            "(Fase 4 completada), actualizar este test a proposito con la aserccion "
-            "real esperada (categoria 'reflection', 7 invocaciones vistas: OnPrint, "
-            "DoesStateAllowPrinting, CreateEMFDeviceInfo, etc.)."
-        )
+        assert len(reflection_findings) == 2
+
+        by_method = {f.method: f for f in reflection_findings}
+        assert by_method["ExecuteFunction"].operation == "MethodInfo.Invoke"
+        assert "current.Invoke(obj, parms)" in by_method["ExecuteFunction"].raw
+
+        assert by_method["PrintByPriner"].operation == "Activator.CreateInstance"
+        assert "Activator.CreateInstance(typeof(object)" in by_method["PrintByPriner"].raw
+
+    def test_reflection_findings_never_mixed_into_plain_io_findings(self, fixture_root):
+        """category='reflection' es un discriminador explicito, no una
+        adivinanza de report.py -- ningun hallazgo de reflection debe
+        aparecer con category='io' (mezclarian la seccion de archivos/
+        impresoras/red con invocacion dinamica, dos riesgos muy distintos)."""
+        _, io_findings = scan_project(fixture_root("datatransfer"))
+        assert all(f.category in ("io", "reflection") for f in io_findings)
+        plain_io = [f for f in io_findings if f.category == "io"]
+        assert all("PrintReportViewer.cs" not in f.file for f in plain_io)
 
 
 class TestAlmacenDiagnosticoClassFieldGap:
@@ -218,20 +245,24 @@ class TestAlmacenDiagnosticoClassFieldGap:
 
 
 class TestVins1ModbusGap:
-    """GAP CONOCIDO (KNOWN_LIMITATIONS.md L18): segunda integracion PLC/Modbus
-    real del portafolio (la primera, MonTemp2, solo se documento a mano).
-    LOCAL_IO_TRIGGER no reconoce ModbusClient/EasyModbus -- hoy esto no
-    genera NINGUN finding, ni de SQL ni de I/O."""
+    """GAP CERRADO por la Fase 4 (KNOWN_LIMITATIONS.md L18): segunda
+    integracion PLC/Modbus real del portafolio (la primera, MonTemp2, solo se
+    documento a mano). LOCAL_IO_TRIGGER ahora reconoce `new ModbusClient(...)`
+    -- mismo formato de operation que el resto de triggers de esa familia
+    (`io_trig.group(0).rstrip("(")`, ej. "new SerialPort"/"new StreamWriter"),
+    category='io' porque es una integracion fisica mas, no invocacion
+    indirecta (a diferencia de TestDataTransferReflectionGap arriba)."""
 
-    def test_modbus_integration_produces_zero_findings_today(self, fixture_root):
+    def test_modbus_integration_now_produces_an_io_finding(self, fixture_root):
         sql_findings, io_findings = scan_project(fixture_root("vins1_modbus"))
         assert sql_findings == []
-        assert io_findings == [], (
-            "El patron ModbusClient/EasyModbus ya genera un io_finding -- "
-            "si esto es intencional (Fase 4 completada), actualizar este test "
-            "a proposito con la aserccion real esperada (operation='ModbusClient', "
-            "raw conteniendo '192.168.1.5')."
-        )
+        assert len(io_findings) == 1
+        f = io_findings[0]
+        assert f.operation == "new ModbusClient"
+        assert f.category == "io"
+        assert "192.168.1.5" in f.raw
+        assert f.class_name == "Form1"
+        assert f.method == "button1_Click"
 
 
 # ---------------------------------------------------------------------------

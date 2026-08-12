@@ -399,8 +399,47 @@ LOCAL_IO_TRIGGER = re.compile(
     r"\bnew\s+(HttpClient|WebClient|HttpWebRequest|SmtpClient)\s*\(|"
     r"\bWebRequest\.Create\s*\(|"
     r"\bnew\s+BarTender\.Application\s*\(|"
-    r"\.PrintOut\s*\("
+    r"\.PrintOut\s*\(|"
+    # KNOWN_LIMITATIONS.md L18 (Fase 4) -- segunda instancia real de
+    # integracion PLC/Modbus-TCP confirmada en el portafolio (VINS1/Modbus),
+    # ademas de MonTemp2 (documentada solo a mano hasta ahora). EasyModbus es
+    # la unica libreria de este tipo vista en el portafolio real; se ancla al
+    # constructor (no al nombre de la clase suelto) para no disparar sobre un
+    # comentario o un `using EasyModbus;` sin uso real.
+    r"\bnew\s+ModbusClient\s*\("
 )
+
+# KNOWN_LIMITATIONS.md L16/L17 (Fase 4) -- invocacion indirecta/tardia que
+# evade cualquier busqueda de referencia estatica normal (DataTransfer/VINS1
+# invocan miembros NO PUBLICOS de Microsoft.Reporting.WinForms.ReportViewer
+# via Reflection; 5 apps del portafolio dependen de Excel/Office instalado en
+# el host via COM/CLSID). Dos niveles de certeza deliberados:
+#   - REFLECTION_UNAMBIGUOUS: la API en si ya implica reflection/COM sin
+#     ninguna ambiguedad posible (Activator.CreateInstance, Marshal.
+#     GetTypeFromCLSID, o el patron encadenado GetMethod(...).Invoke(...)).
+#   - INVOKE_BARE + _method_mentions_methodinfo(): un `.Invoke(` suelto (ej.
+#     `current.Invoke(obj, parms)`, patron dominante real de este portafolio,
+#     ver PrintReportViewer.cs) NO es suficiente evidencia por si solo --
+#     tambien es la forma de invocar un delegado/evento comun, sin relacion
+#     con reflection. Solo se cuenta como reflection si `MethodInfo` aparece
+#     en algun punto DENTRO DEL MISMO METODO (mismo alcance ya usado por
+#     _command_type_is_stored_procedure_for_var) -- evidencia real de que la
+#     variable que invoca vino de reflection, no proximidad textual ciega.
+REFLECTION_UNAMBIGUOUS = re.compile(
+    r"\bActivator\.CreateInstance\s*\(|"
+    r"\bMarshal\.GetTypeFromCLSID\s*\(|"
+    r"\.GetMethod\s*\([^)]*\)\.Invoke\s*\("
+)
+INVOKE_BARE = re.compile(r"\.Invoke\s*\(")
+METHODINFO_HINT = re.compile(r"\bMethodInfo\b")
+
+# Filtro barato de vista previa para scan_project(): un archivo que no
+# menciona NINGUNA de estas piezas no puede producir un hallazgo de
+# reflection/COM, sin importar el resultado — evita abrir a fondo archivos
+# irrelevantes, mismo proposito que el filtro ya existente de SQL_TRIGGER/
+# LOCAL_IO_TRIGGER (nunca decide por si solo si algo ES reflection, solo si
+# vale la pena mirar el archivo completo).
+REFLECTION_PREVIEW_HINT = re.compile(r"Activator\.CreateInstance|Marshal\.GetTypeFromCLSID|MethodInfo")
 
 
 @dataclass
@@ -427,8 +466,30 @@ class LocalIOFinding:
     method: str
     operation: str   # e.g. "File.ReadAllText", "new StreamWriter"
     raw: str
+    # Fase 4 (KNOWN_LIMITATIONS.md L16/L17/L18): discriminador de tipo, mismo
+    # proposito que SqlFinding.category -- "io" preserva el significado de
+    # SIEMPRE tuvieron todos los LocalIOFinding hasta hoy (archivo/impresora/
+    # serial/proceso/red), asi que es un default honesto para filas viejas Y
+    # nuevas de esa familia, no un placeholder de "no instrumentado" como los
+    # campos de Evidence. "reflection" marca invocacion indirecta/tardia
+    # (MethodInfo.Invoke, Activator.CreateInstance, Marshal.GetTypeFromCLSID)
+    # -- deliberadamente NO una tabla nueva (ARCHITECTURE_REVIEW.md seccion 7
+    # ya advierte contra multiplicar tablas "algo que se observo sobre una
+    # app" sin discriminador), reutiliza io_findings con esta columna.
+    category: str = "io"
     # Fase 1: ver comentario identico en SettingEntry, arriba.
     evidence: Evidence = field(default_factory=Evidence)
+
+
+def _method_mentions_methodinfo(lines: list[str], method_start_idx: int, up_to_idx: int) -> bool:
+    """True si `MethodInfo` aparece en algun punto entre el inicio del metodo
+    actual y la linea `up_to_idx` (inclusive) -- evidencia de que un `.Invoke(`
+    suelto en ese mismo metodo probablemente actua sobre un MethodInfo
+    obtenido por Reflection, no sobre un delegado/evento comun. Mismo alcance
+    de busqueda (acotado al metodo, nunca cruza a otro) que ya usa
+    _command_type_is_stored_procedure_for_var."""
+    window = "\n".join(lines[method_start_idx : up_to_idx + 1])
+    return bool(METHODINFO_HINT.search(window))
 
 
 def _capture_statement(lines: list[str], start_idx: int) -> str:
@@ -839,6 +900,28 @@ def scan_file(cs_file: Path, root: Path) -> tuple[list[SqlFinding], list[LocalIO
             )
             continue
 
+        # Fase 4 (L16/L17): se evalua ANTES de LOCAL_IO_TRIGGER porque
+        # `.Invoke(` no aparece en ese regex -- no hay ambiguedad de cual
+        # trigger "gana" sobre la misma linea, son conjuntos disjuntos.
+        reflection_match = REFLECTION_UNAMBIGUOUS.search(line)
+        reflection_label = None
+        if reflection_match:
+            reflection_label = reflection_match.group(0).rstrip("(").strip()
+        elif INVOKE_BARE.search(line) and _method_mentions_methodinfo(lines, method_start_idx, idx):
+            reflection_label = "MethodInfo.Invoke"
+        if reflection_label:
+            io_findings.append(
+                LocalIOFinding(
+                    file=str(cs_file.relative_to(root)),
+                    class_name=current_class,
+                    method=current_method,
+                    operation=reflection_label,
+                    raw=_capture_statement(lines, idx),
+                    category="reflection",
+                )
+            )
+            continue
+
         io_trig = LOCAL_IO_TRIGGER.search(line)
         if io_trig:
             io_findings.append(
@@ -848,6 +931,7 @@ def scan_file(cs_file: Path, root: Path) -> tuple[list[SqlFinding], list[LocalIO
                     method=current_method,
                     operation=io_trig.group(0).rstrip("("),
                     raw=_capture_statement(lines, idx),
+                    category="io",
                 )
             )
 
@@ -865,7 +949,11 @@ def scan_project(
         if "Settings" in cs_file.name:
             continue
         preview = cs_file.read_text(encoding="utf-8", errors="ignore")
-        if not (SQL_TRIGGER.search(preview) or LOCAL_IO_TRIGGER.search(preview)):
+        if not (
+            SQL_TRIGGER.search(preview)
+            or LOCAL_IO_TRIGGER.search(preview)
+            or REFLECTION_PREVIEW_HINT.search(preview)
+        ):
             continue
         sql, io = scan_file(cs_file, root)
         all_sql.extend(sql)

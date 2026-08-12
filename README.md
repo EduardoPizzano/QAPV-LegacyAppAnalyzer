@@ -96,8 +96,15 @@ Específicamente para el inventario de aplicaciones legacy de AFL previo a la mi
 - Archivos y carpetas (`File.*`, `Directory.*`, `StreamReader/Writer`, `FileStream`, `DirectoryInfo`).
 - Impresoras, incluido BarTender (`PrintDocument`, `PrintDialog`, `PrinterSettings`, `BarTender.Application`, `.PrintOut`).
 - Hardware serial (`SerialPort`).
+- Integraciones PLC/Modbus-TCP (`new ModbusClient(...)`, librería `EasyModbus`) — confirmado en el portafolio (`VINS1/Modbus`), además de `MonTemp2` (documentada solo a mano).
 - Otros procesos (`Process.Start`).
 - Red: `HttpClient`, `WebClient`, `HttpWebRequest`, `WebRequest.Create`, `SmtpClient`.
+
+### 🧬 Invocación indirecta / tardía (Reflection, COM/CLSID)
+- Detección de `Activator.CreateInstance(...)`, `Marshal.GetTypeFromCLSID(...)` y el patrón encadenado `GetMethod(...).Invoke(...)`, sin ambigüedad posible.
+- Detección de un `.Invoke(...)` suelto (patrón dominante real del portafolio, ej. `metodoInfo.Invoke(obj, parms)`) únicamente cuando `MethodInfo` aparece antes en el mismo método — evita confundirlo con un `.Invoke()` de delegado/evento común.
+- Se reporta en su propia sección/hoja ("Invocación indirecta / tardía"), separada de la tabla de archivos/impresoras/red, porque es un riesgo de naturaleza distinta: el comportamiento real depende de resolución en tiempo de ejecución, ningún análisis estático puede saberlo con certeza.
+- Alcance explícito: no se sigue un método local que actúa como *wrapper* de reflection hacia los nombres de método que reenvía (ej. `PrintReportViewer.cs: ExecuteFunction`) — se detectan los puntos reales de invocación, no cada llamada al wrapper.
 
 ### 🔐 Extracción de esquema real desde la base de datos (solo lectura)
 - Conexión con las mismas cadenas de conexión ya encontradas en el código, usando `pyodbc` (ODBC Driver 17 para SQL Server) en modo `ApplicationIntent=ReadOnly`.
@@ -374,6 +381,8 @@ QAPV-LegacyAppAnalyzer/
 | Alertas de seguridad (credenciales, posible SQLi) | ✅ Implementado | Heurísticas basadas en patrones, no un analizador de seguridad exhaustivo. |
 | Extracción de esquema real desde SQL Server (solo lectura) | ✅ Implementado | Automática en cada análisis; definición de SP, parámetros formales, columnas de resultado reales, esquema de tablas y FKs. |
 | Extracción de esquema real desde Oracle | ❌ Pendiente | Se detecta el uso de Oracle en el código, pero `db_introspect.py` solo sabe conectarse a SQL Server. |
+| Detección de invocación indirecta/tardía (Reflection, `Activator.CreateInstance`, COM/CLSID) | ✅ Implementado | v0.6.3. Categoría `reflection` separada de I/O común, en su propia sección de reporte/exportación. COM/CLSID (`Marshal.GetTypeFromCLSID`) tiene el mecanismo listo pero sin fixture real confirmado aún (ver `KNOWN_LIMITATIONS.md` L17). |
+| Detección de integración PLC/Modbus-TCP (`ModbusClient`/`EasyModbus`) | ✅ Implementado | v0.6.3. |
 | Reporte Markdown | ✅ Implementado | Generado y mostrado en pantalla desde los mismos datos. |
 | Exportación a Excel | ✅ Implementado | Una hoja por sección, con ajuste automático de ancho de columna. |
 | Exportación a Word | ✅ Implementado | Tablas equivalentes a las del Excel/Markdown. |

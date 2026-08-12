@@ -77,16 +77,21 @@ Cada fase es pequeña, independiente y de bajo riesgo por diseño: ninguna fase 
 
 ## Fase 4 — Reflection, COM/CLSID, Modbus/PLC (L16, L17, L18)
 
+**Estado (2026-08-11): cerrada para L16/L18, L17 mitigada.** Ver `KNOWN_LIMITATIONS.md` y `tests/test_fase4_reflection_com_modbus.py`.
+
 **Objetivo**: nueva categoría de finding para invocación indirecta/tardía, y una integración física adicional ya confirmada.
 
-**Alcance**:
-- Nueva categoría de patrón en `extract.py` (o módulo hermano `reflection_extract.py` si `extract.py` empieza a sentirse sobrecargado — decisión a tomar en el momento, no de antemano) para: `Activator.CreateInstance`, `MethodInfo.Invoke`/`GetMethod().Invoke`, `Marshal.GetTypeFromCLSID`, `dynamic` operando un objeto obtenido de una de las llamadas anteriores.
-- `LOCAL_IO_TRIGGER` gana `ModbusClient`/`EasyModbus` como patrón de integración PLC.
-- Tabla `reflection_findings` (o reutilizar `io_findings` con una categoría nueva — decisión de diseño a confirmar contra el volumen real antes de crear una tabla nueva; ver nota de riesgo abajo).
+**Alcance implementado**:
+- Categoría `category="reflection"` agregada a `LocalIOFinding` (se descartó el módulo hermano `reflection_extract.py` — el volumen real no lo justificó, `extract.py` sigue manejable) para: `Activator.CreateInstance`, `Marshal.GetTypeFromCLSID`, el patrón encadenado `GetMethod(...).Invoke(...)`, y `.Invoke(` suelto cuando `MethodInfo` aparece antes en el mismo método (`_method_mentions_methodinfo`) — este último es el patrón dominante real del portafolio (`PrintReportViewer.cs`), no estaba explícito en el alcance original de esta fase.
+- `LOCAL_IO_TRIGGER` gana `new ModbusClient(...)` como patrón de integración PLC (`EasyModbus` es la única librería de este tipo confirmada en el portafolio; no se generalizó a un patrón de nombre de librería suelto, solo al constructor real visto).
+- Se reutilizó `io_findings` con la columna `category` nueva (`"io"` | `"reflection"`), **no** una tabla `reflection_findings` — decisión tomada según ARCHITECTURE_REVIEW.md sección 7 (ya hay 3 tablas "algo observado sobre una app"; una cuarta sin discriminador habría repetido el problema). `report.py`/`export_office.py` renderizan la categoría `reflection` en su propia sección/hoja, separada de la tabla de I/O común.
+- `dynamic` operando un objeto obtenido de reflection: **no implementado** — sin evidencia de un caso real en el portafolio que lo use (Principio 4, `ARCHITECTURAL_PRINCIPLES.md`); queda como patrón centinela, no bloqueante.
+- Decisión de alcance explícita (no estaba en el plan original): NO se siguen las 7 llamadas al wrapper local `ExecuteFunction(viewer, parms, "NombreDeMetodo")` de `PrintReportViewer.cs` que reenvían a los 2 puntos reales de invocación — solo se detectan esos 2 puntos. Seguir un wrapper de reflection definido localmente y atribuirle cada call-site como un finding distinto requeriría análisis entre métodos, fuera del alcance ya establecido para este extractor (mismo principio que `_reconstruct_dynamic_sql` aplicado a SQL dinámico). Documentado en `tests/test_characterization.py: TestDataTransferReflectionGap`.
 
-**Riesgo**: medio — patrón nuevo, pero acotado a 7 apps ya identificadas con fixtures conocidos (`DataTransfer`/`VINS1` para reflection y COM, `VINS1/Modbus` para PLC).
+**Riesgo real observado**: bajo — el patrón encajó sin tocar ningún otro extractor; el único ajuste no anticipado fue el guard `_method_mentions_methodinfo` para evitar falsos positivos de `.Invoke()` de delegado/evento común (cubierto por `TestReflectionDetectionInSource::test_bare_invoke_without_methodinfo_in_scope_is_not_reflection`).
 
-**Criterio de salida**: los 3 fixtures nuevos (`PrintReportViewer.cs`, `MainVM.cs:1178` de ReportViewer, `Modbus/Form1.cs:41-42`) generan findings de la categoría correspondiente.
+**Criterio de salida real**: `PrintReportViewer.cs` (`DataTransfer`) genera 2 findings `category="reflection"` (`MethodInfo.Invoke` en `ExecuteFunction`, `Activator.CreateInstance` en `PrintByPriner`); `VINS1/Modbus/Form1.cs` genera 1 `io_finding` (`operation="new ModbusClient"`). El fixture `MainVM.cs:1178` de ReportViewer mencionado en el criterio original de esta fase **no se congeló nunca en `tests/fixtures/`** — L16 se cierra igual porque `PrintReportViewer.cs` ya es evidencia suficiente del mismo patrón (idéntico en `decompiled/DataTransfer` y `decompiled/VINS1`, según su propio comentario de origen); si `MainVM.cs` resulta tener una forma distinta, sería un fixture adicional para una fase futura, no un bloqueo de esta.
+- **L17 (COM/CLSID) queda "Mitigada", no "Resuelta"**: el mecanismo de detección (`Marshal.GetTypeFromCLSID`) ya existe y comparte código con L16, pero ninguna de las 5 apps que dependen de Excel vía COM tiene todavía un fixture congelado en `tests/fixtures/` que lo confirme contra código real — cerrarlo del todo requiere ese fixture primero, siguiendo la misma disciplina de evidencia que el resto del proyecto.
 
 **Depende de**: Fase 1 (usa `Evidence`/`confidence`), independiente de Fase 3.
 

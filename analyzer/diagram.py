@@ -24,14 +24,24 @@ IO_CATEGORY_PATTERNS = [
     (("File.", "Directory.", "StreamReader", "StreamWriter", "FileStream", "DirectoryInfo"), "Archivos / carpetas"),
     (("PrintDocument", "PrintDialog", "PrinterSettings", "BarTender", "PrintOut"), "Impresora"),
     (("SerialPort",), "Puerto serial"),
+    (("ModbusClient",), "PLC / Modbus"),
     (("Process.Start",), "Proceso externo"),
     (("HttpClient", "WebClient", "HttpWebRequest", "WebRequest", "SmtpClient"), "Red (HTTP/SMTP)"),
 ]
 
 
-def _io_category(operation: str) -> str:
+def _io_category(f: LocalIOFinding) -> str:
+    # Fase 4 (KNOWN_LIMITATIONS.md L16/L17): un hallazgo de reflection/COM no
+    # es "Otro I/O" -- es un riesgo de naturaleza distinta (comportamiento
+    # depende de resolucion en tiempo de ejecucion), igual que en
+    # report.py/export_office.py se le da su propia seccion/hoja separada de
+    # la tabla de I/O comun. Se verifica category ANTES que los prefijos de
+    # operation para no depender de que "Invoke"/"CreateInstance" nunca
+    # coincida por accidente con un prefijo de I/O real.
+    if f.category == "reflection":
+        return "Reflection / COM"
     for prefixes, label in IO_CATEGORY_PATTERNS:
-        if any(p in operation for p in prefixes):
+        if any(p in f.operation for p in prefixes):
             return label
     return "Otro I/O"
 
@@ -60,7 +70,7 @@ def build_dataflow_diagram(sql_findings: list[SqlFinding], io_findings: list[Loc
 
     class_to_io: dict[str, set[str]] = defaultdict(set)
     for f in io_findings:
-        class_to_io[f.class_name].add(_io_category(f.operation))
+        class_to_io[f.class_name].add(_io_category(f))
 
     all_classes = sorted(set(class_to_sql) | set(class_to_io))
     if not all_classes:

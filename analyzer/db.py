@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS io_findings (
     class_name TEXT,
     method TEXT,
     operation TEXT,
-    raw TEXT
+    raw TEXT,
+    category TEXT NOT NULL DEFAULT 'io'
 );
 
 CREATE TABLE IF NOT EXISTS security_flags (
@@ -197,6 +198,18 @@ def init_db() -> None:
             conn.execute("ALTER TABLE db_procedures ADD COLUMN parameters_json TEXT")
         if "result_columns_json" not in db_procedures_cols:
             conn.execute("ALTER TABLE db_procedures ADD COLUMN result_columns_json TEXT")
+        # Fase 4 (KNOWN_LIMITATIONS.md L16/L17): discriminador de categoria
+        # para io_findings, mismo proposito que sql_findings.category (ya
+        # existente). A diferencia de las columnas de Evidence de abajo, este
+        # default SI es correcto tambien para filas viejas -- todo
+        # LocalIOFinding guardado antes de esta fase era, de hecho, un
+        # hallazgo de I/O comun (archivo/impresora/serial/proceso/red); nunca
+        # hubo reflection instrumentado antes, asi que 'io' no es una
+        # suposicion, es el valor real conocido.
+        io_findings_cols = {row["name"] for row in conn.execute("PRAGMA table_info(io_findings)")}
+        if "category" not in io_findings_cols:
+            conn.execute("ALTER TABLE io_findings ADD COLUMN category TEXT NOT NULL DEFAULT 'io'")
+
         findings_cols = {row["name"] for row in conn.execute("PRAGMA table_info(findings)")}
         if "status" not in findings_cols:
             conn.execute("ALTER TABLE findings ADD COLUMN status TEXT NOT NULL DEFAULT 'OPEN'")
@@ -326,8 +339,9 @@ def save_analysis(
         )
 
         conn.executemany(
-            "INSERT INTO io_findings (app_id, file, class_name, method, operation, raw) VALUES (?, ?, ?, ?, ?, ?)",
-            [(app_id, f.file, f.class_name, f.method, f.operation, f.raw) for f in io_findings],
+            "INSERT INTO io_findings (app_id, file, class_name, method, operation, raw, category) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [(app_id, f.file, f.class_name, f.method, f.operation, f.raw, f.category) for f in io_findings],
         )
 
         conn.executemany(
