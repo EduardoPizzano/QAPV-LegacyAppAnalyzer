@@ -45,6 +45,50 @@ class TestInterConfigConnectionDiscovery:
         assert settings[0].category == "sql_or_oracle"
 
 
+class TestRl1InterfaceCargaConnRLAltaResolution:
+    """FIDELITY FIXES (2026-08) objetivo 2: RECONSTRUCTION_EVIDENCE_STUDY.md
+    reporto CargaConnRLAlta (RL1Interface) como query "no resuelta
+    automaticamente -- revisar manualmente" en el reporte Markdown. La
+    investigacion de esta increment demostro que el extractor YA resuelve
+    correctamente este caso (scan_project + qapv_analyzer.db, fila
+    sql_findings id=21349, confidence=90, creada 2026-08-06 -- posterior al
+    fix de VAR_AS_COMMAND_CTOR_ARG/STRING_VAR_ASSIGN); la causa real del
+    sintoma reportado es que reports/RL1Interface.md quedo desactualizado
+    (mtime 2026-07-30, anterior a esa corrida correcta). No hubo cambio de
+    codigo para este objetivo -- este test fija como regresion permanente el
+    comportamiento ya-correcto, usando el patron exacto (using-declaration +
+    variable de texto + ctor de dos argumentos) extraido verbatim del metodo
+    real, para que una futura regresion en VAR_AS_COMMAND_CTOR_ARG o en
+    _rows_for_method se detecte de inmediato."""
+
+    def test_query_resolves_with_target_and_high_confidence(self, fixture_root):
+        sql_findings, _ = scan_project(fixture_root("rl1interface_cargaconnralta"))
+        resolved = [f for f in sql_findings if f.target == "ConnectorsRL1Max"]
+        assert len(resolved) == 1
+        finding = resolved[0]
+        assert finding.method == "CargaConnRLAlta"
+        assert finding.category == "query"
+        assert finding.resolved is not None
+        assert "FROM ConnectorsRL1Max" in finding.resolved
+        assert finding.evidence.confidence >= 90
+
+    def test_report_renders_the_real_query_not_the_generic_message(self, fixture_root):
+        """Extremo a extremo: el mismo mensaje generico
+        ("revisar manualmente") que aparece en el reports/RL1Interface.md
+        desactualizado NO debe producirse cuando el reporte se regenera con
+        los datos ya-correctos del extractor actual."""
+        sql_findings, _ = scan_project(fixture_root("rl1interface_cargaconnralta"))
+        by_method = {}
+        for f in sql_findings:
+            by_method.setdefault((f.class_name, f.method), []).append(f)
+        rows = []
+        for group in by_method.values():
+            rows.extend(_rows_for_method(group))
+        rendered_texts = [row[0] for row in rows]
+        assert any("FROM ConnectorsRL1Max" in t for t in rendered_texts)
+        assert not any("no resuelta automaticamente" in t for t in rendered_texts)
+
+
 class TestInterAflConnectionDiscovery:
     """7 conexiones reales (revelaron el servidor NAAMRT-QCS10, nunca antes
     documentado) + confirma que las entradas COMENTADAS en app.config (con

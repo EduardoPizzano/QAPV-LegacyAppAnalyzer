@@ -15,6 +15,8 @@ Reemplazar el proceso manual de "abrir dotPeek → decompilar clase por clase �
 Servir como la **fuente única de verdad técnica** de todas las apps legacy de QAPV_DATACENTER durante el proyecto de migración: un lugar donde cualquier persona del equipo pueda buscar "¿qué apps usan la tabla `LCJob`?", "¿qué Stored Procedures llama `AFL.Dashboard`?" o "¿esta app ya fue revisada y está lista para migrar?", sin depender de documentos sueltos ni de la memoria de quien hizo el análisis original. No busca ser un producto genérico de reversing — está deliberadamente acoplado al formato y las convenciones ya usadas en el análisis manual previo de este proyecto.
 
 > 📘 **¿Vas a dar mantenimiento a este código?** Este README está orientado a usuarios técnicos y a instalar/usar la herramienta. Para el diseño interno, el pipeline módulo por módulo, el modelo de datos y las convenciones para extenderla, ver **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+>
+> 🔎 **Evidencia de investigación (gap analysis, estudios de reconstrucción, cierres de incrementos):** `GapAnalysis_QAPV-LegacyAppAnalyzer_2026-08-12.md`, `RECONSTRUCTION_EVIDENCE_STUDY.md` y `FIDELITY_FIXES_2026-08-12.md`, en la raíz del repositorio, junto al resto de los documentos de diseño/incrementos (`ARCHITECTURE_REVIEW.md`, `AUDIT-ARB-2026-08-04.md`, `INCREMENTO_*.md`, etc.).
 
 ---
 
