@@ -149,3 +149,45 @@ class TestSaveAnalysisRoundTrip:
         data = db.get_app(app_id)
         assert data["app"]["build_date"] == "2026-08-01T00:00:00"
         assert data["app"]["last_activity_date"] == "2026-08-01T00:00:00"
+
+
+class TestUpdateLifecycleBackfill:
+    """update_lifecycle() -- backfill de Lifecycle para apps ya analizadas
+    antes de que este incremento existiera, SIN re-decompilar ni re-correr
+    save_analysis(). Debe tocar unicamente las 4 columnas de Lifecycle."""
+
+    def test_updates_only_the_lifecycle_columns(self, temp_db):
+        app_id = db.save_analysis("App", r"\\server\App.exe", _tech(), [], [], [], [])
+        db.set_review(app_id, "logica_revisada", "Revision ya hecha antes del backfill.")
+
+        db.update_lifecycle(
+            app_id, "2025-07-10T16:39:44",
+            ActivityEvidence(date="2026-05-20T08:37:48", source="file_log", confidence=60),
+        )
+
+        data = db.get_app(app_id)
+        assert data["app"]["build_date"] == "2025-07-10T16:39:44"
+        assert data["app"]["last_activity_date"] == "2026-05-20T08:37:48"
+        assert data["app"]["last_activity_source"] == "file_log"
+        assert data["app"]["last_activity_confidence"] == 60
+        # Nada mas de la fila (identidad, revision manual) se altero.
+        assert data["app"]["name"] == "App"
+        assert data["app"]["source_path"] == r"\\server\App.exe"
+        assert data["app"]["review_status"] == "logica_revisada"
+        assert data["app"]["review_notes"] == "Revision ya hecha antes del backfill."
+
+    def test_does_not_touch_sql_findings_or_settings(self, temp_db):
+        from analyzer.evidence import Evidence
+        from analyzer.extract import SettingEntry
+
+        setting = SettingEntry(
+            name="ConnString", default_value="Server=x;", is_connection_string=True,
+            category="db", source_file="Settings.cs", evidence=Evidence(),
+        )
+        app_id = db.save_analysis("App", r"\\server\App.exe", _tech(), [setting], [], [], [])
+
+        db.update_lifecycle(app_id, "2025-07-10T16:39:44", ActivityEvidence())
+
+        data = db.get_app(app_id)
+        assert len(data["settings"]) == 1
+        assert data["settings"][0]["name"] == "ConnString"

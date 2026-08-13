@@ -400,6 +400,22 @@ def set_review(app_id: int, status: str, notes: str) -> None:
         )
 
 
+def update_lifecycle(app_id: int, build_date: str | None, activity: ActivityEvidence) -> None:
+    """Backfill de Lifecycle para una app ya analizada -- actualiza UNICAMENTE
+    build_date/last_activity_* a partir del ensamblado ya existente en disco
+    (ver analyzer/activity.py), sin volver a decompilar ni a correr
+    save_analysis() (que borraria e reinsertaria settings/sql_findings/
+    io_findings/security_flags y podria desincronizarlos si el codigo fuente
+    cambio desde el ultimo analisis). review_status/review_notes y todo lo
+    demas de la fila quedan intocados."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE apps SET build_date = ?, last_activity_date = ?, last_activity_source = ?, "
+            "last_activity_confidence = ? WHERE id = ?",
+            (build_date, activity.date, activity.source, activity.confidence, app_id),
+        )
+
+
 def save_db_objects(
     app_id: int,
     procedures: list[dict],
