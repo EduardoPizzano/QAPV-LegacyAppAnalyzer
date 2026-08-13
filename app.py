@@ -44,24 +44,36 @@ def _analyze_and_save(assembly: Path, custom_name: str | None = None) -> dict:
     analyzer/db_introspect.py's module docstring) and any connection failure
     is caught and reported, never allowed to fail the overall analysis.
     Returns a dict with app_id + an enrichment summary. Raises DecompileError
-    on failure — shared by the single-app and batch flows."""
-    result = run_analysis(assembly, custom_name)
+    on failure — shared by the single-app and batch flows.
 
-    report_text = render(
-        result.app_name, result.tech, result.settings, result.sql_findings,
-        result.io_findings, result.security_flags, result.companion_assemblies,
-    )
-    # app_name can contain "/" for batch-discovered apps (e.g. "AFL.Dashboard/
-    # AFL.Scrap"), which implies a report subfolder that may not exist yet.
-    report_path = REPORTS_DIR / f"{result.app_name}.md"
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(report_text, encoding="utf-8")
+    Ordering note (fix 2026-08-13): save_analysis() FIRST, then read back
+    the name DB actually kept, THEN render/write the .md — never the other
+    way around. result.app_name is only the name PROPOSED for this run;
+    save_analysis() may silently keep an older name when source_path already
+    matches an existing row (see analyzer/db.py). Writing the report from
+    result.app_name before that resolution produced an orphaned .md at the
+    proposed (wrong) path while the real row's report was never refreshed —
+    confirmed with GeoStatsInter 2026-08-11 and reproduced in a controlled
+    diagnostic 2026-08-13 (RL1PolInterfaceLocalMultiple)."""
+    result = run_analysis(assembly, custom_name)
 
     app_id = db.save_analysis(
         result.app_name, result.source_path, result.tech, result.settings,
         result.sql_findings, result.io_findings, result.security_flags,
-        result.companion_assemblies,
+        result.companion_assemblies, result.build_date, result.activity,
     )
+    final_name = db.get_app(app_id)["app"]["name"]
+
+    report_text = render(
+        final_name, result.tech, result.settings, result.sql_findings,
+        result.io_findings, result.security_flags, result.companion_assemblies,
+        build_date=result.build_date, activity=result.activity,
+    )
+    # app_name can contain "/" for batch-discovered apps (e.g. "AFL.Dashboard/
+    # AFL.Scrap"), which implies a report subfolder that may not exist yet.
+    report_path = REPORTS_DIR / f"{final_name}.md"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(report_text, encoding="utf-8")
 
     enrich_summary = {"sp_ok": 0, "sp_total": 0, "tables": 0, "connection_errors": [], "attempted": False}
     try:
@@ -76,7 +88,7 @@ def _analyze_and_save(assembly: Path, custom_name: str | None = None) -> dict:
         enrich_summary["connection_errors"] = enrich_result["connection_errors"]
         db.save_db_objects(app_id, enrich_result["procedures"], enrich_result["tables"], enrich_result["connection_errors"])
 
-    return {"app_id": app_id, "app_name": result.app_name, "enrich": enrich_summary}
+    return {"app_id": app_id, "app_name": final_name, "enrich": enrich_summary}
 
 
 def _flash_enrich_summary(enrich_summary: dict) -> None:
@@ -318,13 +330,14 @@ def export(app_id, fmt):
 
     (
         app_name, tech, settings, sql_findings, io_findings, flags, companions,
-        db_procedures, db_tables, db_intro_notes,
+        db_procedures, db_tables, db_intro_notes, build_date, activity,
     ) = reconstruct_from_db(data)
 
     if fmt == "md":
         content = render(
             app_name, tech, settings, sql_findings, io_findings, flags, companions,
             db_procedures, db_tables, db_intro_notes,
+            build_date=build_date, activity=activity,
         )
     elif fmt == "xlsx":
         content = export_office.build_xlsx(

@@ -59,6 +59,32 @@ REFLECTION = 40
 # lo que realmente queremos decir es "no sabemos", que es distinto.
 UNKNOWN = 20
 
+# Incremento Lifecycle (2026-08-13, analyzer/activity.py): confianza de la
+# evidencia de ULTIMA ACTIVIDAD de una app (no de un hallazgo SQL/IO) --
+# reutiliza esta misma escala 0-100 en vez de inventar una paralela
+# cualitativa, para que "confianza" siga significando una sola cosa en todo
+# el proyecto. Estos tres niveles miden que tan completa fue la LECTURA del
+# archivo/carpeta de log, nunca si "actividad de log" equivale a "uso real"
+# (esa es una brecha conceptual distinta, deliberadamente no modelada aqui).
+
+# Se encontro y enumero POR COMPLETO una carpeta de logs (sin alcanzar el
+# tope de MAX_LOG_ENTRIES_SCANNED/MAX_LOG_SCAN_SECONDS) -- la fecha
+# reportada es el maximo real dentro de esa carpeta. Mismo nivel que
+# REGEX_KEYWORD_MATCH: funciona bien, pero es reconocimiento por nombre de
+# carpeta, no una verificacion.
+FILE_LOG_FILE_MTIME_EXHAUSTIVE = 70
+
+# Se encontro una carpeta de logs pero el escaneo alcanzo su tope (de
+# entradas o de tiempo) antes de terminar -- la fecha reportada es el
+# maximo encontrado HASTA ESE PUNTO, no necesariamente el archivo mas
+# reciente real. Mismo nivel que INFERRED: sabemos algo, no todo.
+FILE_LOG_FILE_MTIME_BOUNDED = 60
+
+# Carpeta de logs reconocida por nombre, pero solo se leyo su propio mtime
+# (barato, O(1), sin enumerar contenido) -- puede quedarse atras si la app
+# escribe siempre al mismo archivo en vez de crear archivos nuevos dentro.
+FILE_LOG_FOLDER_MTIME = 50
+
 
 CONFIDENCE_TABLE: dict[str, int] = {
     "DB_INTROSPECT_DEFINITION": DB_INTROSPECT_DEFINITION,
@@ -72,6 +98,9 @@ CONFIDENCE_TABLE: dict[str, int] = {
     "INFERRED": INFERRED,
     "DYNAMIC_SQL": DYNAMIC_SQL,
     "REFLECTION": REFLECTION,
+    "FILE_LOG_FILE_MTIME_EXHAUSTIVE": FILE_LOG_FILE_MTIME_EXHAUSTIVE,
+    "FILE_LOG_FILE_MTIME_BOUNDED": FILE_LOG_FILE_MTIME_BOUNDED,
+    "FILE_LOG_FOLDER_MTIME": FILE_LOG_FOLDER_MTIME,
     "UNKNOWN": UNKNOWN,
 }
 

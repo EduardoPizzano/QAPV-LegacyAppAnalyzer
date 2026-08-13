@@ -4,10 +4,24 @@ import json
 import re
 from collections import defaultdict
 
+from . import confidence
+from .activity import ActivityEvidence
 from .evidence import Evidence
 from .extract import LocalIOFinding, SettingEntry, SqlFinding
 from .security import SecurityFlag
 from .techstack import TechStack
+
+# Incremento Lifecycle: traduccion legible del numero 0-100 de confidence.py
+# SOLO para mostrar -- el dato guardado sigue siendo el entero (una sola
+# fuente de verdad de confianza en todo el proyecto, ver analyzer/confidence.py).
+def _confidence_label(value: int | None) -> str:
+    if value is None or value <= 20:  # confidence.UNKNOWN = piso de la escala = "sin evidencia"
+        return "unknown"
+    if value >= 70:
+        return "high"
+    if value >= 55:
+        return "medium"
+    return "low"
 
 CONN_VAR = re.compile(r"new\s+(?:Sql|Oracle)Connection\s*\(\s*([\w.]+)\s*\)")
 
@@ -74,7 +88,10 @@ def render(
     db_procedures: list[dict] | None = None,
     db_tables: list[dict] | None = None,
     db_intro_notes: str | None = None,
+    build_date: str | None = None,
+    activity: ActivityEvidence | None = None,
 ) -> str:
+    activity = activity or ActivityEvidence()
     lines: list[str] = []
     lines.append(f"# {app_name} — Inventario automatico (borrador)")
     lines.append("")
@@ -82,6 +99,19 @@ def render(
         "> Generado por QAPV-LegacyAppAnalyzer (ilspycmd + extractor Python). "
         "Este es un primer borrador — revisar antes de usarlo como fuente final."
     )
+    lines.append("")
+
+    # Incremento Lifecycle (2026-08-13): build_date es un PROXY (mtime del
+    # ensamblado), NUNCA una fecha de compilacion verificada -- ver
+    # analyzer/activity.py. last_activity es "ultima evidencia encontrada",
+    # NUNCA "ultima ejecucion confirmada" -- ausencia de evidencia se
+    # muestra como "unknown", jamas se afirma "no se usa".
+    lines.append("## Ciclo de vida")
+    lines.append("")
+    lines.append(f"- **Build date** (proxy, fecha de modificacion del ensamblado): {build_date or 'unknown'}")
+    lines.append(f"- **Last activity evidence**: {activity.date or 'unknown'}")
+    lines.append(f"- **Activity source**: {activity.source}")
+    lines.append(f"- **Activity confidence**: {_confidence_label(activity.confidence)}")
     lines.append("")
 
     lines.append("## Tecnologia")
@@ -401,18 +431,34 @@ def reconstruct_from_db(data: dict):
         for t in data.get("db_tables", [])
     ]
 
+    # Incremento Lifecycle: filas guardadas antes de esta fase no tienen estas
+    # columnas pobladas (NULL, no ausentes -- la migracion ya las agrego) --
+    # ActivityEvidence() por defecto documenta eso honestamente
+    # (source="no_evidence", confidence=UNKNOWN), nunca se inventa una fecha.
+    activity = ActivityEvidence(
+        date=app_row.get("last_activity_date"),
+        source=app_row.get("last_activity_source") or "no_evidence",
+        confidence=(
+            app_row["last_activity_confidence"]
+            if app_row.get("last_activity_confidence") is not None
+            else confidence.UNKNOWN
+        ),
+    )
+
     return (
         app_row["name"], tech, settings, sql_findings, io_findings, flags, companion_assemblies,
         db_procedures, db_tables, app_row.get("db_intro_notes"),
+        app_row.get("build_date"), activity,
     )
 
 
 def render_from_db(data: dict) -> str:
     (
         app_name, tech, settings, sql_findings, io_findings, flags, companions,
-        db_procedures, db_tables, db_intro_notes,
+        db_procedures, db_tables, db_intro_notes, build_date, activity,
     ) = reconstruct_from_db(data)
     return render(
         app_name, tech, settings, sql_findings, io_findings, flags, companions,
         db_procedures, db_tables, db_intro_notes,
+        build_date=build_date, activity=activity,
     )

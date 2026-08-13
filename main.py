@@ -42,23 +42,33 @@ def main() -> int:
         f"{len(result.security_flags)} alertas de seguridad."
     )
 
-    report_text = render(
-        result.app_name, result.tech, result.settings, result.sql_findings,
-        result.io_findings, result.security_flags, result.companion_assemblies,
-    )
-    report_path = REPORTS_DIR / f"{result.app_name}.md"
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(report_text, encoding="utf-8")
-
+    # Ordering note (fix 2026-08-13, mismo problema y misma correccion que
+    # app.py::_analyze_and_save()): si se guarda en BD, hacerlo ANTES de
+    # escribir el .md y usar el nombre que save_analysis() realmente retuvo
+    # -- puede diferir de result.app_name (el nombre solo PROPUESTO para esta
+    # corrida) cuando source_path ya coincide con una fila existente bajo
+    # otro nombre. Sin este orden, el .md quedaria escrito en una ruta que no
+    # corresponde a la fila real de la BD.
+    final_name = result.app_name
     if args.save_db:
-        from analyzer.db import init_db, save_analysis
+        from analyzer.db import get_app, init_db, save_analysis
         init_db()
-        save_analysis(
+        app_id = save_analysis(
             result.app_name, result.source_path, result.tech, result.settings,
             result.sql_findings, result.io_findings, result.security_flags,
-            result.companion_assemblies,
+            result.companion_assemblies, result.build_date, result.activity,
         )
+        final_name = get_app(app_id)["app"]["name"]
         print("[3/3] Guardado en la base de datos acumulativa (qapv_analyzer.db).")
+
+    report_text = render(
+        final_name, result.tech, result.settings, result.sql_findings,
+        result.io_findings, result.security_flags, result.companion_assemblies,
+        build_date=result.build_date, activity=result.activity,
+    )
+    report_path = REPORTS_DIR / f"{final_name}.md"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(report_text, encoding="utf-8")
 
     print(f"\nListo. Reporte en: {report_path}")
     return 0

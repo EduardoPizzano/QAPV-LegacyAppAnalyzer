@@ -2,10 +2,11 @@
 Used by both the CLI (main.py) and the web app."""
 
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import security, techstack
+from .activity import ActivityEvidence, build_date as _build_date, detect_activity_evidence
 from .classification import (
     classify_decompiled_assemblies,
     third_party_folder_names,
@@ -31,6 +32,14 @@ class AnalysisResult:
     io_findings: list[LocalIOFinding]
     security_flags: list[SecurityFlag]
     companion_assemblies: list[str]
+    # Incremento Lifecycle (2026-08-13): evidencia de ciclo de vida de la app,
+    # deliberadamente separada de los findings de arriba (extract.py no se
+    # toco para esto). build_date es un PROXY (mtime del ensamblado), no una
+    # fecha de compilacion verificada -- ver analyzer/activity.py para la
+    # investigacion completa de por que. activity es best-effort: ausencia de
+    # evidencia nunca implica "no se uso".
+    build_date: str | None = None
+    activity: ActivityEvidence = field(default_factory=ActivityEvidence)
 
 
 def run_analysis(assembly_path: Path, app_name: str | None = None) -> AnalysisResult:
@@ -76,6 +85,13 @@ def run_analysis(assembly_path: Path, app_name: str | None = None) -> AnalysisRe
     tech = techstack.detect(output_dir)
     flags = security.check_settings(settings) + security.check_findings(sql_findings)
 
+    # Incremento Lifecycle: se calcula sobre assembly_path (la ruta real en
+    # el share), NUNCA sobre output_dir -- output_dir solo tiene codigo
+    # fuente decompilado, jamas logs de runtime reales. Ver activity.py para
+    # el porque de cada metodo.
+    build_date_value = _build_date(assembly_path)
+    activity = detect_activity_evidence(assembly_path)
+
     return AnalysisResult(
         app_name=app_name,
         source_path=str(assembly_path),
@@ -86,4 +102,6 @@ def run_analysis(assembly_path: Path, app_name: str | None = None) -> AnalysisRe
         io_findings=io_findings,
         security_flags=flags,
         companion_assemblies=companions,
+        build_date=build_date_value,
+        activity=activity,
     )

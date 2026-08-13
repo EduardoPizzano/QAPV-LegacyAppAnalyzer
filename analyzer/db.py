@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
+from .activity import ActivityEvidence
 from .extract import LocalIOFinding, SettingEntry, SqlFinding
 from .security import SecurityFlag
 from .techstack import TechStack
@@ -210,6 +211,24 @@ def init_db() -> None:
         if "category" not in io_findings_cols:
             conn.execute("ALTER TABLE io_findings ADD COLUMN category TEXT NOT NULL DEFAULT 'io'")
 
+        # Incremento Lifecycle (2026-08-13): evidencia de ciclo de vida de la
+        # app -- todas NULLABLE y aditivas, mismo patron que las columnas de
+        # Evidence de mas abajo. NULL en una fila ya existente significa
+        # "analizada antes de que esta capacidad existiera", NUNCA "sin
+        # evidencia" (ese caso real se representa con
+        # last_activity_source='no_evidence' + confidence=UNKNOWN, nunca con
+        # NULL). build_date es un PROXY (mtime del ensamblado, ver
+        # analyzer/activity.py) -- no una fecha de compilacion verificada.
+        apps_cols_lifecycle = {row["name"] for row in conn.execute("PRAGMA table_info(apps)")}
+        for column, coltype in (
+            ("build_date", "TEXT"),
+            ("last_activity_date", "TEXT"),
+            ("last_activity_source", "TEXT"),
+            ("last_activity_confidence", "INTEGER"),
+        ):
+            if column not in apps_cols_lifecycle:
+                conn.execute(f"ALTER TABLE apps ADD COLUMN {column} {coltype}")
+
         findings_cols = {row["name"] for row in conn.execute("PRAGMA table_info(findings)")}
         if "status" not in findings_cols:
             conn.execute("ALTER TABLE findings ADD COLUMN status TEXT NOT NULL DEFAULT 'OPEN'")
@@ -257,6 +276,8 @@ def save_analysis(
     io_findings: list[LocalIOFinding],
     flags: list[SecurityFlag],
     companion_assemblies: list[str] | None = None,
+    build_date: str | None = None,
+    activity: ActivityEvidence | None = None,
 ) -> int:
     with get_conn() as conn:
         # Upsert by name: re-analyzing the same app (same name) replaces its
@@ -290,9 +311,15 @@ def save_analysis(
 
         conn.execute("DELETE FROM apps WHERE name = ?", (name,))
 
+        # Incremento Lifecycle: activity=None (llamador viejo que no lo pasa
+        # todavia, ej. una prueba existente) se trata igual que "sin
+        # evidencia" -- nunca se inventa una fecha ni una fuente.
+        activity = activity or ActivityEvidence()
+
         cur = conn.execute(
             "INSERT INTO apps (name, source_path, analyzed_at, dotnet_target, ui_framework, db_drivers, "
-            "companion_assemblies, review_status, review_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "companion_assemblies, review_status, review_notes, build_date, last_activity_date, "
+            "last_activity_source, last_activity_confidence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 name,
                 source_path,
@@ -303,6 +330,10 @@ def save_analysis(
                 ", ".join(companion_assemblies or []),
                 review_status,
                 review_notes,
+                build_date,
+                activity.date,
+                activity.source,
+                activity.confidence,
             ),
         )
         app_id = cur.lastrowid
