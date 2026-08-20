@@ -16,7 +16,8 @@ from pathlib import Path
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
 
-from analyzer import db, diagram, enrich, export_office, priority_report
+from analyzer import data_flow as data_flow_analyzer
+from analyzer import db, diagram, enrich, export_office, priority_report, server_resolution
 from analyzer.decompile import DecompileError, discover_assemblies, project_label
 from analyzer.pipeline import run_analysis
 from analyzer.report import reconstruct_from_db, render, render_from_db
@@ -26,6 +27,15 @@ EXPORT_MIMETYPES = {
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
+
+# Orden canonico de roles del Mapa de Flujo de Datos (Fase 8) -- el mismo
+# usado en analyzer/data_flow.py y en la validacion de portafolio; unica
+# fuente de verdad para el ORDEN de presentacion, nunca para la clasificacion
+# en si (esa vive exclusivamente en analyzer.data_flow.resolve_data_flow).
+DATA_FLOW_ROLE_ORDER = (
+    "productor_numerico", "productor_passfail", "consumidor_medicion",
+    "consumidor_resultado", "consumidor_general", "mixto", "indeterminado",
+)
 
 BASE_DIR = Path(__file__).parent
 REPORTS_DIR = BASE_DIR / "reports"
@@ -261,8 +271,17 @@ def app_detail(app_id):
     )
     _, _, _, sql_findings, io_findings, *_rest = reconstruct_from_db(data)
     dataflow_diagram = diagram.build_dataflow_diagram(sql_findings, io_findings)
+    # Mapa de Flujo de Datos (Fase 8): misma fuente de verdad que /data_flow,
+    # via un test_context_index ACOTADO a las tablas de esta app (incremento
+    # de rendimiento 2026-08-19: recorrer el portafolio completo aqui costaba
+    # ~6s medido contra 117 apps reales; ver
+    # tests/test_data_flow_ui.py::TestBoundedContextEquivalence para la
+    # prueba de que el resultado es identico, edge por edge, al camino
+    # portfolio-wide).
+    data_flow_edges = data_flow_analyzer.resolve_data_flow_for_app(app_id)
     return render_template(
         "result.html", data=data, report_html=report_html, dataflow_diagram=dataflow_diagram,
+        data_flow_edges=data_flow_edges,
         apps=db.group_apps_for_sidebar(), selected_id=app_id,
     )
 
@@ -427,6 +446,86 @@ def portfolio():
         priority_and_complexity=priority_rows,
         factor_weights=db.FACTOR_WEIGHTS,
         severity_weight=db.SEVERITY_WEIGHT,
+        apps=db.group_apps_for_sidebar(), selected_id=None,
+    )
+
+
+@app.route("/data_footprint")
+def data_footprint():
+    """Huella de Datos (incremento 2026-08-18): que tabla/SP escribe cada
+    app, a que servidor/BD resuelve por evidencia real de codigo (nunca por
+    un inventario externo), y si toca una tabla real del ERP Oracle. Pura
+    agregacion sobre datos ya extraidos/persistidos + lectura del codigo YA
+    decompilado (nunca vuelve a decompilar) -- ver
+    analyzer/server_resolution.py para el detalle de como se traza cada
+    conexion, y analyzer/unknown.RESOLUTION_STATUSES para el vocabulario de
+    estados (resuelto / ambiguo / sin resolver)."""
+    footprint_apps = server_resolution.resolve_portfolio()
+    total_targets = sum(len(a.targets) for a in footprint_apps)
+    resolved_count = sum(
+        1 for a in footprint_apps for t in a.targets if t.resolution_status == "resolved"
+    )
+    ambiguous_count = sum(
+        1 for a in footprint_apps for t in a.targets
+        if t.resolution_status == "unresolved_ambiguous_conditional"
+    )
+    erp_count = sum(1 for a in footprint_apps for t in a.targets if t.is_oracle_erp_table)
+    return render_template(
+        "data_footprint.html",
+        footprint_apps=footprint_apps,
+        total_apps=len(footprint_apps),
+        total_targets=total_targets,
+        resolved_count=resolved_count,
+        ambiguous_count=ambiguous_count,
+        unresolved_count=total_targets - resolved_count - ambiguous_count,
+        erp_count=erp_count,
+        apps=db.group_apps_for_sidebar(), selected_id=None,
+    )
+
+
+@app.route("/data_flow")
+def data_flow():
+    """Mapa de Flujo de Datos (Fase 8, incremento "exposicion en UI"):
+    presenta la clasificacion YA CALCULADA por
+    analyzer.data_flow.resolve_data_flow_portfolio() (unica fuente de verdad
+    -- esta ruta no clasifica nada, solo agrupa para presentacion segun
+    ?group=role|table|app)."""
+    edges = data_flow_analyzer.resolve_data_flow_portfolio()
+    app_ids = {row["name"]: row["id"] for row in db.list_apps()}
+
+    role_counts = {role: 0 for role in DATA_FLOW_ROLE_ORDER}
+    for e in edges:
+        role_counts[e.role] = role_counts.get(e.role, 0) + 1
+
+    def _role_sort_key(edge):
+        try:
+            return DATA_FLOW_ROLE_ORDER.index(edge.role)
+        except ValueError:
+            return len(DATA_FLOW_ROLE_ORDER)
+
+    group = request.args.get("group", "role")
+    if group not in ("role", "table", "app"):
+        group = "role"
+
+    buckets = defaultdict(list)
+    if group == "role":
+        for e in edges:
+            buckets[e.role].append(e)
+        grouped = [(role, buckets[role]) for role in DATA_FLOW_ROLE_ORDER if buckets.get(role)]
+    elif group == "table":
+        for e in edges:
+            buckets[e.target].append(e)
+        grouped = [(k, sorted(v, key=_role_sort_key)) for k, v in sorted(buckets.items(), key=lambda kv: kv[0].upper())]
+    else:  # group == "app"
+        for e in edges:
+            buckets[e.app_name].append(e)
+        grouped = [(k, sorted(v, key=_role_sort_key)) for k, v in sorted(buckets.items(), key=lambda kv: kv[0])]
+
+    return render_template(
+        "data_flow.html",
+        grouped=grouped, group=group,
+        role_counts=role_counts, role_order=DATA_FLOW_ROLE_ORDER,
+        total_edges=len(edges), app_ids=app_ids,
         apps=db.group_apps_for_sidebar(), selected_id=None,
     )
 

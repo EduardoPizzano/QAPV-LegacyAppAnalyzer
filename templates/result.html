@@ -41,6 +41,59 @@
     </form>
 </div>
 
+<div class="card">
+    <h2>Rol en el flujo de datos</h2>
+    <p class="muted">
+        Clasificación por <strong>evidencia real de código</strong> (columnas de INSERT/UPDATE/SELECT
+        ya reconstruidas, nunca por el nombre de la tabla) de cada tabla que toca esta app — misma
+        fuente de verdad que <a href="{{ url_for('data_flow') }}">Mapa de Flujo de Datos</a>,
+        ver <code>analyzer/data_flow.py</code>.
+    </p>
+    {% if data_flow_edges %}
+    <table>
+        <tr>
+            <th>Tabla</th>
+            <th>Clasificación</th>
+            <th>Operaciones</th>
+            <th>Evidencia</th>
+        </tr>
+        {% for e in data_flow_edges %}
+        <tr>
+            <td><code>{{ e.target }}</code></td>
+            <td>
+                {% if e.role == 'indeterminado' %}
+                <span class="badge resolution-unknown">indeterminado</span>
+                {% else %}
+                <code>{{ e.role }}</code>
+                {% endif %}
+            </td>
+            <td class="muted" style="font-size:0.78rem;">
+                {% for op in e.writes + e.reads %}{{ op.operation }}{% if not loop.last %} / {% endif %}{% endfor %}
+            </td>
+            <td class="muted" style="font-size:0.78rem;">
+                {% for op in e.writes + e.reads %}
+                {% if op.evidence.extractor != "UNKNOWN" %}
+                {{ op.evidence.extractor }} (confianza {{ op.evidence.confidence }}){% if op.columns %}: {{ op.columns|join(', ') }}{% endif %}
+                {% else %}
+                sin columnas reconstruidas
+                {% endif %}
+                {% if not loop.last %}<br>{% endif %}
+                {% endfor %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">
+        Sin clasificación de flujo de datos disponible para esta app — no se detectó ninguna
+        operación de lectura/escritura sobre una tabla en sus hallazgos SQL. Esto es distinto del
+        caso en que SÍ existe una operación real detectada pero sin columnas reconstruibles (que se
+        marca de forma explícita en la tabla de arriba cuando aplica); aquí simplemente no hay
+        evidencia de ningún tipo que clasificar.
+    </p>
+    {% endif %}
+</div>
+
 {% if dataflow_diagram %}
 <div class="card">
     <h2>Diagrama de flujo de datos</h2>

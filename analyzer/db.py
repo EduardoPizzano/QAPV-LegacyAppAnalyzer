@@ -657,6 +657,44 @@ def get_app(app_id: int) -> dict:
         }
 
 
+def list_sql_findings_for_targets(target_keys: set[str]) -> list[dict]:
+    """Consulta DIRIGIDA (2026-08-19, incremento de rendimiento de Data
+    Flow): filas de sql_findings de CUALQUIER app cuyo target coincide
+    (case-insensitive, con o sin prefijo "dbo.") con alguna de las claves ya
+    normalizadas dadas -- para que analyzer.data_flow pueda construir un
+    test_context_index acotado a las tablas de UNA app sin llamar a
+    list_apps()+get_app() por cada app del portafolio (ese camino completo
+    cuesta ~6s medido contra 117 apps reales; esta consulta es una sola
+    ronda). Excluye is_stored_procedure=1, mismo criterio que ya aplica
+    build_test_context_index().
+
+    NOTA de normalizacion: el filtro SQL de arriba (UPPER + variante con
+    "DBO." como prefijo) es solo un PRE-FILTRO suficientemente amplio para
+    ser rapido -- la fuente de verdad de que dos targets son "la misma
+    tabla" sigue siendo exclusivamente analyzer.data_flow.normalize_table_key(),
+    que el llamador aplica sobre estas filas antes de usarlas (esta funcion
+    no reimplementa esa regla, y nunca decide sola que columnas cuentan como
+    señal fuerte -- eso sigue siendo responsabilidad unica de
+    build_test_context_index()/resolve_data_flow())."""
+    if not target_keys:
+        return []
+    candidates = set(target_keys) | {f"DBO.{k}" for k in target_keys}
+    placeholders = ", ".join("?" for _ in candidates)
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT apps.name AS app_name, sf.target, sf.raw, sf.resolved,
+                   sf.result_columns, sf.is_stored_procedure
+            FROM sql_findings sf JOIN apps ON apps.id = sf.app_id
+            WHERE sf.target IS NOT NULL AND sf.target != ''
+              AND UPPER(sf.target) IN ({placeholders})
+              AND (sf.is_stored_procedure IS NULL OR sf.is_stored_procedure = 0)
+            """,
+            tuple(candidates),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def delete_app(app_id: int) -> None:
     with get_conn() as conn:
         conn.execute("DELETE FROM apps WHERE id = ?", (app_id,))

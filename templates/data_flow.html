@@ -1,0 +1,95 @@
+{% extends "library_base.html" %}
+{% block title %}Flujo de Datos — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>Mapa de Flujo de Datos</h2>
+    <p class="muted">
+        Rol de cada aplicación sobre cada tabla que toca, derivado por <strong>evidencia real de
+        código</strong> (columnas de INSERT/UPDATE/SELECT ya reconstruidas — nunca por el nombre de
+        la tabla ni por una columna aislada, ver <code>analyzer/data_flow.py</code>).
+        <code>consumidor_general</code> significa columnas conocidas sin evidencia suficiente de que
+        la tabla sea de resultados de prueba (<code>test_context</code> desconocido);
+        <code>indeterminado</code> significa que no se pudo reconstruir ninguna columna. Ninguno de
+        los dos es una clasificación inventada.
+    </p>
+
+    <div class="exec-summary">
+        {% for role in role_order %}
+        <div class="exec-stat">
+            <div class="label">{{ role|replace('_', ' ') }}</div>
+            <div class="value"><a href="{{ url_for('data_flow', group='role') }}#role-{{ role }}">{{ role_counts[role] }}</a></div>
+        </div>
+        {% endfor %}
+        <div class="exec-stat">
+            <div class="label">Total relaciones app+tabla</div>
+            <div class="value">{{ total_edges }}</div>
+        </div>
+    </div>
+
+    <p class="muted">
+        Agrupar por:
+        <a href="{{ url_for('data_flow', group='role') }}"{% if group == 'role' %} style="font-weight:600;"{% endif %}>clasificación</a>
+        ·
+        <a href="{{ url_for('data_flow', group='table') }}"{% if group == 'table' %} style="font-weight:600;"{% endif %}>tabla</a>
+        ·
+        <a href="{{ url_for('data_flow', group='app') }}"{% if group == 'app' %} style="font-weight:600;"{% endif %}>aplicación</a>
+    </p>
+</div>
+
+{% if not grouped %}
+<div class="card"><p class="muted">Aún no hay evidencia de flujo de datos clasificable en el portafolio.</p></div>
+{% endif %}
+
+{% for group_key, group_edges in grouped %}
+<div class="card" {% if group == 'role' %}id="role-{{ group_key }}"{% endif %}>
+    <h2>
+        {% if group == 'app' %}
+        {% if app_ids.get(group_key) %}<a href="{{ url_for('app_detail', app_id=app_ids[group_key]) }}">{{ group_key }}</a>{% else %}{{ group_key }}{% endif %}
+        {% elif group == 'table' %}
+        <code>{{ group_key }}</code>
+        {% else %}
+        {{ group_key|replace('_', ' ') }}
+        {% endif %}
+        <span class="muted" style="font-size:0.8rem; font-weight:normal;">({{ group_edges|length }})</span>
+    </h2>
+    <table>
+        <tr>
+            {% if group != 'app' %}<th>Aplicación</th>{% endif %}
+            {% if group != 'table' %}<th>Tabla</th>{% endif %}
+            {% if group != 'role' %}<th>Clasificación</th>{% endif %}
+            <th>Operaciones</th>
+            <th>Evidencia</th>
+        </tr>
+        {% for e in group_edges %}
+        <tr>
+            {% if group != 'app' %}
+            <td>
+                {% if app_ids.get(e.app_name) %}
+                <a href="{{ url_for('app_detail', app_id=app_ids[e.app_name]) }}">{{ e.app_name }}</a>
+                {% else %}{{ e.app_name }}{% endif %}
+            </td>
+            {% endif %}
+            {% if group != 'table' %}<td><code>{{ e.target }}</code></td>{% endif %}
+            {% if group != 'role' %}<td><code>{{ e.role }}</code></td>{% endif %}
+            <td class="muted" style="font-size:0.78rem;">
+                {% for op in e.writes + e.reads %}{{ op.operation }}{% if not loop.last %} / {% endif %}{% endfor %}
+                {% if not e.writes and not e.reads %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td class="muted" style="font-size:0.78rem;">
+                {% for op in e.writes + e.reads %}
+                {% if op.evidence.extractor != "UNKNOWN" %}
+                {{ op.evidence.extractor }} (confianza {{ op.evidence.confidence }}){% if op.columns %}: {{ op.columns|join(', ') }}{% endif %}
+                {% else %}
+                sin columnas reconstruidas
+                {% endif %}
+                {% if not loop.last %}<br>{% endif %}
+                {% endfor %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endfor %}
+
+{% endblock %}

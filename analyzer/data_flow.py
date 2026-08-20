@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import confidence
+from . import confidence, db
 from .__version__ import ANALYZER_VERSION
 from .evidence import Evidence
 
@@ -468,3 +468,58 @@ def resolve_data_flow(
             resolution_status=status,
         ))
     return results
+
+
+def resolve_data_flow_portfolio() -> list[DataFlowEdge]:
+    """Capa de COMPOSICION portfolio-wide (2026-08-19, incremento
+    "exposicion en UI") -- equivalente conceptual a
+    server_resolution.resolve_portfolio(): toca la BD para enumerar apps y
+    sus sql_findings ya persistidos, construye test_context_index UNA SOLA
+    VEZ sobre todo el portafolio, y delega toda la clasificacion en
+    resolve_data_flow() (la unica logica de clasificacion -- esta funcion no
+    reimplementa ni un solo criterio, solo ensambla evidencia y llama a la
+    funcion pura ya existente y ya testeada)."""
+    apps_sql_findings: list[tuple[str, list[dict]]] = []
+    for row in db.list_apps():
+        data = db.get_app(row["id"])
+        if data:
+            apps_sql_findings.append((data["app"]["name"], data["sql_findings"]))
+
+    test_context_index = build_test_context_index(apps_sql_findings)
+
+    results: list[DataFlowEdge] = []
+    for app_name, sql_findings in apps_sql_findings:
+        results.extend(resolve_data_flow(app_name, sql_findings, test_context_index=test_context_index))
+    return results
+
+
+def resolve_data_flow_for_app(app_id: int) -> list[DataFlowEdge]:
+    """Capa de COMPOSICION ACOTADA (2026-08-19, incremento de rendimiento):
+    equivalente en resultado a filtrar resolve_data_flow_portfolio() para
+    esta app (ver tests/test_data_flow_ui.py -- TestBoundedContextEquivalence
+    prueba esta equivalencia edge por edge, incluida la validacion contra
+    las 117 apps reales del portafolio), pero SIN el costo de recorrer TODO
+    el portafolio: solo agrega evidencia de las tablas que esta app
+    realmente toca, incluyendo otras apps que compartan esas mismas tablas
+    (db.list_sql_findings_for_targets()) -- nunca de apps que no comparten
+    ninguna tabla con ella, cuya evidencia jamas se consulta de todos modos
+    (ver resolve_test_context: solo mira la clave de tabla de CADA target de
+    esta app). Sigue delegando el 100% de la clasificacion en
+    build_test_context_index()/resolve_data_flow(), nunca reimplementa
+    ningun criterio."""
+    data = db.get_app(app_id)
+    if not data:
+        return []
+    app_name = data["app"]["name"]
+    sql_findings = data["sql_findings"]
+
+    own_target_keys = {normalize_table_key(row.get("target")) for row in sql_findings}
+    own_target_keys.discard(None)
+
+    apps_sql_findings: dict[str, list[dict]] = {app_name: list(sql_findings)}
+    if own_target_keys:
+        for row in db.list_sql_findings_for_targets(own_target_keys):
+            apps_sql_findings.setdefault(row["app_name"], []).append(row)
+
+    test_context_index = build_test_context_index(list(apps_sql_findings.items()))
+    return resolve_data_flow(app_name, sql_findings, test_context_index=test_context_index)
