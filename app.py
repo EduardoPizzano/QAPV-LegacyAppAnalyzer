@@ -530,6 +530,38 @@ def data_flow():
     )
 
 
+@app.route("/app_map")
+def app_map():
+    """Mapa de Aplicaciones (2026-08-20): vista ENFOCADA por app -- relaciones
+    FUERTES (productor->consumidor) derivadas de la MISMA clasificacion Data
+    Flow via analyzer.data_flow.resolve_app_relations(), que a su vez
+    reutiliza el camino ACOTADO (resolve_data_flow_for_app +
+    db.list_sql_findings_for_targets) -- NUNCA
+    resolve_data_flow_portfolio() completo, para no reintroducir la
+    regresion de rendimiento del incremento anterior. Sin grafo global de
+    las 117 apps en esta primera version."""
+    app_id = request.args.get("app_id", type=int)
+    all_apps = db.list_apps()  # una sola vez -- se reutiliza para el selector y para app_ids
+    app_ids = {row["name"]: row["id"] for row in all_apps}
+
+    relations = None
+    diagram_text = None
+    if app_id is not None:
+        relations = data_flow_analyzer.resolve_app_relations(app_id)
+        if relations:
+            diagram_text = diagram.build_app_relations_diagram(
+                relations.app_name, relations.produces_to, relations.consumes_from, relations.self_loops,
+            )
+
+    return render_template(
+        "app_map.html",
+        all_apps=all_apps,
+        selected_app_id=app_id, relations=relations, diagram_text=diagram_text,
+        app_ids=app_ids,
+        apps=db.group_apps_for_sidebar(), selected_id=app_id,
+    )
+
+
 @app.route("/apps/<int:app_id>/priority_report")
 def priority_report_view(app_id):
     """Reporte de apoyo a la decision para una app (resumen ejecutivo,

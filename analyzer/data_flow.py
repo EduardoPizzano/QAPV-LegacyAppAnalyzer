@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -523,3 +524,199 @@ def resolve_data_flow_for_app(app_id: int) -> list[DataFlowEdge]:
 
     test_context_index = build_test_context_index(list(apps_sql_findings.items()))
     return resolve_data_flow(app_name, sql_findings, test_context_index=test_context_index)
+
+
+# --- Mapa de Aplicaciones (2026-08-20) ----------------------------------
+#
+# Deriva relaciones ENTRE APLICACIONES a partir de la MISMA clasificacion
+# Data Flow ya existente -- nunca una segunda clasificacion, nunca cambia
+# resolve_data_flow(). Una relacion FUERTE dirigida productor->consumidor
+# existe solo cuando una app tiene evidencia de ESCRITURA sobre una tabla y
+# OTRA app distinta tiene evidencia de LECTURA sobre esa misma tabla (rol
+# mixto aporta ambos lados de forma independiente). Relaciones donde ambas
+# apps comparten el MISMO lado (ambas productoras o ambas consumidoras) son
+# DEBILES -- no dirigidas, nunca se presentan como flecha. Una misma app
+# produciendo y consumiendo la misma tabla es un self-loop -- caracteristica
+# de esa app, nunca una relacion entre dos aplicaciones. Tablas con rol
+# indeterminado quedan excluidas por construccion (nunca aportan a
+# producers_by_table/consumers_by_table).
+
+_PRODUCER_ROLES = frozenset({"productor_numerico", "productor_passfail"})
+_CONSUMER_ROLES = frozenset({"consumidor_medicion", "consumidor_resultado", "consumidor_general"})
+
+
+@dataclass(frozen=True)
+class RelationEvidence:
+    """Evidencia de una relacion FUERTE sobre UNA tabla especifica --
+    columnas/operaciones de AMBOS lados (quien escribe, quien lee)."""
+    table: str
+    write_ops: tuple[OperationEvidence, ...]
+    read_ops: tuple[OperationEvidence, ...]
+
+
+@dataclass(frozen=True)
+class AppRelation:
+    """Relacion FUERTE dirigida hacia/desde otra app -- puede estar
+    sustentada por mas de una tabla (nunca se colapsan, cada tabla conserva
+    su propia evidencia)."""
+    other_app: str
+    evidence: tuple[RelationEvidence, ...]
+
+
+@dataclass(frozen=True)
+class SharedTableRelation:
+    """Relacion DEBIL, NUNCA dirigida: dos apps comparten el mismo lado
+    (ambas productoras o ambas consumidoras) de la(s) misma(s) tabla(s) --
+    informacion secundaria, nunca una flecha en el grafo principal."""
+    other_app: str
+    kind: str  # "consumidor_compartido" | "productor_compartido"
+    tables: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SelfLoop:
+    """La MISMA app produce y consume la misma tabla (rol mixto real) --
+    caracteristica de esa app, nunca una relacion entre dos aplicaciones."""
+    table: str
+    write_ops: tuple[OperationEvidence, ...]
+    read_ops: tuple[OperationEvidence, ...]
+
+
+@dataclass(frozen=True)
+class AppRelationsResult:
+    app_name: str
+    produces_to: tuple[AppRelation, ...]      # esta app ESCRIBE, otras LEEN
+    consumes_from: tuple[AppRelation, ...]    # otras ESCRIBEN, esta app LEE
+    shared: tuple[SharedTableRelation, ...]   # debiles, nunca dirigidas
+    self_loops: tuple[SelfLoop, ...]
+
+
+def resolve_app_relations(app_id: int) -> AppRelationsResult | None:
+    """Mapa de Aplicaciones, vista ENFOCADA por app (2026-08-20). Reutiliza
+    EXACTAMENTE la misma tecnica de contexto ACOTADO del incremento de
+    rendimiento anterior (build_test_context_index + db.list_sql_findings_
+    for_targets) -- NUNCA resolve_data_flow_portfolio(), para no reintroducir
+    la regresion de varios segundos ya documentada y corregida. Delega el
+    100% de la clasificacion en resolve_data_flow(); esta funcion solo
+    proyecta los DataFlowEdge ya clasificados (de esta app y de las que
+    comparten tabla con ella) en relaciones dirigidas/debiles/self-loop."""
+    data = db.get_app(app_id)
+    if not data:
+        return None
+    app_name = data["app"]["name"]
+    sql_findings = data["sql_findings"]
+
+    own_target_keys = {normalize_table_key(row.get("target")) for row in sql_findings}
+    own_target_keys.discard(None)
+
+    apps_sql_findings: dict[str, list[dict]] = {app_name: list(sql_findings)}
+    if own_target_keys:
+        for row in db.list_sql_findings_for_targets(own_target_keys):
+            apps_sql_findings.setdefault(row["app_name"], []).append(row)
+
+    test_context_index = build_test_context_index(list(apps_sql_findings.items()))
+    edges_by_app: dict[str, list[DataFlowEdge]] = {
+        name: resolve_data_flow(name, findings, test_context_index=test_context_index)
+        for name, findings in apps_sql_findings.items()
+    }
+
+    # Nombre de tabla "de exhibicion": se usa la forma tal como la escribio
+    # la propia app enfocada (evita mezclar casing/prefijo dbo. distintos
+    # entre apps para la MISMA tabla normalizada).
+    display_name: dict[str, str] = {}
+    for e in edges_by_app.get(app_name, []):
+        key = normalize_table_key(e.target)
+        if key:
+            display_name.setdefault(key, e.target)
+
+    producers_by_table: dict[str, set[str]] = defaultdict(set)
+    consumers_by_table: dict[str, set[str]] = defaultdict(set)
+    write_evidence: dict[tuple[str, str], tuple[OperationEvidence, ...]] = {}
+    read_evidence: dict[tuple[str, str], tuple[OperationEvidence, ...]] = {}
+
+    for name, edges in edges_by_app.items():
+        for e in edges:
+            key = normalize_table_key(e.target)
+            if key is None or key not in own_target_keys:
+                continue  # solo nos interesan las tablas de la app enfocada
+            is_producer = e.role in _PRODUCER_ROLES or (e.role == "mixto" and e.writes)
+            is_consumer = e.role in _CONSUMER_ROLES or (e.role == "mixto" and e.reads)
+            if is_producer:
+                producers_by_table[key].add(name)
+                write_evidence[(name, key)] = e.writes
+            if is_consumer:
+                consumers_by_table[key].add(name)
+                read_evidence[(name, key)] = e.reads
+            # indeterminado (o mixto sin ninguna columna reconstruida en
+            # ningun lado) no entra en ninguno de los dos sets -- excluido
+            # por construccion, nunca se infiere una relacion desde ahi.
+
+    produces_to_map: dict[str, list[RelationEvidence]] = defaultdict(list)
+    consumes_from_map: dict[str, list[RelationEvidence]] = defaultdict(list)
+    shared_consumer_map: dict[str, set[str]] = defaultdict(set)
+    shared_producer_map: dict[str, set[str]] = defaultdict(set)
+    self_loops: list[SelfLoop] = []
+
+    for key in own_target_keys:
+        producers = producers_by_table.get(key, set())
+        consumers = consumers_by_table.get(key, set())
+        table_label = display_name.get(key, key)
+
+        if app_name in producers and app_name in consumers:
+            self_loops.append(SelfLoop(
+                table=table_label,
+                write_ops=write_evidence[(app_name, key)],
+                read_ops=read_evidence[(app_name, key)],
+            ))
+
+        if app_name in producers:
+            for other in consumers:
+                if other != app_name:
+                    produces_to_map[other].append(RelationEvidence(
+                        table=table_label,
+                        write_ops=write_evidence[(app_name, key)],
+                        read_ops=read_evidence[(other, key)],
+                    ))
+
+        if app_name in consumers:
+            for other in producers:
+                if other != app_name:
+                    consumes_from_map[other].append(RelationEvidence(
+                        table=table_label,
+                        write_ops=write_evidence[(other, key)],
+                        read_ops=read_evidence[(app_name, key)],
+                    ))
+
+        if app_name in consumers:
+            for other in consumers:
+                if other != app_name:
+                    shared_consumer_map[other].add(table_label)
+
+        if app_name in producers:
+            for other in producers:
+                if other != app_name:
+                    shared_producer_map[other].add(table_label)
+
+    produces_to = tuple(
+        AppRelation(other_app=other, evidence=tuple(sorted(ev, key=lambda e: e.table)))
+        for other, ev in sorted(produces_to_map.items())
+    )
+    consumes_from = tuple(
+        AppRelation(other_app=other, evidence=tuple(sorted(ev, key=lambda e: e.table)))
+        for other, ev in sorted(consumes_from_map.items())
+    )
+    shared = tuple(
+        SharedTableRelation(other_app=other, kind="consumidor_compartido", tables=tuple(sorted(tables)))
+        for other, tables in sorted(shared_consumer_map.items())
+    ) + tuple(
+        SharedTableRelation(other_app=other, kind="productor_compartido", tables=tuple(sorted(tables)))
+        for other, tables in sorted(shared_producer_map.items())
+    )
+
+    return AppRelationsResult(
+        app_name=app_name,
+        produces_to=produces_to,
+        consumes_from=consumes_from,
+        shared=shared,
+        self_loops=tuple(sorted(self_loops, key=lambda s: s.table)),
+    )

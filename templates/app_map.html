@@ -1,0 +1,157 @@
+{% extends "library_base.html" %}
+{% block title %}Mapa de Aplicaciones — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>Mapa de Aplicaciones</h2>
+    <p class="muted">
+        <strong>Evidencia de relaciones derivada del análisis estático del código</strong> — NUNCA
+        implica comunicación en tiempo real, dependencia operacional confirmada, ni que una
+        aplicación ejecute a otra. Una flecha significa únicamente que existe evidencia estática
+        compatible con <code>Productor → tabla → Consumidor</code>, usando la MISMA clasificación de
+        <a href="{{ url_for('data_flow') }}">Flujo de Datos</a> (ver <code>analyzer/data_flow.py</code>) —
+        nunca una segunda clasificación. Tablas <code>indeterminado</code> quedan excluidas: sin
+        columnas reconstruidas, no hay evidencia de qué se relaciona con qué. Cuando dos apps
+        comparten el mismo lado (ambas leen, o ambas escriben) de una tabla, esa relación se muestra
+        aparte, nunca como flecha dirigida.
+    </p>
+
+    <form method="get" action="{{ url_for('app_map') }}">
+        <label for="app_id">Aplicación</label>
+        <select id="app_id" name="app_id" onchange="this.form.submit()" style="width:100%; padding:10px 12px; border:1px solid #c6ccd2; border-radius:6px;">
+            <option value="">-- Selecciona una aplicación --</option>
+            {% for row in all_apps %}
+            <option value="{{ row.id }}" {% if row.id == selected_app_id %}selected{% endif %}>{{ row.name }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+{% if selected_app_id and not relations %}
+<div class="card"><p class="muted">Esa app no existe en la base de datos.</p></div>
+{% endif %}
+
+{% if relations %}
+<div class="card">
+    <h2>{{ relations.app_name }}</h2>
+
+    {% if diagram_text %}
+    <pre class="mermaid">{{ diagram_text }}</pre>
+    <script src="{{ url_for('static', filename='mermaid.min.js') }}"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, securityLevel: "strict" });
+    </script>
+    {% else %}
+    <p class="muted">Sin relaciones fuertes (productor→consumidor) demostrables para esta app.</p>
+    {% endif %}
+
+    <p class="muted">
+        Relaciones fuertes: {{ relations.produces_to|length + relations.consumes_from|length }}
+        — produce hacia {{ relations.produces_to|length }} app(s), consume desde
+        {{ relations.consumes_from|length }} app(s).
+        {% if relations.self_loops %}Produce y consume {{ relations.self_loops|length }} tabla(s) ella misma.{% endif %}
+    </p>
+</div>
+{% endif %}
+
+{% if relations and relations.produces_to %}
+<div class="card">
+    <h2>{{ relations.app_name }} produce hacia...</h2>
+    <table>
+        <tr><th>Aplicación consumidora</th><th>Tabla(s)</th><th>Evidencia</th></tr>
+        {% for rel in relations.produces_to %}
+        <tr>
+            <td>
+                {% if app_ids.get(rel.other_app) %}<a href="{{ url_for('app_map', app_id=app_ids[rel.other_app]) }}">{{ rel.other_app }}</a>{% else %}{{ rel.other_app }}{% endif %}
+            </td>
+            <td>{% for ev in rel.evidence %}<code>{{ ev.table }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+            <td class="muted" style="font-size:0.78rem;">
+                {% for ev in rel.evidence %}
+                <strong>{{ ev.table }}</strong>:
+                {% for op in ev.write_ops %}{{ op.operation }}{% if op.columns %} ({{ op.columns|join(', ') }}){% endif %}, confianza {{ op.evidence.confidence }}{% if not loop.last %}; {% endif %}{% endfor %}
+                escribe → lee
+                {% for op in ev.read_ops %}{{ op.operation }}{% if op.columns %} ({{ op.columns|join(', ') }}){% endif %}, confianza {{ op.evidence.confidence }}{% if not loop.last %}; {% endif %}{% endfor %}
+                {% if not loop.last %}<br>{% endif %}
+                {% endfor %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+
+{% if relations and relations.consumes_from %}
+<div class="card">
+    <h2>{{ relations.app_name }} consume desde...</h2>
+    <table>
+        <tr><th>Aplicación productora</th><th>Tabla(s)</th><th>Evidencia</th></tr>
+        {% for rel in relations.consumes_from %}
+        <tr>
+            <td>
+                {% if app_ids.get(rel.other_app) %}<a href="{{ url_for('app_map', app_id=app_ids[rel.other_app]) }}">{{ rel.other_app }}</a>{% else %}{{ rel.other_app }}{% endif %}
+            </td>
+            <td>{% for ev in rel.evidence %}<code>{{ ev.table }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+            <td class="muted" style="font-size:0.78rem;">
+                {% for ev in rel.evidence %}
+                <strong>{{ ev.table }}</strong>:
+                {% for op in ev.write_ops %}{{ op.operation }}{% if op.columns %} ({{ op.columns|join(', ') }}){% endif %}, confianza {{ op.evidence.confidence }}{% if not loop.last %}; {% endif %}{% endfor %}
+                escribe → lee
+                {% for op in ev.read_ops %}{{ op.operation }}{% if op.columns %} ({{ op.columns|join(', ') }}){% endif %}, confianza {{ op.evidence.confidence }}{% if not loop.last %}; {% endif %}{% endfor %}
+                {% if not loop.last %}<br>{% endif %}
+                {% endfor %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+
+{% if relations and relations.self_loops %}
+<div class="card">
+    <h2>Produce y consume la misma tabla</h2>
+    <p class="muted">
+        No es una relación con otra app — es una característica propia de <strong>{{ relations.app_name }}</strong>
+        (rol <code>mixto</code>): la misma app escribe y lee la(s) siguiente(s) tabla(s).
+    </p>
+    <table>
+        <tr><th>Tabla</th><th>Evidencia</th></tr>
+        {% for loop_item in relations.self_loops %}
+        <tr>
+            <td><code>{{ loop_item.table }}</code></td>
+            <td class="muted" style="font-size:0.78rem;">
+                {% for op in loop_item.write_ops %}{{ op.operation }}{% if op.columns %} ({{ op.columns|join(', ') }}){% endif %}, confianza {{ op.evidence.confidence }}{% if not loop.last %}; {% endif %}{% endfor %}
+                escribe / lee
+                {% for op in loop_item.read_ops %}{{ op.operation }}{% if op.columns %} ({{ op.columns|join(', ') }}){% endif %}, confianza {{ op.evidence.confidence }}{% if not loop.last %}; {% endif %}{% endfor %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+
+{% if relations and relations.shared %}
+<div class="card">
+    <details>
+        <summary><h2 style="display:inline;">Relaciones potenciales, sin dirección demostrable ({{ relations.shared|length }})</h2></summary>
+        <p class="muted">
+            Estas apps comparten el mismo lado (ambas leen, o ambas escriben) de la(s) misma(s)
+            tabla(s) — NO se dibujan como flecha porque no hay evidencia de quién alimenta a quién,
+            solo de que comparten una fuente de datos.
+        </p>
+        <table>
+            <tr><th>Aplicación</th><th>Tipo</th><th>Tabla(s)</th></tr>
+            {% for rel in relations.shared %}
+            <tr>
+                <td>
+                    {% if app_ids.get(rel.other_app) %}<a href="{{ url_for('app_map', app_id=app_ids[rel.other_app]) }}">{{ rel.other_app }}</a>{% else %}{{ rel.other_app }}{% endif %}
+                </td>
+                <td>{{ "Ambas consumen" if rel.kind == "consumidor_compartido" else "Ambas producen" }}</td>
+                <td>{% for t in rel.tables %}<code>{{ t }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </details>
+</div>
+{% endif %}
+
+{% endblock %}

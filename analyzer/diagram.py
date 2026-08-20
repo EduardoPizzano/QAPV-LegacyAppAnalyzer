@@ -128,3 +128,68 @@ def build_dataflow_diagram(sql_findings: list[SqlFinding], io_findings: list[Loc
     lines.append("    classDef classNode fill:#e1eef8,stroke:#1c6fc9,color:#17324d;")
 
     return "\n".join(lines)
+
+
+def build_app_relations_diagram(app_name: str, produces_to, consumes_from, self_loops) -> str | None:
+    """Mapa de Aplicaciones (2026-08-20): diagrama Mermaid ENFOCADO en una
+    sola app -- ella al centro, flechas SOLO hacia relaciones FUERTES
+    (productor->consumidor) ya derivadas por
+    analyzer.data_flow.resolve_app_relations() (nunca relaciones debiles,
+    que se presentan aparte como tabla, no como flecha). Reutiliza
+    _sanitize_id/_escape_label/MAX_NODES -- mismo mecanismo y mismo limite
+    que build_dataflow_diagram(), nunca una libreria nueva."""
+    if not produces_to and not consumes_from and not self_loops:
+        return None
+
+    lines = ["flowchart LR"]
+    node_ids: dict[str, str] = {}
+    node_count = 0
+    truncated = False
+
+    def app_node(name: str, focal: bool = False) -> str:
+        nonlocal node_count
+        if name in node_ids:
+            return node_ids[name]
+        node_id = f"app_{_sanitize_id(name)}"
+        node_ids[name] = node_id
+        safe_label = _escape_label(name)
+        if focal:
+            lines.append(f'    {node_id}["{safe_label}"]:::focalNode')
+        else:
+            lines.append(f'    {node_id}("{safe_label}")')
+        node_count += 1
+        return node_id
+
+    focal_id = app_node(app_name, focal=True)
+
+    for rel in produces_to:
+        if node_count >= MAX_NODES:
+            truncated = True
+            break
+        other_id = app_node(rel.other_app)
+        tables_label = ", ".join(sorted({ev.table for ev in rel.evidence}))
+        lines.append(f'    {focal_id} -->|"{_escape_label(tables_label)}"| {other_id}')
+
+    for rel in consumes_from:
+        if node_count >= MAX_NODES:
+            truncated = True
+            break
+        other_id = app_node(rel.other_app)
+        tables_label = ", ".join(sorted({ev.table for ev in rel.evidence}))
+        lines.append(f'    {other_id} -->|"{_escape_label(tables_label)}"| {focal_id}')
+
+    # Self-loops no agregan nodos nuevos (ya es el nodo focal) -- se
+    # muestran como una flecha del nodo a si mismo, sin contar contra
+    # MAX_NODES (mismo criterio que build_dataflow_diagram, que solo limita
+    # NODOS, nunca aristas).
+    for loop in self_loops:
+        lines.append(f'    {focal_id} -->|"{_escape_label(loop.table)}"| {focal_id}')
+
+    if truncated:
+        lines.append(
+            '    nota_truncado["... relaciones adicionales truncadas — ver las tablas completas abajo"]'
+        )
+
+    lines.append("    classDef focalNode fill:#e1eef8,stroke:#1c6fc9,color:#17324d,font-weight:bold;")
+
+    return "\n".join(lines)
