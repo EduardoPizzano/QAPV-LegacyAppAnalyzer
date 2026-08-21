@@ -86,6 +86,170 @@ FILE_LOG_FILE_MTIME_BOUNDED = 60
 FILE_LOG_FOLDER_MTIME = 50
 
 
+# Incremento Huella de Datos (2026-08-18, analyzer/server_resolution.py):
+# a que SERVIDOR/BD pertenece una escritura SQL ya encontrada -- una
+# dimension distinta de "que tan seguro estoy del contenido del SQL"
+# (las de arriba). Reutiliza la misma escala 0-100, nunca una paralela.
+
+# El argumento del constructor (new SqlConnection(X)) o una asignacion
+# posterior a .ConnectionString se traza directamente a un setting conocido,
+# DENTRO DEL MISMO METODO -- misma certeza que leer el valor del setting en
+# si (SETTINGS_DEFAULT_VALUE), solo que la forma del codigo es distinta
+# (ctor-arg o property-assignment en vez de una asignacion de variable).
+CONNECTION_CTOR_DIRECT_SETTING = 95
+
+# Dos o mas conexiones nombradas son candidatas validas segun el codigo
+# (tipicamente un operador ternario `cond ? CX2 : CX`) y cual se usa
+# realmente depende de una condicion que no se evalua (fuera de alcance:
+# nada de ejecucion simbolica). Se sabe que es una de un conjunto pequeno y
+# conocido -- mas cierto que SQL dinamico, pero deliberadamente NO resuelto.
+CONNECTION_AMBIGUOUS_CONDITIONAL = 55
+
+# Incremento Mapa de Flujo de Datos (2026-08-19, analyzer/data_flow.py): de
+# donde sale la lista de columnas de un INSERT/UPDATE/SELECT -- dimension
+# distinta de "que tan seguro estoy de la conexion" (las de arriba).
+
+# La lista de columnas viene de SqlFinding.result_columns, ya poblado por
+# extract.py a partir de accesos reales reader["X"] en el codigo -- la
+# fuente mas precisa posible, refleja lo que el codigo REALMENTE lee, no
+# solo lo que la query tecnicamente devuelve.
+DATA_ROLE_COLUMNS_FROM_RESULT_COLUMNS = 90
+
+# La lista de columnas se reconstruyo por regex sobre un texto SQL ya
+# completamente literal (resolved o raw) -- un paso mas de procesamiento
+# lejos de la fuente que result_columns, pero confirmado confiable contra
+# 9 ejemplos reales del portafolio (INSERT/UPDATE/SELECT con lista de
+# columnas 100% literal incluso cuando el WHERE tiene concatenacion).
+DATA_ROLE_COLUMNS_FROM_LITERAL_SQL = 80
+
+# Incremento Flujo de Aplicacion - Application Structure Discovery
+# (2026-08-20, analyzer/app_structure.py): confianza de la evidencia
+# ESTRUCTURAL de una app (entry point / clase / metodo), dimension
+# independiente de "que tan seguro estoy del SQL/conexion" (las de arriba).
+
+# Application.Run(...) es la senal mas explicita e inequivoca de arranque
+# WinForms -- confirmada real en 49 archivos del portafolio (Andon,
+# CopyJDSU, etc.), incluso envuelta en un guard de instancia unica.
+APP_STRUCTURE_ENTRY_POINT_APPLICATION_RUN = 95
+
+# Patron WPF real confirmado (decompiled/AFL.Entrega/.../App.cs): se crea
+# una instancia de la clase "App" y luego se llama a su .Run() -- un paso
+# mas de inferencia que Application.Run() directo (se depende de la
+# convencion de nombre "App"), pero el patron completo (instancia + .Run()
+# sobre esa MISMA variable) es evidencia real, no una suposicion.
+APP_STRUCTURE_ENTRY_POINT_WPF_APP_RUN = 90
+
+# Un metodo llamado "Main" es un entry point real por convencion de C#,
+# pero sin Application.Run()/App().Run() visible no hay evidencia de QUE
+# arranca -- confianza mas baja que los dos patrones de arriba.
+APP_STRUCTURE_ENTRY_POINT_BARE_MAIN = 70
+
+# Declaracion de clase (nombre + tipo base si existe) via coincidencia
+# directa de regex sobre el codigo ya decompilado -- evidencia sintactica
+# directa, sin inferencia.
+APP_STRUCTURE_CLASS_DECLARATION = 90
+
+# Declaracion de metodo (via el mismo patron ya validado en
+# analyzer/extract.py::METHOD_SIG contra el portafolio real completo),
+# acotada a su clase contenedora por brace-matching -- mismo nivel de
+# certeza sintactica que la declaracion de clase.
+APP_STRUCTURE_METHOD_DECLARATION = 85
+
+# Incremento Flujo de Aplicacion - Navigation Discovery (2026-08-20,
+# analyzer/app_navigation.py): confianza de una relacion de NAVEGACION
+# entre Forms/Windows (instancia + .Show()/.ShowDialog() dentro del mismo
+# metodo) -- dimension independiente de la confianza estructural de arriba
+# (esa mide "existe esta clase/metodo", esta mide "esta relacion de
+# navegacion entre dos pantallas es real").
+
+# Instanciacion ("= new TypeName(") y .Show()/.ShowDialog() sobre la MISMA
+# variable, dentro del MISMO metodo, y el tipo resuelto SI fue clasificado
+# como Form/Window por Application Structure Discovery -- evidencia
+# sintactica directa y completa, sin ningun eslabon sin confirmar.
+APP_NAVIGATION_INSTANTIATION_AND_SHOW = 90
+
+# Se observo .Show()/.ShowDialog() real sobre una variable, pero el tipo de
+# esa variable no se pudo determinar dentro del mismo metodo (ej. proviene
+# de una factory/metodo en vez de "new TypeName(") -- se sabe QUE algo se
+# muestra, no QUE se muestra. Deliberadamente bajo: no alcanza para
+# "target_type_unknown" bajo INFERRED.
+APP_NAVIGATION_TARGET_TYPE_UNKNOWN = 30
+
+# El tipo mostrado SI se resolvio por nombre (instanciacion + Show/
+# ShowDialog en el mismo metodo), pero esa clase no fue confirmada como
+# Form/Window por Application Structure Discovery -- mas evidencia que el
+# caso anterior (se conoce el nombre del tipo), pero no se afirma que sea
+# una pantalla real sin esa confirmacion independiente.
+APP_NAVIGATION_TARGET_NOT_CONFIRMED_SCREEN = 50
+
+# Incremento Flujo de Aplicacion - Event Wiring + Intra-Class Call Flow
+# (2026-08-20, analyzer/app_interactions.py): confianza de una asociacion
+# control->handler o de una llamada metodo->metodo -- dimensiones
+# independientes de la confianza de Navigation (arriba).
+
+# "control.Evento += new Tipo(handler);" o "control.Evento += handler;"
+# donde "handler" es un metodo REAL ya confirmado en la misma clase --
+# evidencia sintactica directa y completa, sin ningun eslabon sin
+# confirmar (misma certeza que una declaracion de clase/metodo).
+APP_EVENT_WIRING_EXPLICIT = 95
+
+# Se observo "control.Evento += <algo con forma de llamada o lambda>", pero
+# el handler concreto no se pudo determinar con seguridad (ej. wrapper
+# indirecto, lambda) -- se sabe QUE hay wiring, no QUE metodo maneja el
+# evento. Mismo nivel que DYNAMIC_SQL/REFLECTION: sabemos que la relacion
+# existe, no su contenido exacto.
+APP_EVENT_WIRING_HANDLER_UNKNOWN = 40
+
+# Llamada sin receptor (o receptor "this") a un nombre que coincide con
+# EXACTAMENTE un metodo de la misma clase -- evidencia sintactica directa.
+APP_CALL_INTRA_CLASS = 90
+
+# El nombre coincide con 2+ metodos de la misma clase (sobrecarga real,
+# calculada POR ARCHIVO para no confundir sobrecarga con duplicacion fisica
+# de codigo) -- deliberadamente no se cuenta argumentos para desambiguar
+# (fuera de alcance: "no overload resolution complejo").
+APP_CALL_TARGET_AMBIGUOUS = 40
+
+# El nombre no coincide con ningun metodo de la clase actual, pero SI con
+# un metodo de la clase base declarada de esta clase (un solo salto, sin
+# resolucion de herencia/MRO completa) -- mas evidencia que "desconocido"
+# porque se confirma que el nombre existe en algun lugar del arbol de tipos
+# conocido, pero no se afirma resolucion definitiva sin modelar herencia.
+APP_CALL_TARGET_INHERITED = 50
+
+# El nombre no coincide con ningun metodo de la clase actual ni de su clase
+# base directa -- puede ser BCL, un campo delegado invocado directamente,
+# una local function (fuera de alcance), o simplemente no existir. Piso de
+# la escala, igual que UNKNOWN: "no sabemos", nunca "no existe".
+APP_CALL_TARGET_UNKNOWN = 30
+
+# Incremento Flujo de Aplicacion - Data Flow Integration (2026-08-20,
+# analyzer/app_data_flow.py): confianza de la ATRIBUCION Method->SqlFinding
+# -- dimension independiente de la confianza del propio contenido SQL (ya
+# cubierta por DATA_ROLE_COLUMNS_*/REGEX_KEYWORD_MATCH/etc., reutilizada tal
+# cual via DataFlowEdge.role, nunca recalculada aqui).
+
+# (class_name, method) coincide EXACTAMENTE con un MethodInfo de
+# Application Structure Discovery, confirmado ademas por archivo (mismo
+# nivel de certeza sintactica que APP_CALL_INTRA_CLASS: atribucion directa
+# y completa, sin ningun eslabon sin confirmar).
+APP_DATA_METHOD_SQL_DIRECT = 90
+
+# El SqlFinding no se pudo atribuir a un MethodInfo con seguridad (0
+# candidatos tras filtrar por archivo, o 2+ candidatos con firma distinta
+# -- sobrecarga real, nunca elegida arbitrariamente). Mismo nivel que
+# APP_CALL_TARGET_AMBIGUOUS: sabemos que el SqlFinding existe, no a que
+# metodo especifico pertenece con certeza.
+APP_DATA_METHOD_SQL_MAPPING_AMBIGUOUS = 30
+
+# Operacion propagada UN SOLO salto via Call Flow intra-class (A llama a
+# B, B ejecuta el SQL) -- deliberadamente menor que la atribucion directa:
+# la operacion en si (tabla/rol) esta tan confirmada como en el caso
+# directo, pero la ATRIBUCION al metodo llamante es un eslabon adicional de
+# inferencia (depende de que el CallEdge intermedio tambien este resuelto).
+APP_DATA_INDIRECT_VIA_CALL_FLOW = 70
+
+
 CONFIDENCE_TABLE: dict[str, int] = {
     "DB_INTROSPECT_DEFINITION": DB_INTROSPECT_DEFINITION,
     "DB_INTROSPECT_SCHEMA": DB_INTROSPECT_SCHEMA,
@@ -101,6 +265,27 @@ CONFIDENCE_TABLE: dict[str, int] = {
     "FILE_LOG_FILE_MTIME_EXHAUSTIVE": FILE_LOG_FILE_MTIME_EXHAUSTIVE,
     "FILE_LOG_FILE_MTIME_BOUNDED": FILE_LOG_FILE_MTIME_BOUNDED,
     "FILE_LOG_FOLDER_MTIME": FILE_LOG_FOLDER_MTIME,
+    "CONNECTION_CTOR_DIRECT_SETTING": CONNECTION_CTOR_DIRECT_SETTING,
+    "CONNECTION_AMBIGUOUS_CONDITIONAL": CONNECTION_AMBIGUOUS_CONDITIONAL,
+    "DATA_ROLE_COLUMNS_FROM_RESULT_COLUMNS": DATA_ROLE_COLUMNS_FROM_RESULT_COLUMNS,
+    "DATA_ROLE_COLUMNS_FROM_LITERAL_SQL": DATA_ROLE_COLUMNS_FROM_LITERAL_SQL,
+    "APP_STRUCTURE_ENTRY_POINT_APPLICATION_RUN": APP_STRUCTURE_ENTRY_POINT_APPLICATION_RUN,
+    "APP_STRUCTURE_ENTRY_POINT_WPF_APP_RUN": APP_STRUCTURE_ENTRY_POINT_WPF_APP_RUN,
+    "APP_STRUCTURE_ENTRY_POINT_BARE_MAIN": APP_STRUCTURE_ENTRY_POINT_BARE_MAIN,
+    "APP_STRUCTURE_CLASS_DECLARATION": APP_STRUCTURE_CLASS_DECLARATION,
+    "APP_STRUCTURE_METHOD_DECLARATION": APP_STRUCTURE_METHOD_DECLARATION,
+    "APP_NAVIGATION_INSTANTIATION_AND_SHOW": APP_NAVIGATION_INSTANTIATION_AND_SHOW,
+    "APP_NAVIGATION_TARGET_TYPE_UNKNOWN": APP_NAVIGATION_TARGET_TYPE_UNKNOWN,
+    "APP_NAVIGATION_TARGET_NOT_CONFIRMED_SCREEN": APP_NAVIGATION_TARGET_NOT_CONFIRMED_SCREEN,
+    "APP_EVENT_WIRING_EXPLICIT": APP_EVENT_WIRING_EXPLICIT,
+    "APP_EVENT_WIRING_HANDLER_UNKNOWN": APP_EVENT_WIRING_HANDLER_UNKNOWN,
+    "APP_CALL_INTRA_CLASS": APP_CALL_INTRA_CLASS,
+    "APP_CALL_TARGET_AMBIGUOUS": APP_CALL_TARGET_AMBIGUOUS,
+    "APP_CALL_TARGET_INHERITED": APP_CALL_TARGET_INHERITED,
+    "APP_CALL_TARGET_UNKNOWN": APP_CALL_TARGET_UNKNOWN,
+    "APP_DATA_METHOD_SQL_DIRECT": APP_DATA_METHOD_SQL_DIRECT,
+    "APP_DATA_METHOD_SQL_MAPPING_AMBIGUOUS": APP_DATA_METHOD_SQL_MAPPING_AMBIGUOUS,
+    "APP_DATA_INDIRECT_VIA_CALL_FLOW": APP_DATA_INDIRECT_VIA_CALL_FLOW,
     "UNKNOWN": UNKNOWN,
 }
 
