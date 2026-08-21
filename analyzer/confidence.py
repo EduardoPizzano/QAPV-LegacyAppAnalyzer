@@ -249,6 +249,33 @@ APP_DATA_METHOD_SQL_MAPPING_AMBIGUOUS = 30
 # inferencia (depende de que el CallEdge intermedio tambien este resuelto).
 APP_DATA_INDIRECT_VIA_CALL_FLOW = 70
 
+# Incremento Flujo de Aplicacion - Screen Surface Discovery (2026-08-21,
+# analyzer/app_controls.py): confianza de la identidad/tipo/texto de un
+# control WinForms -- dimension independiente de la confianza estructural
+# de Application Structure Discovery (esa mide "existe esta clase/metodo",
+# esta mide "esta pantalla tiene este control, de este tipo, con este
+# texto").
+
+# Tipo confirmado por declaracion de campo bare ("private Tipo nombre;",
+# tipo del catalogo curado) y/o instanciacion completamente calificada
+# ("this.nombre = new System.Windows.Forms.Tipo(...)") -- evidencia
+# sintactica directa, sin inferencia de nombre de variable.
+APP_CONTROL_DECLARATION_AND_TYPE = 90
+
+# Igual certeza que el tipo (evidencia sintactica directa: asignacion
+# literal "this.nombre.Text = "algo";"), documentado con su propia clave
+# para poder distinguir en reportes futuros los controles con texto
+# confirmado de los que solo tienen tipo confirmado -- NUNCA implica que
+# la ausencia de texto sea menos confiable (ver Caso A: control conocido,
+# texto no observado, jamas "unknown").
+APP_CONTROL_LABEL_TEXT = 90
+
+# Se observo instanciacion "this.nombre = new System.Windows.Forms.Tipo(...)"
+# real, pero "Tipo" no pertenece al catalogo curado -- sabemos QUE existe un
+# control, no QUE tipo concreto es. Piso de la escala, igual que UNKNOWN:
+# "no sabemos", nunca "no existe" ni "no es un control valido".
+APP_CONTROL_TYPE_UNKNOWN = 30
+
 
 CONFIDENCE_TABLE: dict[str, int] = {
     "DB_INTROSPECT_DEFINITION": DB_INTROSPECT_DEFINITION,
@@ -286,6 +313,9 @@ CONFIDENCE_TABLE: dict[str, int] = {
     "APP_DATA_METHOD_SQL_DIRECT": APP_DATA_METHOD_SQL_DIRECT,
     "APP_DATA_METHOD_SQL_MAPPING_AMBIGUOUS": APP_DATA_METHOD_SQL_MAPPING_AMBIGUOUS,
     "APP_DATA_INDIRECT_VIA_CALL_FLOW": APP_DATA_INDIRECT_VIA_CALL_FLOW,
+    "APP_CONTROL_DECLARATION_AND_TYPE": APP_CONTROL_DECLARATION_AND_TYPE,
+    "APP_CONTROL_LABEL_TEXT": APP_CONTROL_LABEL_TEXT,
+    "APP_CONTROL_TYPE_UNKNOWN": APP_CONTROL_TYPE_UNKNOWN,
     "UNKNOWN": UNKNOWN,
 }
 

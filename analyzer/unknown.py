@@ -60,6 +60,9 @@ RESOLUTION_STATUSES = (
     # Incremento Flujo de Aplicacion - Data Flow Integration (2026-08-20,
     # analyzer/app_data_flow.py):
     "unresolved_method_sql_mapping",   # un SqlFinding no se pudo atribuir con seguridad a un MethodInfo (0 candidatos por archivo, o 2+ con firma distinta -- sobrecarga real)
+    # Incremento Flujo de Aplicacion - Screen Surface Discovery (2026-08-21,
+    # analyzer/app_controls.py):
+    "unresolved_control_type_unknown",  # se observo instanciacion real de un control, pero su tipo no pertenece al catalogo curado -- se sabe que existe, no que tipo concreto es
 )
 
 
