@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 
 from .activity import ActivityEvidence
+from .artifact import UNKNOWN as ARTIFACT_UNKNOWN
+from .artifact import ArtifactEvidence
 from .extract import LocalIOFinding, SettingEntry, SqlFinding
 from .security import SecurityFlag
 from .techstack import TechStack
@@ -122,6 +124,45 @@ CREATE TABLE IF NOT EXISTS unknowns (
     suggested_action TEXT,
     priority TEXT NOT NULL,
     created_at TEXT NOT NULL
+);
+
+-- ADR-0004: Artifact = el assembly/binario TECNICO analizado -- nunca un
+-- archivo .cs, nunca "toda la carpeta decompilada", nunca necesariamente
+-- el archivo principal de negocio, y NUNCA una ApplicationIdentity (esa
+-- sigue siendo, sin cambios, ADR-0000/0001/0002). binary_hash/source_hash
+-- NULL en filas historicas significa "analizada antes de que esta
+-- capacidad existiera" -- distinto de binary_hash="UNKNOWN", que significa
+-- "se intento calcular y el binario no era accesible" (ver
+-- analyzer/artifact.py). anchor_file es metadata analitica de
+-- comparacion, NUNCA la definicion de identidad del Artifact.
+CREATE TABLE IF NOT EXISTS artifacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    binary_hash TEXT,
+    source_hash TEXT,
+    build_date TEXT,
+    assembly_version TEXT,
+    product_version TEXT,
+    file_version TEXT,
+    anchor_file TEXT
+);
+
+-- Relacion TECNICA entre dos Artifacts -- NUNCA decide ApplicationIdentity
+-- por si sola (ADR-0004, politica de resolucion humana: eso sigue
+-- requiriendo confirmacion humana explicita via human_resolution_state).
+-- artifact_a_id < artifact_b_id (impuesto por CHECK) para que (A,B) y (B,A)
+-- nunca se registren como dos filas logicamente duplicadas.
+CREATE TABLE IF NOT EXISTS artifact_relationships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    artifact_a_id INTEGER NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+    artifact_b_id INTEGER NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+    relationship_type TEXT NOT NULL,
+    evidence TEXT,
+    confidence INTEGER NOT NULL,
+    detection_method TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    human_resolution_state TEXT,
+    CHECK (artifact_a_id < artifact_b_id),
+    UNIQUE (artifact_a_id, artifact_b_id)
 );
 """
 
@@ -261,10 +302,111 @@ def init_db() -> None:
                 if column not in cols:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
 
+        # ADR-0004: enlaza un analisis (Deployment, la fila `apps` existente)
+        # con el Artifact tecnico que le corresponde -- NULL en filas
+        # historicas hasta que se re-analicen o se resuelvan retroactivamente
+        # (nunca se asume/inventa un artifact_id para datos viejos).
+        apps_cols_artifact = {row["name"] for row in conn.execute("PRAGMA table_info(apps)")}
+        if "artifact_id" not in apps_cols_artifact:
+            conn.execute("ALTER TABLE apps ADD COLUMN artifact_id INTEGER REFERENCES artifacts(id)")
+
+        # Indices (ADR-0004): busqueda de coincidencia tecnica por hash, y
+        # los FK de artifact_relationships/apps.artifact_id -- ninguno es
+        # UNIQUE sobre binary_hash/source_hash (ver Paso 3 de la fase de
+        # implementacion: "UNKNOWN" no debe forzar unicidad, y los datos
+        # historicos incompletos deben poder convivir sin violar constraints).
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_binary_hash ON artifacts(binary_hash)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_source_hash ON artifacts(source_hash)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_artifact_relationships_a ON artifact_relationships(artifact_a_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_artifact_relationships_b ON artifact_relationships(artifact_b_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_apps_artifact_id ON apps(artifact_id)")
+
         # Las vistas se recrean siempre (DROP + CREATE) en cada arranque, no
         # solo la primera vez -- son baratas de regenerar y asi nunca quedan
         # desincronizadas si su definicion cambia entre versiones del codigo.
         conn.executescript(VIEWS)
+
+
+# ADR-0004: taxonomia UNICA de relacion tecnica -- se eligio la forma legible
+# ("identical"/"derived"/etc.) sobre las categorias A-E de la investigacion
+# de Fase 2/3 porque es auto-descriptiva (no requiere una leyenda externa
+# para interpretarla). Nunca se mezclan ambos sistemas.
+ARTIFACT_RELATIONSHIP_TYPES = ("identical", "derived", "fork", "variant", "similar", "unknown")
+
+# ADR-0004: estados de resolucion HUMANA sobre si una relacion tecnica
+# implica o no la misma ApplicationIdentity -- nunca se autoasigna
+# "confirmed_*", coherente con ADR-0002 (Candidate/Resolved siempre
+# requieren confirmacion humana explicita).
+ARTIFACT_HUMAN_RESOLUTION_STATES = (
+    "pending", "confirmed_same_identity", "confirmed_different_identity", "not_applicable",
+)
+
+
+def get_or_create_artifact(conn: sqlite3.Connection, evidence: ArtifactEvidence) -> int:
+    """Reutiliza un Artifact existente si su binary_hash coincide EXACTAMENTE
+    (evidencia primaria, ADR-0004) -- "UNKNOWN" NUNCA se trata como
+    coincidencia entre si (cada analisis con binario inaccesible obtiene su
+    propio Artifact, nunca se fusionan por compartir el mismo valor
+    centinela). Si no hay binary_hash real pero SI hay source_hash real, se
+    reutiliza por esa coincidencia (evidencia secundaria fuerte) -- nunca
+    equivale a declarar la misma ApplicationIdentity (eso sigue siendo
+    exclusivamente humano, ADR-0002)."""
+    if evidence.binary_hash and evidence.binary_hash != ARTIFACT_UNKNOWN:
+        row = conn.execute(
+            "SELECT id FROM artifacts WHERE binary_hash = ?", (evidence.binary_hash,)
+        ).fetchone()
+        if row:
+            return row["id"]
+    elif evidence.source_hash:
+        row = conn.execute(
+            "SELECT id FROM artifacts WHERE source_hash = ? AND (binary_hash IS NULL OR binary_hash = ?)",
+            (evidence.source_hash, ARTIFACT_UNKNOWN),
+        ).fetchone()
+        if row:
+            return row["id"]
+
+    cur = conn.execute(
+        "INSERT INTO artifacts (binary_hash, source_hash, build_date, assembly_version, "
+        "product_version, file_version, anchor_file) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            evidence.binary_hash, evidence.source_hash, evidence.build_date,
+            evidence.assembly_version, evidence.product_version, evidence.file_version,
+            evidence.anchor_file,
+        ),
+    )
+    return cur.lastrowid
+
+
+def save_artifact_relationship(
+    artifact_a_id: int,
+    artifact_b_id: int,
+    relationship_type: str,
+    confidence: int,
+    detection_method: str,
+    observed_at: str,
+    evidence: str | None = None,
+    human_resolution_state: str | None = None,
+) -> int:
+    """Persiste una relacion TECNICA entre dos Artifacts (ADR-0004) -- nunca
+    decide ApplicationIdentity por si sola. artifact_a_id/artifact_b_id se
+    normalizan (menor, mayor) para que (A,B) y (B,A) nunca se registren como
+    dos filas logicamente duplicadas (ver CHECK/UNIQUE del esquema)."""
+    if relationship_type not in ARTIFACT_RELATIONSHIP_TYPES:
+        raise ValueError(f"relationship_type invalido: {relationship_type}")
+    if human_resolution_state is not None and human_resolution_state not in ARTIFACT_HUMAN_RESOLUTION_STATES:
+        raise ValueError(f"human_resolution_state invalido: {human_resolution_state}")
+    if artifact_a_id == artifact_b_id:
+        raise ValueError("Un Artifact no puede relacionarse consigo mismo")
+    a_id, b_id = sorted((artifact_a_id, artifact_b_id))
+
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO artifact_relationships (artifact_a_id, artifact_b_id, relationship_type, "
+            "evidence, confidence, detection_method, observed_at, human_resolution_state) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (a_id, b_id, relationship_type, evidence, confidence, detection_method, observed_at, human_resolution_state),
+        )
+        return cur.lastrowid
 
 
 def save_analysis(
@@ -278,6 +420,7 @@ def save_analysis(
     companion_assemblies: list[str] | None = None,
     build_date: str | None = None,
     activity: ActivityEvidence | None = None,
+    artifact_evidence: ArtifactEvidence | None = None,
 ) -> int:
     with get_conn() as conn:
         # Upsert by name: re-analyzing the same app (same name) replaces its
@@ -316,10 +459,19 @@ def save_analysis(
         # evidencia" -- nunca se inventa una fecha ni una fuente.
         activity = activity or ActivityEvidence()
 
+        # ADR-0004: artifact_evidence=None (llamador viejo, ej. un test
+        # existente que no lo pasa todavia) -> artifact_id queda NULL, nunca
+        # se inventa un Artifact sin evidencia real. Paso 13 (re-analisis):
+        # se recalcula/reutiliza aqui EN CADA llamada -- nunca se reutiliza
+        # ciegamente un artifact_id anterior, porque el binario pudo haber
+        # cambiado aunque source_path/name/ApplicationIdentity sean iguales.
+        artifact_id = get_or_create_artifact(conn, artifact_evidence) if artifact_evidence else None
+
         cur = conn.execute(
             "INSERT INTO apps (name, source_path, analyzed_at, dotnet_target, ui_framework, db_drivers, "
             "companion_assemblies, review_status, review_notes, build_date, last_activity_date, "
-            "last_activity_source, last_activity_confidence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "last_activity_source, last_activity_confidence, artifact_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 name,
                 source_path,
@@ -334,6 +486,7 @@ def save_analysis(
                 activity.date,
                 activity.source,
                 activity.confidence,
+                artifact_id,
             ),
         )
         app_id = cur.lastrowid

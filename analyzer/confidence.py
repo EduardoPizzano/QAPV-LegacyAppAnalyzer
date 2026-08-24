@@ -217,6 +217,33 @@ APP_CALL_TARGET_AMBIGUOUS = 40
 # conocido, pero no se afirma resolucion definitiva sin modelar herencia.
 APP_CALL_TARGET_INHERITED = 50
 
+# ADR-0004 (2026-08-24, analyzer/artifact.py + ArtifactRelationship):
+# confianza de una relacion TECNICA entre dos Artifacts -- dimension
+# completamente independiente de la identidad de negocio (ApplicationIdentity,
+# ADR-0000/0002, que esta tabla NUNCA decide por si sola).
+
+# Coincidencia EXACTA de binary_hash (SHA-256 del binario original) --
+# evidencia primaria, la mas fuerte posible de identidad tecnica.
+ARTIFACT_RELATIONSHIP_BINARY_HASH_MATCH = 95
+
+# Coincidencia EXACTA de source_hash (SHA-256 del codigo decompilado
+# completo) cuando el binario original no fue accesible -- evidencia
+# secundaria fuerte, un escalon por debajo del binario real (ver
+# analyzer/artifact.py: asume que ilspycmd es deterministico, no verificado
+# experimentalmente).
+ARTIFACT_RELATIONSHIP_SOURCE_HASH_MATCH = 85
+
+# Relacion registrada manualmente (investigacion humana, ej. diff de codigo
+# revisado por un analista) con evidencia textual concreta adjunta -- ni
+# hash exacto ni heuristica automatica, pero tampoco una suposicion sin
+# respaldo.
+ARTIFACT_RELATIONSHIP_MANUAL_EVIDENCE = 70
+
+# Ningun hash coincide y no hay evidencia manual suficiente -- se registra
+# la relacion (ej. "insufficient_evidence") sin inventar una confianza
+# mayor. Piso de la escala, igual que UNKNOWN.
+ARTIFACT_RELATIONSHIP_INSUFFICIENT_EVIDENCE = 20
+
 # El nombre no coincide con ningun metodo de la clase actual ni de su clase
 # base directa -- puede ser BCL, un campo delegado invocado directamente,
 # una local function (fuera de alcance), o simplemente no existir. Piso de
@@ -316,6 +343,10 @@ CONFIDENCE_TABLE: dict[str, int] = {
     "APP_CONTROL_DECLARATION_AND_TYPE": APP_CONTROL_DECLARATION_AND_TYPE,
     "APP_CONTROL_LABEL_TEXT": APP_CONTROL_LABEL_TEXT,
     "APP_CONTROL_TYPE_UNKNOWN": APP_CONTROL_TYPE_UNKNOWN,
+    "ARTIFACT_RELATIONSHIP_BINARY_HASH_MATCH": ARTIFACT_RELATIONSHIP_BINARY_HASH_MATCH,
+    "ARTIFACT_RELATIONSHIP_SOURCE_HASH_MATCH": ARTIFACT_RELATIONSHIP_SOURCE_HASH_MATCH,
+    "ARTIFACT_RELATIONSHIP_MANUAL_EVIDENCE": ARTIFACT_RELATIONSHIP_MANUAL_EVIDENCE,
+    "ARTIFACT_RELATIONSHIP_INSUFFICIENT_EVIDENCE": ARTIFACT_RELATIONSHIP_INSUFFICIENT_EVIDENCE,
     "UNKNOWN": UNKNOWN,
 }
 

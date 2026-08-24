@@ -7,6 +7,7 @@ from pathlib import Path
 
 from . import security, techstack
 from .activity import ActivityEvidence, build_date as _build_date, detect_activity_evidence
+from .artifact import ArtifactEvidence, compute_binary_hash, compute_source_hash
 from .classification import (
     classify_decompiled_assemblies,
     third_party_folder_names,
@@ -40,6 +41,12 @@ class AnalysisResult:
     # evidencia nunca implica "no se uso".
     build_date: str | None = None
     activity: ActivityEvidence = field(default_factory=ActivityEvidence)
+    # ADR-0004: evidencia TECNICA de identidad del binario/assembly -- ver
+    # analyzer/artifact.py. Deliberadamente separada de `activity`/
+    # `build_date` de arriba (esas son evidencia de CICLO DE VIDA, esta es
+    # evidencia de IDENTIDAD TECNICA -- dimensiones distintas, nunca
+    # colapsadas). NUNCA implica ApplicationIdentity por si sola.
+    artifact_evidence: ArtifactEvidence = field(default_factory=ArtifactEvidence)
 
 
 def run_analysis(assembly_path: Path, app_name: str | None = None) -> AnalysisResult:
@@ -55,6 +62,13 @@ def run_analysis(assembly_path: Path, app_name: str | None = None) -> AnalysisRe
     # find_settings/scan_project como si fueran parte de ESTA corrida,
     # duplicando hallazgos (bug real, ver GeoStatsInter 2026-08-11).
     shutil.rmtree(output_dir, ignore_errors=True)
+
+    # ADR-0004: SHA-256 del binario ORIGINAL -- se calcula aqui, ANTES de
+    # decompile(), mientras assembly_path sigue siendo el archivo real (no
+    # el codigo ya decompilado). Nunca aborta el analisis si el binario es
+    # inaccesible (ej. recurso de red caido) -- compute_binary_hash() ya
+    # devuelve "UNKNOWN" explicito en ese caso, nunca propaga la excepcion.
+    binary_hash_value = compute_binary_hash(assembly_path)
 
     # Evidencia de secuencia, no de nombre (DISENO_INCREMENTO_3_CLASIFICACION.md,
     # Decision 1): un mismo assembly se fragmenta en varias carpetas de nivel
@@ -92,6 +106,18 @@ def run_analysis(assembly_path: Path, app_name: str | None = None) -> AnalysisRe
     build_date_value = _build_date(assembly_path)
     activity = detect_activity_evidence(assembly_path)
 
+    # ADR-0004: source_hash se calcula DESPUES de decompilar (necesita
+    # output_dir poblado) -- evidencia secundaria fuerte, reutilizada solo
+    # cuando binary_hash_value == "UNKNOWN". build_date se REUTILIZA de
+    # build_date_value ya calculado arriba (Incremento Lifecycle) -- nunca
+    # se recalcula una segunda vez.
+    source_hash_value = compute_source_hash(output_dir)
+    artifact_evidence_value = ArtifactEvidence(
+        binary_hash=binary_hash_value,
+        source_hash=source_hash_value,
+        build_date=build_date_value,
+    )
+
     return AnalysisResult(
         app_name=app_name,
         source_path=str(assembly_path),
@@ -104,4 +130,5 @@ def run_analysis(assembly_path: Path, app_name: str | None = None) -> AnalysisRe
         companion_assemblies=companions,
         build_date=build_date_value,
         activity=activity,
+        artifact_evidence=artifact_evidence_value,
     )

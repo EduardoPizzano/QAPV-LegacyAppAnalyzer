@@ -123,6 +123,66 @@ class TestExistingDataPreserved:
         assert before == after
 
 
+class TestArtifactSchemaMigration:
+    """ADR-0004 (Fase 4 de implementacion): artifacts/artifact_relationships/
+    apps.artifact_id son aditivos -- mismo patron de migracion que el resto
+    de esta clase, verificado contra una COPIA de la BD real ya poblada."""
+
+    def test_artifacts_and_artifact_relationships_tables_exist_after_migration(self, db_copy):
+        db.init_db()
+        with db.get_conn() as conn:
+            tables = {row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "artifacts" in tables
+        assert "artifact_relationships" in tables
+
+    def test_apps_artifact_id_column_exists_after_migration(self, db_copy):
+        db.init_db()
+        with db.get_conn() as conn:
+            cols = _table_columns(conn, "apps")
+        assert "artifact_id" in cols
+
+    def test_preexisting_apps_have_null_artifact_id(self, db_copy):
+        """Ninguna fila historica debe recibir un artifact_id inventado --
+        NULL significa 'analizada antes de que Artifact existiera', nunca
+        se infiere retroactivamente."""
+        with db.get_conn() as conn:
+            apps_before = [dict(r) for r in conn.execute("SELECT id, name FROM apps")]
+        if not apps_before:
+            pytest.skip("La copia de la BD no tiene apps para verificar")
+
+        db.init_db()
+
+        with db.get_conn() as conn:
+            for row in apps_before:
+                artifact_id = conn.execute(
+                    "SELECT artifact_id FROM apps WHERE id = ?", (row["id"],)
+                ).fetchone()["artifact_id"]
+                assert artifact_id is None, f"apps.id={row['id']} ({row['name']}) no deberia tener artifact_id tras solo migrar"
+
+    def test_artifacts_table_starts_empty(self, db_copy):
+        db.init_db()
+        with db.get_conn() as conn:
+            count = conn.execute("SELECT COUNT(*) as c FROM artifacts").fetchone()["c"]
+        assert count == 0, "artifacts deberia nacer vacia -- nada la puebla solo con migrar, requiere re-analisis"
+
+    def test_migration_is_idempotent_for_artifact_tables(self, db_copy):
+        db.init_db()
+        db.init_db()  # no debe lanzar excepcion ni duplicar columnas/indices
+        with db.get_conn() as conn:
+            cols = _table_columns(conn, "apps")
+            assert list(cols).count("artifact_id") <= 1
+
+    def test_app_count_and_review_status_unaffected_by_artifact_migration(self, db_copy):
+        with db.get_conn() as conn:
+            before = [dict(r) for r in conn.execute("SELECT id, name, review_status, review_notes FROM apps")]
+
+        db.init_db()
+
+        with db.get_conn() as conn:
+            after = [dict(r) for r in conn.execute("SELECT id, name, review_status, review_notes FROM apps")]
+        assert before == after
+
+
 class TestMigrationIsIdempotent:
     def test_running_init_db_twice_is_safe(self, db_copy):
         """init_db() ya corre en cada arranque de app.py -- confirma que

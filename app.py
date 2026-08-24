@@ -71,6 +71,7 @@ def _analyze_and_save(assembly: Path, custom_name: str | None = None) -> dict:
         result.app_name, result.source_path, result.tech, result.settings,
         result.sql_findings, result.io_findings, result.security_flags,
         result.companion_assemblies, result.build_date, result.activity,
+        result.artifact_evidence,
     )
     final_name = db.get_app(app_id)["app"]["name"]
 
