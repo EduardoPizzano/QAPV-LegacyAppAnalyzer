@@ -1,4 +1,5 @@
 flask
+flask-babel
 markdown
 openpyxl
 python-docx

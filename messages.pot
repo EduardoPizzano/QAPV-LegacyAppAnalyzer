@@ -1,0 +1,1501 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-09-01 14:11-0600\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: app.py:135 app.py:333
+#, python-format
+msgid ""
+"Extraccion de BD (solo lectura): %(ok)s/%(total)s SPs encontrados, "
+"%(tables)s tablas con esquema."
+msgstr ""
+
+#: app.py:139
+#, python-format
+msgid "No se pudo conectar a la BD (solo lectura): %(err)s"
+msgstr ""
+
+#: app.py:179
+msgid "Indica una ruta de carpeta o de archivo .exe/.dll."
+msgstr ""
+
+#: app.py:184
+#, python-format
+msgid "No se encontro la ruta: %(path)s"
+msgstr ""
+
+#: app.py:192
+#, python-format
+msgid "No se encontro ningun .exe/.dll directamente dentro de: %(path)s"
+msgstr ""
+
+#: app.py:201 app.py:257
+#, python-format
+msgid "Error al decompilar '%(name)s': %(err)s"
+msgstr ""
+
+#: app.py:204 app.py:254
+#, python-format
+msgid "'%(name)s' analizado correctamente."
+msgstr ""
+
+#: app.py:213
+msgid "Indica una carpeta raiz para escanear."
+msgstr ""
+
+#: app.py:218
+#, python-format
+msgid "No se encontro la carpeta: %(path)s"
+msgstr ""
+
+#: app.py:244
+msgid "No seleccionaste ninguna app para analizar."
+msgstr ""
+
+#: app.py:273
+msgid "Ruta vacia"
+msgstr ""
+
+#: app.py:289 app.py:320 app.py:349 app.py:368 templates/app_map.html:27
+msgid "Esa app no existe en la base de datos."
+msgstr ""
+
+#: app.py:326
+#, python-format
+msgid "Error al conectar a la base de datos: %(err)s"
+msgstr ""
+
+#: app.py:338
+#, python-format
+msgid "No se pudo conectar: %(err)s"
+msgstr ""
+
+#: app.py:360
+msgid "Estado de revision actualizado."
+msgstr ""
+
+#: app.py:371
+#, python-format
+msgid "Formato de exportacion no soportado: %(fmt)s"
+msgstr ""
+
+#: app.py:406
+#, python-format
+msgid "'%(name)s' eliminado de la base de datos."
+msgstr ""
+
+#: app.py:431
+msgid "Hallazgo eliminado."
+msgstr ""
+
+#: app.py:446
+#, python-format
+msgid "Hallazgo #%(id)s marcado como %(status)s."
+msgstr ""
+
+#: app.py:597
+msgid "App no encontrada."
+msgstr ""
+
+#: analyzer/report.py:76
+msgid ""
+"(conexion detectada, query no resuelta automaticamente — revisar "
+"manualmente)"
+msgstr ""
+
+#: analyzer/report.py:97
+msgid "Inventario automatico (borrador)"
+msgstr ""
+
+#: analyzer/report.py:101
+msgid ""
+"Generado por QAPV-LegacyAppAnalyzer (ilspycmd + extractor Python). Este "
+"es un primer borrador — revisar antes de usarlo como fuente final."
+msgstr ""
+
+#: analyzer/report.py:112
+msgid "Ciclo de vida"
+msgstr ""
+
+#: analyzer/report.py:114
+msgid "proxy, fecha de modificacion del ensamblado"
+msgstr ""
+
+#: analyzer/report.py:120
+msgid "Tecnologia"
+msgstr ""
+
+#: analyzer/report.py:122
+msgid "Lenguaje"
+msgstr ""
+
+#: analyzer/report.py:125
+msgid "Drivers de BD detectados"
+msgstr ""
+
+#: analyzer/report.py:128
+msgid "Ensamblados adicionales decompilados"
+msgstr ""
+
+#: analyzer/report.py:129
+msgid "referenciados por el .exe, ej. una ClassLib con settings/logica propia"
+msgstr ""
+
+#: analyzer/report.py:135
+msgid "Alertas de seguridad"
+msgstr ""
+
+#: analyzer/report.py:137 templates/findings.html:15
+msgid "Severidad"
+msgstr ""
+
+#: analyzer/report.py:137
+msgid "Descripcion"
+msgstr ""
+
+#: analyzer/report.py:137
+msgid "Ubicacion"
+msgstr ""
+
+#: analyzer/report.py:150 analyzer/report.py:168 analyzer/report.py:179
+msgid "Valor por defecto"
+msgstr ""
+
+#: analyzer/report.py:150
+msgid "Archivo"
+msgstr ""
+
+#: analyzer/report.py:150 analyzer/report.py:203 templates/app_map.html:57
+#: templates/app_map.html:83 templates/app_map.html:113
+#: templates/data_flow.html:59 templates/priority_report.html:66
+#: templates/priority_report.html:73 templates/result.html:57
+msgid "Evidencia"
+msgstr ""
+
+#: analyzer/report.py:150 analyzer/report.py:203
+msgid "Confianza"
+msgstr ""
+
+#: analyzer/report.py:154 analyzer/report.py:213
+msgid "linea"
+msgstr ""
+
+#: analyzer/report.py:160
+msgid ""
+"No se encontraron connection strings. Puede que el Settings.cs no se haya"
+" incluido en la decompilacion, o que la app no use "
+"`ApplicationSettingsBase` para su conexion."
+msgstr ""
+
+#: analyzer/report.py:165
+msgid "Rutas / archivos locales configurados"
+msgstr ""
+
+#: analyzer/report.py:173
+msgid "No se encontraron settings que parezcan rutas de archivo/carpeta."
+msgstr ""
+
+#: analyzer/report.py:177
+msgid "Otras configuraciones"
+msgstr ""
+
+#: analyzer/report.py:185
+msgid "Funciones -> SQL / Stored Procedures"
+msgstr ""
+
+#: analyzer/report.py:189
+msgid ""
+"No se detecto ningun uso de SqlConnection/OracleConnection/CommandText en"
+" el codigo decompilado. Revisar manualmente — puede ser una app sin SQL "
+"propio (launcher, watchdog, o vista MVVM sin el ViewModel incluido)."
+msgstr ""
+
+#: analyzer/report.py:202 analyzer/report.py:313 analyzer/report.py:339
+msgid "Clase"
+msgstr ""
+
+#: analyzer/report.py:202 analyzer/report.py:313 analyzer/report.py:339
+msgid "Funcion"
+msgstr ""
+
+#: analyzer/report.py:202
+msgid "Conexion"
+msgstr ""
+
+#: analyzer/report.py:202 analyzer/report.py:240 analyzer/report.py:252
+#: analyzer/report.py:281 templates/app_map.html:136
+#: templates/data_footprint.html:53 templates/search.html:26
+msgid "Tipo"
+msgstr ""
+
+#: analyzer/report.py:202 templates/data_footprint.html:54
+#: templates/search.html:26
+msgid "Tabla / SP"
+msgstr ""
+
+#: analyzer/report.py:203
+msgid "Parametros"
+msgstr ""
+
+#: analyzer/report.py:203
+msgid "Columnas de resultado"
+msgstr ""
+
+#: analyzer/report.py:208
+msgid "Stored Procedure"
+msgstr ""
+
+#: analyzer/report.py:209
+msgid "Query"
+msgstr ""
+
+#: analyzer/report.py:223
+msgid "Extraccion de esquema desde la base de datos (solo lectura)"
+msgstr ""
+
+#: analyzer/report.py:226
+#, python-format
+msgid "No se pudo conectar a alguna(s) de las conexiones: %(notes)s"
+msgstr ""
+
+#: analyzer/report.py:230
+msgid "Definiciones de Stored Procedures"
+msgstr ""
+
+#: analyzer/report.py:238
+msgid "Parametros de entrada/salida"
+msgstr ""
+
+#: analyzer/report.py:240
+msgid "Parametro"
+msgstr ""
+
+#: analyzer/report.py:240 analyzer/report.py:281
+msgid "Longitud"
+msgstr ""
+
+#: analyzer/report.py:240
+msgid "Salida"
+msgstr ""
+
+#: analyzer/report.py:245 analyzer/report.py:255
+msgid "Si"
+msgstr ""
+
+#: analyzer/report.py:250
+msgid "Columnas que devuelve (determinado por SQL Server, solo lectura)"
+msgstr ""
+
+#: analyzer/report.py:252 analyzer/report.py:281
+msgid "Columna"
+msgstr ""
+
+#: analyzer/report.py:252 analyzer/report.py:281
+msgid "Nulo"
+msgstr ""
+
+#: analyzer/report.py:255
+msgid "No"
+msgstr ""
+
+#: analyzer/report.py:259
+msgid ""
+"SQL Server no pudo determinar automaticamente las columnas de salida de "
+"este SP (comun si usa SQL dinamico, tablas temporales o multiples result "
+"sets) — revisar el codigo de la SP arriba manualmente."
+msgstr ""
+
+#: analyzer/report.py:264
+#, python-format
+msgid "Codigo de `%(name)s`"
+msgstr ""
+
+#: analyzer/report.py:271
+#, python-format
+msgid "no disponible (%(status)s)"
+msgstr ""
+
+#: analyzer/report.py:275
+msgid "Esquema de tablas"
+msgstr ""
+
+#: analyzer/report.py:290
+msgid "Claves foraneas"
+msgstr ""
+
+#: analyzer/report.py:305
+msgid "Archivos, impresoras, procesos y red en codigo"
+msgstr ""
+
+#: analyzer/report.py:309
+msgid ""
+"No se detecto acceso directo a archivos/carpetas, impresoras "
+"(BarTender/PrintDocument), puertos seriales, otros ejecutables "
+"(Process.Start) o llamadas HTTP/SMTP en el codigo."
+msgstr ""
+
+#: analyzer/report.py:313
+msgid "Operacion"
+msgstr ""
+
+#: analyzer/report.py:313 analyzer/report.py:339 templates/findings.html:18
+msgid "Detalle"
+msgstr ""
+
+#: analyzer/report.py:324
+msgid "Invocacion indirecta / tardia (Reflection, COM)"
+msgstr ""
+
+#: analyzer/report.py:328
+msgid ""
+"No se detecto invocacion via Reflection (MethodInfo.Invoke, "
+"Activator.CreateInstance) ni COM/CLSID (Marshal.GetTypeFromCLSID) en el "
+"codigo."
+msgstr ""
+
+#: analyzer/report.py:334
+msgid ""
+"El comportamiento real de estas llamadas depende de resolucion en tiempo "
+"de ejecucion -- ningun analisis estatico puede saber con certeza que se "
+"invoca (KNOWN_LIMITATIONS.md L16/L17)."
+msgstr ""
+
+#: analyzer/security.py:30
+#, python-format
+msgid ""
+"Credenciales en texto plano en connection string '%(name)s' "
+"(password='%(pwd)s')"
+msgstr ""
+
+#: analyzer/security.py:40
+#, python-format
+msgid ""
+"Setting '%(name)s' marcado como ConnectionString pero su valor por "
+"defecto parece un placeholder sin configurar ('%(value)s') — "
+"probablemente no se usa en produccion, verificar."
+msgstr ""
+
+#: analyzer/security.py:60
+#, python-format
+msgid ""
+"Posible SQL injection: query armada por concatenacion de strings sin "
+"parametros en `%(location)s`"
+msgstr ""
+
+#: templates/app_map.html:2 templates/app_map.html:6
+msgid "Mapa de Aplicaciones"
+msgstr ""
+
+#: templates/app_map.html:8
+msgid "Evidencia de relaciones derivada del análisis estático del código"
+msgstr ""
+
+#: templates/app_map.html:9
+msgid ""
+"NUNCA implica comunicación en tiempo real, dependencia operacional "
+"confirmada, ni que una aplicación ejecute a otra. Una flecha significa "
+"únicamente que existe evidencia estática compatible con"
+msgstr ""
+
+#: templates/app_map.html:10
+msgid "usando la MISMA clasificación de"
+msgstr ""
+
+#: templates/app_map.html:11 templates/data_flow.html:2
+msgid "Flujo de Datos"
+msgstr ""
+
+#: templates/app_map.html:11 templates/result.html:49
+msgid "ver"
+msgstr ""
+
+#: templates/app_map.html:12
+msgid "nunca una segunda clasificación. Tablas"
+msgstr ""
+
+#: templates/app_map.html:12
+msgid ""
+"quedan excluidas: sin columnas reconstruidas, no hay evidencia de qué se "
+"relaciona con qué. Cuando dos apps comparten el mismo lado (ambas leen, o"
+" ambas escriben) de una tabla, esa relación se muestra aparte, nunca como"
+" flecha dirigida."
+msgstr ""
+
+#: templates/app_map.html:16 templates/app_map.html:136
+#: templates/data_flow.html:55
+msgid "Aplicación"
+msgstr ""
+
+#: templates/app_map.html:18
+msgid "Selecciona una aplicación"
+msgstr ""
+
+#: templates/app_map.html:41
+msgid "Sin relaciones fuertes (productor→consumidor) demostrables para esta app."
+msgstr ""
+
+#: templates/app_map.html:45
+msgid "Relaciones fuertes"
+msgstr ""
+
+#: templates/app_map.html:46
+msgid "produce hacia"
+msgstr ""
+
+#: templates/app_map.html:46
+msgid "consume desde"
+msgstr ""
+
+#: templates/app_map.html:48
+#, python-format
+msgid "Produce y consume %(n)s tabla(s) ella misma."
+msgstr ""
+
+#: templates/app_map.html:55
+msgid "produce hacia..."
+msgstr ""
+
+#: templates/app_map.html:57
+msgid "Aplicación consumidora"
+msgstr ""
+
+#: templates/app_map.html:57 templates/app_map.html:83
+#: templates/app_map.html:136
+msgid "Tabla(s)"
+msgstr ""
+
+#: templates/app_map.html:67 templates/app_map.html:69
+#: templates/app_map.html:93 templates/app_map.html:95
+#: templates/app_map.html:118 templates/app_map.html:120
+#: templates/data_flow.html:79 templates/data_footprint.html:86
+#: templates/result.html:75
+msgid "confianza"
+msgstr ""
+
+#: templates/app_map.html:68 templates/app_map.html:94
+msgid "escribe → lee"
+msgstr ""
+
+#: templates/app_map.html:81
+msgid "consume desde..."
+msgstr ""
+
+#: templates/app_map.html:83
+msgid "Aplicación productora"
+msgstr ""
+
+#: templates/app_map.html:107
+msgid "Produce y consume la misma tabla"
+msgstr ""
+
+#: templates/app_map.html:109
+msgid "No es una relación con otra app — es una característica propia de"
+msgstr ""
+
+#: templates/app_map.html:110
+msgid "rol"
+msgstr ""
+
+#: templates/app_map.html:110
+msgid "la misma app escribe y lee la(s) siguiente(s) tabla(s)."
+msgstr ""
+
+#: templates/app_map.html:113 templates/data_flow.html:56
+#: templates/data_footprint.html:63 templates/portfolio.html:16
+#: templates/result.html:54
+msgid "Tabla"
+msgstr ""
+
+#: templates/app_map.html:119
+msgid "escribe / lee"
+msgstr ""
+
+#: templates/app_map.html:131
+msgid "Relaciones potenciales, sin dirección demostrable"
+msgstr ""
+
+#: templates/app_map.html:133
+msgid ""
+"Estas apps comparten el mismo lado (ambas leen, o ambas escriben) de "
+"la(s) misma(s) tabla(s) — NO se dibujan como flecha porque no hay "
+"evidencia de quién alimenta a quién, solo de que comparten una fuente de "
+"datos."
+msgstr ""
+
+#: templates/app_map.html:142
+msgid "Ambas consumen"
+msgstr ""
+
+#: templates/app_map.html:142
+msgid "Ambas producen"
+msgstr ""
+
+#: templates/choose_assembly.html:2
+msgid "Elegir ejecutable"
+msgstr ""
+
+#: templates/choose_assembly.html:6
+msgid "Se encontraron varios ejecutables en esta carpeta"
+msgstr ""
+
+#: templates/choose_assembly.html:8
+msgid "Elige cual analizar:"
+msgstr ""
+
+#: templates/choose_assembly.html:17 templates/index.html:21
+msgid "Decompilando y analizando"
+msgstr ""
+
+#: templates/choose_assembly.html:17 templates/index.html:21
+msgid ""
+"esto puede tardar mas para apps grandes o con conexion a base de datos — "
+"sigue trabajando, no se congelo."
+msgstr ""
+
+#: templates/choose_assembly.html:19
+msgid "Volver"
+msgstr ""
+
+#: templates/data_flow.html:6 templates/result.html:48
+msgid "Mapa de Flujo de Datos"
+msgstr ""
+
+#: templates/data_flow.html:8
+msgid "Rol de cada aplicación sobre cada tabla que toca, derivado por"
+msgstr ""
+
+#: templates/data_flow.html:8 templates/data_footprint.html:9
+#: templates/result.html:46
+msgid "evidencia real de código"
+msgstr ""
+
+#: templates/data_flow.html:9
+msgid ""
+"(columnas de INSERT/UPDATE/SELECT ya reconstruidas — nunca por el nombre "
+"de la tabla ni por una columna aislada, ver"
+msgstr ""
+
+#: templates/data_flow.html:10
+msgid ""
+"significa columnas conocidas sin evidencia suficiente de que la tabla sea"
+" de resultados de prueba"
+msgstr ""
+
+#: templates/data_flow.html:10 templates/data_footprint.html:12
+#: templates/data_footprint.html:81
+msgid "desconocido"
+msgstr ""
+
+#: templates/data_flow.html:11
+msgid ""
+"significa que no se pudo reconstruir ninguna columna. Ninguno de los dos "
+"es una clasificación inventada."
+msgstr ""
+
+#: templates/data_flow.html:22
+msgid "Total relaciones app+tabla"
+msgstr ""
+
+#: templates/data_flow.html:28
+msgid "Agrupar por"
+msgstr ""
+
+#: templates/data_flow.html:29
+msgid "clasificación"
+msgstr ""
+
+#: templates/data_flow.html:31
+msgid "tabla"
+msgstr ""
+
+#: templates/data_flow.html:33
+msgid "aplicación"
+msgstr ""
+
+#: templates/data_flow.html:38
+msgid "Aún no hay evidencia de flujo de datos clasificable en el portafolio."
+msgstr ""
+
+#: templates/data_flow.html:57 templates/result.html:55
+msgid "Clasificación"
+msgstr ""
+
+#: templates/data_flow.html:58 templates/result.html:56
+msgid "Operaciones"
+msgstr ""
+
+#: templates/data_flow.html:81 templates/result.html:77
+msgid "sin columnas reconstruidas"
+msgstr ""
+
+#: templates/data_footprint.html:2 templates/data_footprint.html:6
+msgid "Huella de Datos"
+msgstr ""
+
+#: templates/data_footprint.html:8
+msgid ""
+"Qué tabla o Stored Procedure escribe cada app, a qué servidor/base de "
+"datos resuelve por"
+msgstr ""
+
+#: templates/data_footprint.html:10
+msgid ""
+"(connection string / setting / SQL finding ya extraído — nunca un "
+"inventario externo de servidores, ver"
+msgstr ""
+
+#: templates/data_footprint.html:11
+msgid ""
+"y si esa escritura toca una tabla real del ERP Oracle (catálogo explícito"
+" de 29 tablas del DDL real,"
+msgstr ""
+
+#: templates/data_footprint.html:12
+msgid "Una escritura sin evidencia de código suficiente se muestra como"
+msgstr ""
+
+#: templates/data_footprint.html:13
+msgid ""
+"nunca como un servidor adivinado; dos o más conexiones igualmente válidas"
+" según el código (ej. un operador ternario) se muestran como"
+msgstr ""
+
+#: templates/data_footprint.html:13 templates/data_footprint.html:77
+msgid "ambiguo"
+msgstr ""
+
+#: templates/data_footprint.html:18
+msgid "Apps con escritura detectada"
+msgstr ""
+
+#: templates/data_footprint.html:22
+msgid "Targets (tabla/SP) totales"
+msgstr ""
+
+#: templates/data_footprint.html:26
+msgid "Resueltos por código"
+msgstr ""
+
+#: templates/data_footprint.html:30
+msgid "Ambiguos"
+msgstr ""
+
+#: templates/data_footprint.html:34
+msgid "Sin resolver"
+msgstr ""
+
+#: templates/data_footprint.html:38
+msgid "Tocan el ERP Oracle"
+msgstr ""
+
+#: templates/data_footprint.html:45
+msgid "Aún no hay apps con escrituras SQL detectadas."
+msgstr ""
+
+#: templates/data_footprint.html:55 templates/portfolio.html:72
+msgid "Servidor"
+msgstr ""
+
+#: templates/data_footprint.html:56
+msgid "Base de datos"
+msgstr ""
+
+#: templates/data_footprint.html:57 templates/findings.html:19
+#: templates/result.html:28
+msgid "Estado"
+msgstr ""
+
+#: templates/data_footprint.html:58
+msgid "Evidencia / fuente"
+msgstr ""
+
+#: templates/data_footprint.html:75
+msgid "resuelto"
+msgstr ""
+
+#: templates/data_footprint.html:77
+msgid "candidatos"
+msgstr ""
+
+#: templates/data_footprint.html:79
+msgid "sin archivo fuente"
+msgstr ""
+
+#: templates/data_footprint.html:89
+msgid "sin evidencia suficiente"
+msgstr ""
+
+#: templates/discover_results.html:2
+msgid "Apps encontradas"
+msgstr ""
+
+#: templates/discover_results.html:6
+msgid "Apps encontradas en"
+msgstr ""
+
+#: templates/discover_results.html:10
+#, python-format
+msgid "Se encontro %(num)s ejecutable"
+msgid_plural "Se encontraron %(num)s ejecutables"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/discover_results.html:11
+#, python-format
+msgid "en %(num)s carpeta."
+msgid_plural "en %(num)s carpetas."
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/discover_results.html:12
+msgid ""
+"Revisa y quita las que no quieras analizar (p. ej. copias de respaldo \"-"
+" Copy\") antes de continuar. Cada una se guardara como"
+msgstr ""
+
+#: templates/discover_results.html:18
+msgid "Seleccionar todas"
+msgstr ""
+
+#: templates/discover_results.html:20
+msgid "Deseleccionar todas"
+msgstr ""
+
+#: templates/discover_results.html:35
+msgid "Analizar seleccionadas"
+msgstr ""
+
+#: templates/discover_results.html:45
+msgid ""
+"Las apps con conexion a base de datos tardan un poco mas (se intenta "
+"traer tambien las definiciones de sus Stored Procedures, solo lectura) — "
+"esto sigue trabajando, no se congelo."
+msgstr ""
+
+#: templates/discover_results.html:48 templates/search.html:5
+msgid "Volver al listado"
+msgstr ""
+
+#: templates/discover_results.html:52
+msgid ""
+"No se encontro ningun .exe dentro de esa carpeta (se ignoran obj, .vs, "
+".git, packages y *.vshost.exe)."
+msgstr ""
+
+#: templates/discover_results.html:58
+msgid "Selecciona al menos una app."
+msgstr ""
+
+#: templates/discover_results.html:59
+msgid "trabajando..."
+msgstr ""
+
+#: templates/discover_results.html:60 templates/library_base.html:27
+#: templates/library_base.html:49
+msgid "Listo"
+msgstr ""
+
+#: templates/discover_results.html:61
+msgid "Analizando"
+msgstr ""
+
+#: templates/discover_results.html:62
+msgid "Ver ultimo analisis"
+msgstr ""
+
+#: templates/discover_results.html:63
+msgid "BD"
+msgstr ""
+
+#: templates/discover_results.html:64
+msgid "SPs"
+msgstr ""
+
+#: templates/discover_results.html:65
+msgid "tablas"
+msgstr ""
+
+#: templates/discover_results.html:66
+msgid "error de red"
+msgstr ""
+
+#: templates/findings.html:2 templates/library_base.html:7
+#: templates/portfolio.html:93
+msgid "Hallazgos"
+msgstr ""
+
+#: templates/findings.html:6
+msgid "Hallazgos acumulados"
+msgstr ""
+
+#: templates/findings.html:8
+msgid ""
+"Registro acumulativo de riesgos y bugs reales encontrados durante la "
+"revision de logica de negocio de cada app — solo para tenerlos en cuenta,"
+" no modifica ninguna aplicacion legada. Se sigue agregando conforme "
+"revisamos mas apps."
+msgstr ""
+
+#: templates/findings.html:11 templates/portfolio.html:90
+msgid "Aun no hay hallazgos registrados."
+msgstr ""
+
+#: templates/findings.html:17
+msgid "Hallazgo"
+msgstr ""
+
+#: templates/findings.html:36
+msgid "Cambiado"
+msgstr ""
+
+#: templates/findings.html:36
+msgid "por"
+msgstr ""
+
+#: templates/findings.html:36
+msgid "Sin cambios desde su creacion"
+msgstr ""
+
+#: templates/findings.html:43
+msgid "Cambiar"
+msgstr ""
+
+#: templates/findings.html:48
+msgid "¿Eliminar este hallazgo?"
+msgstr ""
+
+#: templates/findings.html:48
+msgid "Borrar"
+msgstr ""
+
+#: templates/index.html:2
+msgid "Analizar app"
+msgstr ""
+
+#: templates/index.html:6
+msgid "Analizar una app legacy"
+msgstr ""
+
+#: templates/index.html:8
+msgid ""
+"Pega la ruta de la carpeta donde esta el .exe/.dll de la app (p. ej. su "
+"carpeta"
+msgstr ""
+
+#: templates/index.html:9
+msgid ""
+"), o la ruta directa al archivo. Si la carpeta tiene varios ejecutables "
+"te dejare elegir cual."
+msgstr ""
+
+#: templates/index.html:12
+msgid "Carpeta o archivo .exe/.dll"
+msgstr ""
+
+#: templates/index.html:13
+msgid "\\\\servidor\\ruta\\a\\LaApp\\bin\\Debug"
+msgstr ""
+
+#: templates/index.html:15
+msgid "Nombre para el reporte (opcional)"
+msgstr ""
+
+#: templates/index.html:16
+msgid "Se usa el nombre del archivo si se deja vacio"
+msgstr ""
+
+#: templates/index.html:18
+msgid "Analizar"
+msgstr ""
+
+#: templates/index.html:46
+msgid "Escanear una carpeta raiz (varias apps a la vez)"
+msgstr ""
+
+#: templates/index.html:48
+msgid "Para soluciones con varios modulos (p. ej."
+msgstr ""
+
+#: templates/index.html:49
+msgid ""
+"con Entrega/Liberacion/Recibo/Reportes/Scrap, cada uno su propio "
+"proyecto), pega la carpeta raiz de la solucion y buscare todos los .exe "
+"dentro, en cualquier subcarpeta. Despues eliges cuales analizar."
+msgstr ""
+
+#: templates/index.html:52
+msgid "Carpeta raiz"
+msgstr ""
+
+#: templates/index.html:53
+msgid "\\\\servidor\\ruta\\a\\AFL.Dashboard"
+msgstr ""
+
+#: templates/index.html:54
+msgid "Escanear"
+msgstr ""
+
+#: templates/index.html:57
+msgid "Buscando ejecutables en la carpeta"
+msgstr ""
+
+#: templates/index.html:57
+msgid ""
+"en carpetas de red grandes puede tardar un poco — sigue trabajando, no se"
+" congelo."
+msgstr ""
+
+#: templates/index.html:83
+msgid ""
+"Selecciona un reporte de la lista a la izquierda para verlo, o analiza "
+"una app nueva arriba."
+msgstr ""
+
+#: templates/index.html:84
+#, python-format
+msgid "Hay %(num)s app analizada hasta ahora."
+msgid_plural "Hay %(num)s apps analizadas hasta ahora."
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/library_base.html:5
+msgid "Analizar nueva app"
+msgstr ""
+
+#: templates/library_base.html:6
+msgid "Buscar en todo"
+msgstr ""
+
+#: templates/library_base.html:8 templates/portfolio.html:2
+msgid "Portafolio"
+msgstr ""
+
+#: templates/library_base.html:9
+msgid "Huella de datos"
+msgstr ""
+
+#: templates/library_base.html:10
+msgid "Flujo de datos"
+msgstr ""
+
+#: templates/library_base.html:11
+msgid "Mapa de aplicaciones"
+msgstr ""
+
+#: templates/library_base.html:19
+msgid "revisadas"
+msgstr ""
+
+#: templates/library_base.html:29 templates/library_base.html:51
+msgid "Revisado"
+msgstr ""
+
+#: templates/library_base.html:32 templates/library_base.html:54
+#, python-format
+msgid "%(n)s Stored Procedure(s) detectado(s) en el codigo"
+msgstr ""
+
+#: templates/library_base.html:35 templates/library_base.html:57
+msgid ""
+"No se encontraron conexiones ni SQL en el codigo -- revisar si es una "
+"version vieja, un launcher sin BD propia, o un gap real del extractor"
+msgstr ""
+
+#: templates/library_base.html:35 templates/library_base.html:57
+msgid "Sin BD"
+msgstr ""
+
+#: templates/library_base.html:66
+msgid "Obsoletos"
+msgstr ""
+
+#: templates/library_base.html:83
+msgid "Aun no hay reportes."
+msgstr ""
+
+#: templates/portfolio.html:6
+msgid "Diccionario de datos consolidado"
+msgstr ""
+
+#: templates/portfolio.html:8
+msgid ""
+"Una fila por tabla real, deduplicada entre todas las apps que la usan — "
+"agregacion de solo lectura sobre lo ya extraido"
+msgstr ""
+
+#: templates/portfolio.html:9
+msgid ""
+"sin analisis nuevo. Si dos apps reportan un esquema distinto para la "
+"\"misma\" tabla, se marca explicitamente en vez de ocultarlo."
+msgstr ""
+
+#: templates/portfolio.html:12
+msgid "Aun no hay tablas extraidas via introspeccion de BD (solo lectura)."
+msgstr ""
+
+#: templates/portfolio.html:19
+msgid "Columnas"
+msgstr ""
+
+#: templates/portfolio.html:20
+msgid "Consistencia"
+msgstr ""
+
+#: templates/portfolio.html:34
+msgid "consistente"
+msgstr ""
+
+#: templates/portfolio.html:36
+msgid "Dos o mas apps reportan columnas distintas para esta tabla"
+msgstr ""
+
+#: templates/portfolio.html:36
+msgid "revisar"
+msgstr ""
+
+#: templates/portfolio.html:46
+msgid "Grafo de dependencias del portafolio"
+msgstr ""
+
+#: templates/portfolio.html:48
+msgid ""
+"Que apps comparten una tabla/Stored Procedure, o comparten servidor de "
+"base de datos — util para decidir orden de migracion (apps muy "
+"interconectadas conviene migrarlas juntas o en secuencia deliberada, no "
+"de forma aislada)."
+msgstr ""
+
+#: templates/portfolio.html:51
+msgid "Tablas / Stored Procedures compartidos"
+msgstr ""
+
+#: templates/portfolio.html:53
+msgid "No se detectaron tablas/SPs compartidos entre apps."
+msgstr ""
+
+#: templates/portfolio.html:56
+msgid "Recurso compartido"
+msgstr ""
+
+#: templates/portfolio.html:67
+msgid "Servidores de base de datos compartidos"
+msgstr ""
+
+#: templates/portfolio.html:69
+msgid "No se detectaron servidores compartidos entre apps."
+msgstr ""
+
+#: templates/portfolio.html:85
+msgid "Catálogo de patrones recurrentes"
+msgstr ""
+
+#: templates/portfolio.html:87
+msgid ""
+"Agrupa los hallazgos ya registrados por categoría conocida (coincidencia "
+"de palabras clave, no clustering semántico — un hallazgo puede contar en "
+"más de una categoría). \"Sin categorizar\" queda visible a propósito en "
+"vez de forzarse u ocultarse."
+msgstr ""
+
+#: templates/portfolio.html:93
+msgid "Categoría"
+msgstr ""
+
+#: templates/portfolio.html:109
+msgid ""
+"Recomendacion de prioridad de migracion por app, calculada exclusivamente"
+" a partir de evidencia ya existente en la base de datos (sin analisis "
+"nuevo, sin IA, sin heuristicas opacas). Se basa en los 6 factores "
+"automaticos acordados para v0.5: complejidad tecnica, riesgo, "
+"dependencias, reglas de negocio detectadas (proxy), complejidad de "
+"integracion y reutilizacion potencial (derivada del catalogo de patrones "
+"de arriba)."
+msgstr ""
+
+#: templates/portfolio.html:110
+msgid "Cantidad de usuarios"
+msgstr ""
+
+#: templates/portfolio.html:110
+msgid "y"
+msgstr ""
+
+#: templates/portfolio.html:110
+msgid "criticidad operacional"
+msgstr ""
+
+#: templates/portfolio.html:111
+msgid ""
+"no se calculan — no son derivables del codigo — y se muestran siempre "
+"como pendientes de que los analistas funcionales las completen."
+msgstr ""
+
+#: templates/portfolio.html:115
+msgid "Ver pesos utilizados en el calculo (unico lugar donde se definen)"
+msgstr ""
+
+#: templates/portfolio.html:117
+msgid "Peso por factor"
+msgstr ""
+
+#: templates/portfolio.html:117
+msgid ""
+"(aporte al score de prioridad final; negativo = baja la prioridad "
+"levemente)"
+msgstr ""
+
+#: templates/portfolio.html:120
+msgid "Peso por severidad"
+msgstr ""
+
+#: templates/portfolio.html:120
+msgid "(usado para sumar el factor \"riesgo\")"
+msgstr ""
+
+#: templates/portfolio.html:123
+msgid ""
+"Cada factor se bucketea en Baja/Media/Alta por terciles del portafolio "
+"actual (no umbrales fijos), igual que el resto de v0.5."
+msgstr ""
+
+#: templates/portfolio.html:128
+msgid "Aun no hay apps analizadas."
+msgstr ""
+
+#: templates/portfolio.html:131
+msgid ""
+"Vista de comparacion rapida entre apps. Para el reporte completo de una "
+"app (resumen ejecutivo, narrativa, evidencia e interpretacion separadas, "
+"observaciones arquitectonicas y conclusion) usa el enlace \"Ver reporte\""
+" de cada fila."
+msgstr ""
+
+#: templates/portfolio.html:136
+msgid "Prioridad"
+msgstr ""
+
+#: templates/portfolio.html:137 templates/priority_report.html:23
+msgid "Complejidad tecnica"
+msgstr ""
+
+#: templates/portfolio.html:138 templates/priority_report.html:31
+msgid "Riesgo"
+msgstr ""
+
+#: templates/portfolio.html:139
+msgid "Dependencias"
+msgstr ""
+
+#: templates/portfolio.html:140
+msgid "Reglas de negocio"
+msgstr ""
+
+#: templates/portfolio.html:141
+msgid "Complejidad integracion"
+msgstr ""
+
+#: templates/portfolio.html:142
+msgid "Reutilizacion potencial"
+msgstr ""
+
+#: templates/portfolio.html:143
+msgid "Usuarios / Criticidad"
+msgstr ""
+
+#: templates/portfolio.html:156 templates/priority_report.html:83
+msgid "Sin evidencia"
+msgstr ""
+
+#: templates/portfolio.html:162
+msgid "Ver reporte"
+msgstr ""
+
+#: templates/priority_report.html:2 templates/priority_report.html:6
+msgid "Reporte de prioridad"
+msgstr ""
+
+#: templates/priority_report.html:8
+msgid ""
+"Reporte de apoyo a la decision generado a partir del Priority &amp; "
+"Complexity Engine"
+msgstr ""
+
+#: templates/priority_report.html:9
+msgid ""
+"este reporte no recalcula score, buckets ni pesos, solo interpreta y "
+"narra lo que el motor ya calculo."
+msgstr ""
+
+#: templates/priority_report.html:10
+msgid "Ver"
+msgstr ""
+
+#: templates/priority_report.html:10
+msgid "detalle tecnico completo de la app"
+msgstr ""
+
+#: templates/priority_report.html:11
+msgid "o volver al"
+msgstr ""
+
+#: templates/priority_report.html:11
+msgid "portafolio"
+msgstr ""
+
+#: templates/priority_report.html:16
+msgid "Resumen ejecutivo"
+msgstr ""
+
+#: templates/priority_report.html:19
+msgid "Prioridad recomendada"
+msgstr ""
+
+#: templates/priority_report.html:27
+msgid "Complejidad de integracion"
+msgstr ""
+
+#: templates/priority_report.html:35
+msgid "Estado general de preparacion"
+msgstr ""
+
+#: templates/priority_report.html:39
+msgid "Factores pendientes de informacion"
+msgstr ""
+
+#: templates/priority_report.html:50
+msgid "Explicacion narrativa"
+msgstr ""
+
+#: templates/priority_report.html:53
+msgid "Ver desglose exacto del score (peso x bucket = aporte)"
+msgstr ""
+
+#: templates/priority_report.html:56
+msgid "peso"
+msgstr ""
+
+#: templates/priority_report.html:58
+msgid "Score total"
+msgstr ""
+
+#: templates/priority_report.html:64
+msgid "Desglose de factores"
+msgstr ""
+
+#: templates/priority_report.html:66
+msgid "lo que fue encontrado (dato factual, ver tabla)."
+msgstr ""
+
+#: templates/priority_report.html:66 templates/priority_report.html:74
+msgid "Interpretacion"
+msgstr ""
+
+#: templates/priority_report.html:67
+msgid ""
+"lo que el motor concluye a partir de esa evidencia (el bucket ya "
+"calculado, traducido a una frase). Los dos conceptos se muestran en "
+"columnas separadas y nunca se mezclan."
+msgstr ""
+
+#: templates/priority_report.html:71
+msgid "Factor"
+msgstr ""
+
+#: templates/priority_report.html:72
+msgid "Nivel"
+msgstr ""
+
+#: templates/priority_report.html:90
+msgid "Ver evidencia completa"
+msgstr ""
+
+#: templates/priority_report.html:106
+msgid "Observaciones arquitectonicas"
+msgstr ""
+
+#: templates/priority_report.html:108
+msgid ""
+"Relaciones entre aplicaciones/componentes detectadas durante el analisis "
+"(ensamblados companion compartidos, patrones/dependencias repetidas). No "
+"modifican el score ni la prioridad — es conocimiento adicional para quien"
+" decide."
+msgstr ""
+
+#: templates/priority_report.html:111
+msgid "Sin observaciones arquitectonicas detectadas para esta app todavia."
+msgstr ""
+
+#: templates/priority_report.html:117
+msgid "Inferencia"
+msgstr ""
+
+#: templates/priority_report.html:119
+msgid "Dato ya calculado"
+msgstr ""
+
+#: templates/priority_report.html:130
+msgid "Conclusion"
+msgstr ""
+
+#: templates/result.html:8
+msgid "Fuente"
+msgstr ""
+
+#: templates/result.html:9
+msgid "Analizado"
+msgstr ""
+
+#: templates/result.html:11
+msgid "Exportar .md"
+msgstr ""
+
+#: templates/result.html:12
+msgid "Exportar Excel"
+msgstr ""
+
+#: templates/result.html:13
+msgid "Exportar Word"
+msgstr ""
+
+#: templates/result.html:15
+msgid ""
+"Esto ya se intento automaticamente al analizar la app (solo lectura). Usa"
+" este boton solo para reintentar (ej. si la base de datos no respondia en"
+" ese momento). ¿Continuar?"
+msgstr ""
+
+#: templates/result.html:15
+msgid "Reintentar extraccion de BD (solo lectura)"
+msgstr ""
+
+#: templates/result.html:18
+msgid "¿Eliminar este analisis de la base de datos?"
+msgstr ""
+
+#: templates/result.html:18
+msgid "Eliminar"
+msgstr ""
+
+#: templates/result.html:23
+msgid "Revision de logica de negocio"
+msgstr ""
+
+#: templates/result.html:25
+msgid ""
+"Esto es seguimiento manual en nuestra propia base — no modifica la app "
+"legada. Marca el estado real de la revision antes de dar esta app por "
+"lista para migrar."
+msgstr ""
+
+#: templates/result.html:30
+msgid "Borrador (solo extraccion automatica)"
+msgstr ""
+
+#: templates/result.html:31
+msgid "Logica de negocio revisada"
+msgstr ""
+
+#: templates/result.html:32
+msgid "Listo para migrar"
+msgstr ""
+
+#: templates/result.html:33
+msgid "Obsoleta (version vieja o sin uso)"
+msgstr ""
+
+#: templates/result.html:36
+msgid ""
+"Notas de la revision (validaciones, reglas de negocio, riesgos, casos "
+"borde)"
+msgstr ""
+
+#: templates/result.html:39
+msgid "Guardar revision"
+msgstr ""
+
+#: templates/result.html:44
+msgid "Rol en el flujo de datos"
+msgstr ""
+
+#: templates/result.html:46
+msgid "Clasificación por"
+msgstr ""
+
+#: templates/result.html:47
+msgid ""
+"(columnas de INSERT/UPDATE/SELECT ya reconstruidas, nunca por el nombre "
+"de la tabla) de cada tabla que toca esta app — misma fuente de verdad que"
+msgstr ""
+
+#: templates/result.html:64
+msgid "indeterminado"
+msgstr ""
+
+#: templates/result.html:87
+msgid ""
+"Sin clasificación de flujo de datos disponible para esta app — no se "
+"detectó ninguna operación de lectura/escritura sobre una tabla en sus "
+"hallazgos SQL. Esto es distinto del caso en que SÍ existe una operación "
+"real detectada pero sin columnas reconstruibles (que se marca de forma "
+"explícita en la tabla de arriba cuando aplica); aquí simplemente no hay "
+"evidencia de ningún tipo que clasificar."
+msgstr ""
+
+#: templates/result.html:94
+msgid "Diagrama de flujo de datos"
+msgstr ""
+
+#: templates/result.html:96
+msgid ""
+"Generado automaticamente a partir de los hallazgos SQL/I-O ya extraidos, "
+"agrupado por clase (no por funcion, para que apps con muchos hallazgos "
+"sigan siendo legibles). No reemplaza la tabla detallada de abajo, es un "
+"resumen visual."
+msgstr ""
+
+#: templates/search.html:2 templates/search.html:16
+msgid "Buscar"
+msgstr ""
+
+#: templates/search.html:8
+msgid "Buscar en todas las apps analizadas"
+msgstr ""
+
+#: templates/search.html:11
+msgid "Tabla / Stored Procedure"
+msgstr ""
+
+#: templates/search.html:13
+msgid "Servidor / Base de datos (connection string)"
+msgstr ""
+
+#: templates/search.html:15
+msgid "p. ej. JDSU_Proceso, InsertJDSU, QAPVDB01..."
+msgstr ""
+
+#: templates/search.html:22
+msgid "Resultados para"
+msgstr ""
+
+#: templates/search.html:35
+msgid "Valor"
+msgstr ""
+
+#: templates/search.html:46
+msgid "Sin resultados."
+msgstr ""
+

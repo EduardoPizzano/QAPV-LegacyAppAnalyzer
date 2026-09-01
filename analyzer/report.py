@@ -8,6 +8,7 @@ from . import confidence
 from .activity import ActivityEvidence
 from .evidence import Evidence
 from .extract import LocalIOFinding, SettingEntry, SqlFinding
+from .i18n import _
 from .security import SecurityFlag
 from .techstack import TechStack
 
@@ -72,7 +73,7 @@ def _rows_for_method(group: list[SqlFinding]):
                 yield text, conn_hint, category, target, parameters, result_columns, evidence
     else:
         yield (
-            "(conexion detectada, query no resuelta automaticamente — revisar manualmente)",
+            _("(conexion detectada, query no resuelta automaticamente — revisar manualmente)"),
             conn_hint, "?", None, [], [], Evidence(),
         )
 
@@ -93,11 +94,13 @@ def render(
 ) -> str:
     activity = activity or ActivityEvidence()
     lines: list[str] = []
-    lines.append(f"# {app_name} — Inventario automatico (borrador)")
+    lines.append(f"# {app_name} — " + _("Inventario automatico (borrador)"))
     lines.append("")
     lines.append(
-        "> Generado por QAPV-LegacyAppAnalyzer (ilspycmd + extractor Python). "
-        "Este es un primer borrador — revisar antes de usarlo como fuente final."
+        "> " + _(
+            "Generado por QAPV-LegacyAppAnalyzer (ilspycmd + extractor Python). "
+            "Este es un primer borrador — revisar antes de usarlo como fuente final."
+        )
     )
     lines.append("")
 
@@ -106,34 +109,35 @@ def render(
     # analyzer/activity.py. last_activity es "ultima evidencia encontrada",
     # NUNCA "ultima ejecucion confirmada" -- ausencia de evidencia se
     # muestra como "unknown", jamas se afirma "no se usa".
-    lines.append("## Ciclo de vida")
+    lines.append("## " + _("Ciclo de vida"))
     lines.append("")
-    lines.append(f"- **Build date** (proxy, fecha de modificacion del ensamblado): {build_date or 'unknown'}")
+    lines.append(f"- **Build date** ({_('proxy, fecha de modificacion del ensamblado')}): {build_date or 'unknown'}")
     lines.append(f"- **Last activity evidence**: {activity.date or 'unknown'}")
     lines.append(f"- **Activity source**: {activity.source}")
     lines.append(f"- **Activity confidence**: {_confidence_label(activity.confidence)}")
     lines.append("")
 
-    lines.append("## Tecnologia")
+    lines.append("## " + _("Tecnologia"))
     lines.append("")
-    lines.append(f"- **Lenguaje**: {tech.language}")
+    lines.append(f"- **{_('Lenguaje')}**: {tech.language}")
     lines.append(f"- **Target .NET**: {tech.dotnet_target}")
     lines.append(f"- **UI Framework**: {', '.join(tech.ui_framework)}")
-    lines.append(f"- **Drivers de BD detectados**: {', '.join(tech.db_drivers)}")
+    lines.append(f"- **{_('Drivers de BD detectados')}**: {', '.join(tech.db_drivers)}")
     if companion_assemblies:
         lines.append(
-            f"- **Ensamblados adicionales decompilados** (referenciados por el .exe, ej. una "
-            f"ClassLib con settings/logica propia): {', '.join(companion_assemblies)}"
+            f"- **{_('Ensamblados adicionales decompilados')}** "
+            f"({_('referenciados por el .exe, ej. una ClassLib con settings/logica propia')}): "
+            f"{', '.join(companion_assemblies)}"
         )
     lines.append("")
 
     if security_flags:
-        lines.append("## ⚠️ Alertas de seguridad")
+        lines.append("## ⚠️ " + _("Alertas de seguridad"))
         lines.append("")
-        lines.append("| Severidad | Descripcion | Ubicacion |")
+        lines.append(f"| {_('Severidad')} | {_('Descripcion')} | {_('Ubicacion')} |")
         lines.append("|---|---|---|")
         for flag in security_flags:
-            lines.append(f"| {flag.severity} | {_escape(flag.description)} | {_escape(flag.location)} |")
+            lines.append(f"| {_(flag.severity)} | {_escape(flag.description)} | {_escape(flag.location)} |")
         lines.append("")
 
     lines.append("## Connection strings")
@@ -143,45 +147,49 @@ def render(
     other_settings = [s for s in settings if s.category == "other"]
 
     if conn_settings:
-        lines.append("| Setting | Valor por defecto | Archivo | Evidencia | Confianza |")
+        lines.append(f"| Setting | {_('Valor por defecto')} | {_('Archivo')} | {_('Evidencia')} | {_('Confianza')} |")
         lines.append("|---|---|---|---|---|")
         for s in conn_settings:
             ev = s.evidence
-            evidencia = f"{ev.extractor}, linea {ev.line_number}" if ev.line_number else ev.extractor
+            evidencia = f"{ev.extractor}, {_('linea')} {ev.line_number}" if ev.line_number else ev.extractor
             lines.append(
                 f"| `{s.name}` | `{_escape(s.default_value)}` | {s.source_file} | {evidencia} | {ev.confidence}% |"
             )
     else:
-        lines.append("_No se encontraron connection strings. Puede que el Settings.cs no se haya incluido "
-                      "en la decompilacion, o que la app no use `ApplicationSettingsBase` para su conexion._")
+        lines.append("_" + _(
+            "No se encontraron connection strings. Puede que el Settings.cs no se haya incluido "
+            "en la decompilacion, o que la app no use `ApplicationSettingsBase` para su conexion."
+        ) + "_")
     lines.append("")
 
-    lines.append("## Rutas / archivos locales configurados")
+    lines.append("## " + _("Rutas / archivos locales configurados"))
     lines.append("")
     if path_settings:
-        lines.append("| Setting | Valor por defecto |")
+        lines.append(f"| Setting | {_('Valor por defecto')} |")
         lines.append("|---|---|")
         for s in path_settings:
             lines.append(f"| `{s.name}` | `{_escape(s.default_value)}` |")
     else:
-        lines.append("_No se encontraron settings que parezcan rutas de archivo/carpeta._")
+        lines.append("_" + _("No se encontraron settings que parezcan rutas de archivo/carpeta.") + "_")
     lines.append("")
 
     if other_settings:
-        lines.append("### Otras configuraciones")
+        lines.append("### " + _("Otras configuraciones"))
         lines.append("")
-        lines.append("| Setting | Valor por defecto |")
+        lines.append(f"| Setting | {_('Valor por defecto')} |")
         lines.append("|---|---|")
         for s in other_settings:
             lines.append(f"| `{s.name}` | `{_escape(s.default_value)}` |")
         lines.append("")
 
-    lines.append("## Funciones -> SQL / Stored Procedures")
+    lines.append("## " + _("Funciones -> SQL / Stored Procedures"))
     lines.append("")
     if not sql_findings:
-        lines.append("_No se detecto ningun uso de SqlConnection/OracleConnection/CommandText en el codigo "
-                      "decompilado. Revisar manualmente — puede ser una app sin SQL propio (launcher, watchdog, "
-                      "o vista MVVM sin el ViewModel incluido)._")
+        lines.append("_" + _(
+            "No se detecto ningun uso de SqlConnection/OracleConnection/CommandText en el codigo "
+            "decompilado. Revisar manualmente — puede ser una app sin SQL propio (launcher, watchdog, "
+            "o vista MVVM sin el ViewModel incluido)."
+        ) + "_")
     else:
         # markdown="1" (extension md_in_html, ver app.py) -- necesario para que
         # la tabla markdown de adentro se siga procesando como tabla real en
@@ -191,18 +199,18 @@ def render(
         lines.append('<div class="table-sql-findings" markdown="1">')
         lines.append("")
         lines.append(
-            "| Clase | Funcion | Conexion | Tipo | Tabla / SP | SQL / Query | Parametros | "
-            "Columnas de resultado | Evidencia | Confianza |"
+            f"| {_('Clase')} | {_('Funcion')} | {_('Conexion')} | {_('Tipo')} | {_('Tabla / SP')} | "
+            f"SQL / Query | {_('Parametros')} | {_('Columnas de resultado')} | {_('Evidencia')} | {_('Confianza')} |"
         )
         lines.append("|---|---|---|---|---|---|---|---|---|---|")
         for (class_name, method), group in _group_by_method(sql_findings).items():
             for row_text, conn_hint, category, target, params, result_columns, evidence in _rows_for_method(group):
-                tipo = "Stored Procedure" if category == "stored_procedure" else (
-                    "PL/SQL (Oracle)" if category == "oracle_package_call" else "Query"
+                tipo = _("Stored Procedure") if category == "stored_procedure" else (
+                    "PL/SQL (Oracle)" if category == "oracle_package_call" else _("Query")
                 )
                 params_cell = "<br>".join(f"`{_escape(p)}`" for p in params) if params else ""
                 cols_cell = ", ".join(f"`{_escape(c)}`" for c in result_columns) if result_columns else ""
-                evidencia = f"{evidence.extractor}, linea {evidence.line_number}" if evidence.line_number else evidence.extractor
+                evidencia = f"{evidence.extractor}, {_('linea')} {evidence.line_number}" if evidence.line_number else evidence.extractor
                 lines.append(
                     f"| `{class_name}` | `{method}` | {conn_hint} | {tipo} | {target or '?'} "
                     f"| `{_escape(row_text)}` | {params_cell} | {cols_cell} | {evidencia} | {evidence.confidence}% |"
@@ -212,14 +220,14 @@ def render(
     lines.append("")
 
     if db_procedures or db_tables or db_intro_notes:
-        lines.append("## Extraccion de esquema desde la base de datos (solo lectura)")
+        lines.append("## " + _("Extraccion de esquema desde la base de datos (solo lectura)"))
         lines.append("")
         if db_intro_notes:
-            lines.append(f"> ⚠️ No se pudo conectar a alguna(s) de las conexiones: {db_intro_notes}")
+            lines.append("> ⚠️ " + _("No se pudo conectar a alguna(s) de las conexiones: %(notes)s") % {"notes": db_intro_notes})
             lines.append("")
 
     if db_procedures:
-        lines.append("### Definiciones de Stored Procedures")
+        lines.append("### " + _("Definiciones de Stored Procedures"))
         lines.append("")
         for p in db_procedures:
             full_name = f"{p['schema_name']}.{p['object_name']}"
@@ -227,50 +235,50 @@ def render(
                 lines.append(f"#### `{full_name}`")
                 lines.append("")
                 if p.get("parameters"):
-                    lines.append("**Parametros de entrada/salida:**")
+                    lines.append("**" + _("Parametros de entrada/salida") + ":**")
                     lines.append("")
-                    lines.append("| Parametro | Tipo | Longitud | Salida | Default |")
+                    lines.append(f"| {_('Parametro')} | {_('Tipo')} | {_('Longitud')} | {_('Salida')} | Default |")
                     lines.append("|---|---|---|---|---|")
                     for prm in p["parameters"]:
                         lines.append(
                             f"| {prm['name']} | {prm['type']} | {prm.get('max_length') or ''} "
-                            f"| {'Si' if prm['is_output'] else ''} "
+                            f"| {_('Si') if prm['is_output'] else ''} "
                             f"| {_escape(str(prm['default'])) if prm.get('has_default') else ''} |"
                         )
                     lines.append("")
                 if p.get("result_columns"):
-                    lines.append("**Columnas que devuelve (determinado por SQL Server, solo lectura):**")
+                    lines.append("**" + _("Columnas que devuelve (determinado por SQL Server, solo lectura)") + ":**")
                     lines.append("")
-                    lines.append("| Columna | Tipo | Nulo |")
+                    lines.append(f"| {_('Columna')} | {_('Tipo')} | {_('Nulo')} |")
                     lines.append("|---|---|---|")
                     for col in p["result_columns"]:
-                        lines.append(f"| {col['name']} | {col['type']} | {'Si' if col['nullable'] else 'No'} |")
+                        lines.append(f"| {col['name']} | {col['type']} | {_('Si') if col['nullable'] else _('No')} |")
                     lines.append("")
                 elif p.get("result_columns") is None:
-                    lines.append(
-                        "_SQL Server no pudo determinar automaticamente las columnas de salida de este SP "
+                    lines.append("_" + _(
+                        "SQL Server no pudo determinar automaticamente las columnas de salida de este SP "
                         "(comun si usa SQL dinamico, tablas temporales o multiples result sets) — revisar "
-                        "el codigo de la SP arriba manualmente._"
-                    )
+                        "el codigo de la SP arriba manualmente."
+                    ) + "_")
                     lines.append("")
-                lines.append(f"**Codigo de `{full_name}`:**")
+                lines.append("**" + _("Codigo de `%(name)s`") % {"name": full_name} + ":**")
                 lines.append("")
                 lines.append("```sql")
                 lines.append(p["definition"].strip())
                 lines.append("```")
                 lines.append("")
             else:
-                lines.append(f"#### `{full_name}` — no disponible ({p['status']})")
+                lines.append(f"#### `{full_name}` — " + _("no disponible (%(status)s)") % {"status": p["status"]})
                 lines.append("")
 
     if db_tables:
-        lines.append("### Esquema de tablas")
+        lines.append("### " + _("Esquema de tablas"))
         lines.append("")
         for t in db_tables:
             full_name = f"{t['schema_name']}.{t['table_name']}"
             lines.append(f"#### `{full_name}`")
             lines.append("")
-            lines.append("| Columna | Tipo | Nulo | Longitud | Default |")
+            lines.append(f"| {_('Columna')} | {_('Tipo')} | {_('Nulo')} | {_('Longitud')} | Default |")
             lines.append("|---|---|---|---|---|")
             for c in t["columns"]:
                 lines.append(
@@ -279,7 +287,7 @@ def render(
                 )
             if t.get("foreign_keys"):
                 lines.append("")
-                lines.append("Claves foraneas:")
+                lines.append(_("Claves foraneas") + ":")
                 for fk in t["foreign_keys"]:
                     lines.append(f"- `{fk['column']}` -> `{fk['ref_table']}.{fk['ref_column']}` (`{fk['fk_name']}`)")
             lines.append("")
@@ -294,13 +302,15 @@ def render(
     plain_io_findings = [f for f in io_findings if f.category != "reflection"]
     reflection_findings = [f for f in io_findings if f.category == "reflection"]
 
-    lines.append("## Archivos, impresoras, procesos y red en codigo")
+    lines.append("## " + _("Archivos, impresoras, procesos y red en codigo"))
     lines.append("")
     if not plain_io_findings:
-        lines.append("_No se detecto acceso directo a archivos/carpetas, impresoras (BarTender/PrintDocument), "
-                      "puertos seriales, otros ejecutables (Process.Start) o llamadas HTTP/SMTP en el codigo._")
+        lines.append("_" + _(
+            "No se detecto acceso directo a archivos/carpetas, impresoras (BarTender/PrintDocument), "
+            "puertos seriales, otros ejecutables (Process.Start) o llamadas HTTP/SMTP en el codigo."
+        ) + "_")
     else:
-        lines.append("| Clase | Funcion | Operacion | Detalle |")
+        lines.append(f"| {_('Clase')} | {_('Funcion')} | {_('Operacion')} | {_('Detalle')} |")
         lines.append("|---|---|---|---|")
         seen = set()
         for f in plain_io_findings:
@@ -311,18 +321,22 @@ def render(
             lines.append(f"| `{f.class_name}` | `{f.method}` | {f.operation} | `{_escape(f.raw)}` |")
     lines.append("")
 
-    lines.append("## Invocacion indirecta / tardia (Reflection, COM)")
+    lines.append("## " + _("Invocacion indirecta / tardia (Reflection, COM)"))
     lines.append("")
     if not reflection_findings:
-        lines.append("_No se detecto invocacion via Reflection (MethodInfo.Invoke, Activator.CreateInstance) "
-                      "ni COM/CLSID (Marshal.GetTypeFromCLSID) en el codigo._")
+        lines.append("_" + _(
+            "No se detecto invocacion via Reflection (MethodInfo.Invoke, Activator.CreateInstance) "
+            "ni COM/CLSID (Marshal.GetTypeFromCLSID) en el codigo."
+        ) + "_")
     else:
         lines.append(
-            "> ⚠️ El comportamiento real de estas llamadas depende de resolucion en tiempo de ejecucion "
-            "-- ningun analisis estatico puede saber con certeza que se invoca (KNOWN_LIMITATIONS.md L16/L17)."
+            "> ⚠️ " + _(
+                "El comportamiento real de estas llamadas depende de resolucion en tiempo de ejecucion "
+                "-- ningun analisis estatico puede saber con certeza que se invoca (KNOWN_LIMITATIONS.md L16/L17)."
+            )
         )
         lines.append("")
-        lines.append("| Clase | Funcion | API | Detalle |")
+        lines.append(f"| {_('Clase')} | {_('Funcion')} | API | {_('Detalle')} |")
         lines.append("|---|---|---|---|")
         seen = set()
         for f in reflection_findings:

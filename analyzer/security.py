@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 
 from .extract import SettingEntry, SqlFinding
+from .i18n import _
 
 PASSWORD_IN_CONN = re.compile(r"(?i)(password|pwd)\s*=\s*([^;]+)")
 CONCAT_SQL = re.compile(r'"\s*\+\s*\w|\+\s*"')
@@ -26,8 +27,8 @@ def check_settings(settings: list[SettingEntry]) -> list[SecurityFlag]:
                 flags.append(
                     SecurityFlag(
                         severity="alta",
-                        description=f"Credenciales en texto plano en connection string '{s.name}' "
-                                    f"(password='{m.group(2).strip()}')",
+                        description=_("Credenciales en texto plano en connection string '%(name)s' (password='%(pwd)s')")
+                        % {"name": s.name, "pwd": m.group(2).strip()},
                         location=s.source_file,
                     )
                 )
@@ -35,9 +36,12 @@ def check_settings(settings: list[SettingEntry]) -> list[SecurityFlag]:
                 flags.append(
                     SecurityFlag(
                         severity="info",
-                        description=f"Setting '{s.name}' marcado como ConnectionString pero su valor "
-                                     f"por defecto parece un placeholder sin configurar ('{s.default_value}') "
-                                     f"— probablemente no se usa en produccion, verificar.",
+                        description=_(
+                            "Setting '%(name)s' marcado como ConnectionString pero su valor por defecto "
+                            "parece un placeholder sin configurar ('%(value)s') — probablemente no se usa "
+                            "en produccion, verificar."
+                        )
+                        % {"name": s.name, "value": s.default_value},
                         location=s.source_file,
                     )
                 )
@@ -52,8 +56,11 @@ def check_findings(findings: list[SqlFinding]) -> list[SecurityFlag]:
             flags.append(
                 SecurityFlag(
                     severity="media",
-                    description=f"Posible SQL injection: query armada por concatenacion de strings "
-                                 f"sin parametros en `{f.class_name}.{f.method}`",
+                    description=_(
+                        "Posible SQL injection: query armada por concatenacion de strings "
+                        "sin parametros en `%(location)s`"
+                    )
+                    % {"location": f"{f.class_name}.{f.method}"},
                     location=f"{f.file} -> {f.class_name}.{f.method}",
                 )
             )

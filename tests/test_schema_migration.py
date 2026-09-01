@@ -144,26 +144,42 @@ class TestArtifactSchemaMigration:
     def test_preexisting_apps_have_null_artifact_id(self, db_copy):
         """Ninguna fila historica debe recibir un artifact_id inventado --
         NULL significa 'analizada antes de que Artifact existiera', nunca
-        se infiere retroactivamente."""
+        se infiere retroactivamente.
+
+        No depende de que TODA la copia de la BD real tenga artifact_id NULL
+        -- eso dejo de ser cierto en la practica una vez que el portafolio
+        real empezo a usar la funcionalidad de Fase 4 (ADR-0004) via
+        re-analisis normales. Solo verifica que las filas que YA tenian
+        artifact_id NULL antes de migrar lo sigan teniendo despues -- mismo
+        criterio que TestExistingDataPreserved de arriba."""
         with db.get_conn() as conn:
-            apps_before = [dict(r) for r in conn.execute("SELECT id, name FROM apps")]
-        if not apps_before:
-            pytest.skip("La copia de la BD no tiene apps para verificar")
+            apps_before = [dict(r) for r in conn.execute("SELECT id, name, artifact_id FROM apps")]
+        null_before = [row for row in apps_before if row["artifact_id"] is None]
+        if not null_before:
+            pytest.skip("La copia de la BD no tiene apps con artifact_id NULL para verificar")
 
         db.init_db()
 
         with db.get_conn() as conn:
-            for row in apps_before:
+            for row in null_before:
                 artifact_id = conn.execute(
                     "SELECT artifact_id FROM apps WHERE id = ?", (row["id"],)
                 ).fetchone()["artifact_id"]
-                assert artifact_id is None, f"apps.id={row['id']} ({row['name']}) no deberia tener artifact_id tras solo migrar"
+                assert artifact_id is None, f"apps.id={row['id']} ({row['name']}) recibio un artifact_id inventado tras solo migrar"
 
-    def test_artifacts_table_starts_empty(self, db_copy):
+    def test_migration_does_not_populate_artifacts_table(self, db_copy):
+        """init_db() es puramente aditivo a nivel de esquema -- no debe
+        insertar ninguna fila en artifacts por si solo.
+
+        No asume que la tabla nace vacia (el portafolio real ya la puebla
+        via re-analisis normales, ver ADR-0004) -- solo que migrar no le
+        agrega filas nuevas, igual que test_app_count_unchanged de arriba."""
+        with db.get_conn() as conn:
+            before = conn.execute("SELECT COUNT(*) as c FROM artifacts").fetchone()["c"]
         db.init_db()
         with db.get_conn() as conn:
-            count = conn.execute("SELECT COUNT(*) as c FROM artifacts").fetchone()["c"]
-        assert count == 0, "artifacts deberia nacer vacia -- nada la puebla solo con migrar, requiere re-analisis"
+            after = conn.execute("SELECT COUNT(*) as c FROM artifacts").fetchone()["c"]
+        assert after == before, "init_db() no deberia insertar filas en artifacts -- eso requiere re-analisis"
 
     def test_migration_is_idempotent_for_artifact_tables(self, db_copy):
         db.init_db()

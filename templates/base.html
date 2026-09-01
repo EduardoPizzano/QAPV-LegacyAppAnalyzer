@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="{{ get_locale() }}">
 <head>
     <meta charset="utf-8">
     <title>{% block title %}QAPV Legacy App Analyzer{% endblock %}</title>
@@ -14,6 +14,12 @@
             QAPV Legacy App Analyzer
         </a>
     </h1>
+    <nav class="lang-switch">
+        {% for code, label in config.LANGUAGES.items() %}
+        <a href="{{ url_for('set_language', lang_code=code) }}"
+           class="{{ 'active' if get_locale() == code else '' }}">{{ label }}</a>{% if not loop.last %} · {% endif %}
+        {% endfor %}
+    </nav>
 </header>
 <main>
     {% with messages = get_flashed_messages() %}

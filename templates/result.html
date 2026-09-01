@@ -5,64 +5,63 @@
 <div class="card">
     <h2>{{ data.app.name }}</h2>
     <p class="muted">
-        Fuente: <code>{{ data.app.source_path }}</code><br>
-        Analizado: {{ data.app.analyzed_at }}
+        {{ _('Fuente') }}: <code>{{ data.app.source_path }}</code><br>
+        {{ _('Analizado') }}: {{ data.app.analyzed_at }}
     </p>
-    <a class="btn" href="{{ url_for('export', app_id=data.app.id, fmt='md') }}">Exportar .md</a>
-    <a class="btn" href="{{ url_for('export', app_id=data.app.id, fmt='xlsx') }}">Exportar Excel</a>
-    <a class="btn" href="{{ url_for('export', app_id=data.app.id, fmt='docx') }}">Exportar Word</a>
+    <a class="btn" href="{{ url_for('export', app_id=data.app.id, fmt='md') }}">{{ _('Exportar .md') }}</a>
+    <a class="btn" href="{{ url_for('export', app_id=data.app.id, fmt='xlsx') }}">{{ _('Exportar Excel') }}</a>
+    <a class="btn" href="{{ url_for('export', app_id=data.app.id, fmt='docx') }}">{{ _('Exportar Word') }}</a>
     <form method="post" action="{{ url_for('enrich_route', app_id=data.app.id) }}" style="display:inline;">
-        <button type="submit" class="secondary" onclick="return confirm('Esto ya se intento automaticamente al analizar la app (solo lectura). Usa este boton solo para reintentar (ej. si la base de datos no respondia en ese momento). ¿Continuar?');">Reintentar extraccion de BD (solo lectura)</button>
+        <button type="submit" class="secondary" onclick="return confirm({{ _('Esto ya se intento automaticamente al analizar la app (solo lectura). Usa este boton solo para reintentar (ej. si la base de datos no respondia en ese momento). ¿Continuar?')|tojson }});">{{ _('Reintentar extraccion de BD (solo lectura)') }}</button>
     </form>
     <form method="post" action="{{ url_for('delete', app_id=data.app.id) }}" style="display:inline;">
-        <button type="submit" class="danger" onclick="return confirm('¿Eliminar este analisis de la base de datos?');">Eliminar</button>
+        <button type="submit" class="danger" onclick="return confirm({{ _('¿Eliminar este analisis de la base de datos?')|tojson }});">{{ _('Eliminar') }}</button>
     </form>
 </div>
 
 <div class="card">
-    <h2>Revision de logica de negocio</h2>
+    <h2>{{ _('Revision de logica de negocio') }}</h2>
     <p class="muted">
-        Esto es seguimiento manual en nuestra propia base — no modifica la app legada.
-        Marca el estado real de la revision antes de dar esta app por lista para migrar.
+        {{ _('Esto es seguimiento manual en nuestra propia base — no modifica la app legada. Marca el estado real de la revision antes de dar esta app por lista para migrar.') }}
     </p>
     <form method="post" action="{{ url_for('review_route', app_id=data.app.id) }}">
-        <label for="review_status">Estado</label>
+        <label for="review_status">{{ _('Estado') }}</label>
         <select id="review_status" name="review_status" style="width:100%; padding:10px 12px; border:1px solid #c6ccd2; border-radius:6px;">
-            <option value="borrador" {% if data.app.review_status == 'borrador' or not data.app.review_status %}selected{% endif %}>Borrador (solo extraccion automatica)</option>
-            <option value="logica_revisada" {% if data.app.review_status == 'logica_revisada' %}selected{% endif %}>Logica de negocio revisada</option>
-            <option value="listo_para_migrar" {% if data.app.review_status == 'listo_para_migrar' %}selected{% endif %}>Listo para migrar</option>
-            <option value="obsoleta" {% if data.app.review_status == 'obsoleta' %}selected{% endif %}>Obsoleta (version vieja o sin uso)</option>
+            <option value="borrador" {% if data.app.review_status == 'borrador' or not data.app.review_status %}selected{% endif %}>{{ _('Borrador (solo extraccion automatica)') }}</option>
+            <option value="logica_revisada" {% if data.app.review_status == 'logica_revisada' %}selected{% endif %}>{{ _('Logica de negocio revisada') }}</option>
+            <option value="listo_para_migrar" {% if data.app.review_status == 'listo_para_migrar' %}selected{% endif %}>{{ _('Listo para migrar') }}</option>
+            <option value="obsoleta" {% if data.app.review_status == 'obsoleta' %}selected{% endif %}>{{ _('Obsoleta (version vieja o sin uso)') }}</option>
         </select>
 
-        <label for="review_notes">Notas de la revision (validaciones, reglas de negocio, riesgos, casos borde)</label>
+        <label for="review_notes">{{ _('Notas de la revision (validaciones, reglas de negocio, riesgos, casos borde)') }}</label>
         <textarea id="review_notes" name="review_notes" rows="10" style="width:100%; padding:10px 12px; border:1px solid #c6ccd2; border-radius:6px; font-family:inherit; font-size:0.9rem;">{{ data.app.review_notes or '' }}</textarea>
 
-        <button type="submit">Guardar revision</button>
+        <button type="submit">{{ _('Guardar revision') }}</button>
     </form>
 </div>
 
 <div class="card">
-    <h2>Rol en el flujo de datos</h2>
+    <h2>{{ _('Rol en el flujo de datos') }}</h2>
     <p class="muted">
-        Clasificación por <strong>evidencia real de código</strong> (columnas de INSERT/UPDATE/SELECT
-        ya reconstruidas, nunca por el nombre de la tabla) de cada tabla que toca esta app — misma
-        fuente de verdad que <a href="{{ url_for('data_flow') }}">Mapa de Flujo de Datos</a>,
-        ver <code>analyzer/data_flow.py</code>.
+        {{ _('Clasificación por') }} <strong>{{ _('evidencia real de código') }}</strong>
+        {{ _('(columnas de INSERT/UPDATE/SELECT ya reconstruidas, nunca por el nombre de la tabla) de cada tabla que toca esta app — misma fuente de verdad que') }}
+        <a href="{{ url_for('data_flow') }}">{{ _('Mapa de Flujo de Datos') }}</a>,
+        {{ _('ver') }} <code>analyzer/data_flow.py</code>.
     </p>
     {% if data_flow_edges %}
     <table>
         <tr>
-            <th>Tabla</th>
-            <th>Clasificación</th>
-            <th>Operaciones</th>
-            <th>Evidencia</th>
+            <th>{{ _('Tabla') }}</th>
+            <th>{{ _('Clasificación') }}</th>
+            <th>{{ _('Operaciones') }}</th>
+            <th>{{ _('Evidencia') }}</th>
         </tr>
         {% for e in data_flow_edges %}
         <tr>
             <td><code>{{ e.target }}</code></td>
             <td>
                 {% if e.role == 'indeterminado' %}
-                <span class="badge resolution-unknown">indeterminado</span>
+                <span class="badge resolution-unknown">{{ _('indeterminado') }}</span>
                 {% else %}
                 <code>{{ e.role }}</code>
                 {% endif %}
@@ -73,9 +72,9 @@
             <td class="muted" style="font-size:0.78rem;">
                 {% for op in e.writes + e.reads %}
                 {% if op.evidence.extractor != "UNKNOWN" %}
-                {{ op.evidence.extractor }} (confianza {{ op.evidence.confidence }}){% if op.columns %}: {{ op.columns|join(', ') }}{% endif %}
+                {{ op.evidence.extractor }} ({{ _('confianza') }} {{ op.evidence.confidence }}){% if op.columns %}: {{ op.columns|join(', ') }}{% endif %}
                 {% else %}
-                sin columnas reconstruidas
+                {{ _('sin columnas reconstruidas') }}
                 {% endif %}
                 {% if not loop.last %}<br>{% endif %}
                 {% endfor %}
@@ -85,22 +84,16 @@
     </table>
     {% else %}
     <p class="muted">
-        Sin clasificación de flujo de datos disponible para esta app — no se detectó ninguna
-        operación de lectura/escritura sobre una tabla en sus hallazgos SQL. Esto es distinto del
-        caso en que SÍ existe una operación real detectada pero sin columnas reconstruibles (que se
-        marca de forma explícita en la tabla de arriba cuando aplica); aquí simplemente no hay
-        evidencia de ningún tipo que clasificar.
+        {{ _('Sin clasificación de flujo de datos disponible para esta app — no se detectó ninguna operación de lectura/escritura sobre una tabla en sus hallazgos SQL. Esto es distinto del caso en que SÍ existe una operación real detectada pero sin columnas reconstruibles (que se marca de forma explícita en la tabla de arriba cuando aplica); aquí simplemente no hay evidencia de ningún tipo que clasificar.') }}
     </p>
     {% endif %}
 </div>
 
 {% if dataflow_diagram %}
 <div class="card">
-    <h2>Diagrama de flujo de datos</h2>
+    <h2>{{ _('Diagrama de flujo de datos') }}</h2>
     <p class="muted">
-        Generado automaticamente a partir de los hallazgos SQL/I-O ya extraidos, agrupado por clase
-        (no por funcion, para que apps con muchos hallazgos sigan siendo legibles). No reemplaza la
-        tabla detallada de abajo, es un resumen visual.
+        {{ _('Generado automaticamente a partir de los hallazgos SQL/I-O ya extraidos, agrupado por clase (no por funcion, para que apps con muchos hallazgos sigan siendo legibles). No reemplaza la tabla detallada de abajo, es un resumen visual.') }}
     </p>
     <pre class="mermaid">{{ dataflow_diagram }}</pre>
 </div>

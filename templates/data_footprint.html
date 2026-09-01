@@ -1,0 +1,103 @@
+{% extends "library_base.html" %}
+{% block title %}{{ _('Huella de Datos') }} — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>{{ _('Huella de Datos') }}</h2>
+    <p class="muted">
+        {{ _('Qué tabla o Stored Procedure escribe cada app, a qué servidor/base de datos resuelve por') }}
+        <strong>{{ _('evidencia real de código') }}</strong>
+        {{ _('(connection string / setting / SQL finding ya extraído — nunca un inventario externo de servidores, ver') }}
+        <code>analyzer/server_resolution.py</code>), {{ _('y si esa escritura toca una tabla real del ERP Oracle (catálogo explícito de 29 tablas del DDL real,') }}
+        <code>analyzer/reference_data/oracle_erp_tables.json</code>). {{ _('Una escritura sin evidencia de código suficiente se muestra como') }} <span class="badge resolution-unknown">{{ _('desconocido') }}</span>,
+        {{ _('nunca como un servidor adivinado; dos o más conexiones igualmente válidas según el código (ej. un operador ternario) se muestran como') }} <span class="badge resolution-ambiguous">{{ _('ambiguo') }}</span>.
+    </p>
+
+    <div class="exec-summary">
+        <div class="exec-stat">
+            <div class="label">{{ _('Apps con escritura detectada') }}</div>
+            <div class="value">{{ total_apps }}</div>
+        </div>
+        <div class="exec-stat">
+            <div class="label">{{ _('Targets (tabla/SP) totales') }}</div>
+            <div class="value">{{ total_targets }}</div>
+        </div>
+        <div class="exec-stat">
+            <div class="label">{{ _('Resueltos por código') }}</div>
+            <div class="value"><span class="badge resolution-resolved">{{ resolved_count }}</span></div>
+        </div>
+        <div class="exec-stat">
+            <div class="label">{{ _('Ambiguos') }}</div>
+            <div class="value"><span class="badge resolution-ambiguous">{{ ambiguous_count }}</span></div>
+        </div>
+        <div class="exec-stat">
+            <div class="label">{{ _('Sin resolver') }}</div>
+            <div class="value"><span class="badge resolution-unknown">{{ unresolved_count }}</span></div>
+        </div>
+        <div class="exec-stat">
+            <div class="label">{{ _('Tocan el ERP Oracle') }}</div>
+            <div class="value"><span class="badge oracle-erp">{{ erp_count }}</span></div>
+        </div>
+    </div>
+</div>
+
+{% if not footprint_apps %}
+<div class="card"><p class="muted">{{ _('Aún no hay apps con escrituras SQL detectadas.') }}</p></div>
+{% endif %}
+
+{% for a in footprint_apps %}
+<div class="card">
+    <h2><a href="{{ url_for('app_detail', app_id=a.app_id) }}">{{ a.app_name }}</a></h2>
+    <table>
+        <tr>
+            <th>{{ _('Tipo') }}</th>
+            <th>{{ _('Tabla / SP') }}</th>
+            <th>{{ _('Servidor') }}</th>
+            <th>{{ _('Base de datos') }}</th>
+            <th>{{ _('Estado') }}</th>
+            <th>{{ _('Evidencia / fuente') }}</th>
+            <th>ERP Oracle</th>
+        </tr>
+        {% for t in a.targets %}
+        <tr>
+            <td>{{ "SP" if t.is_stored_procedure else _("Tabla") }}</td>
+            <td><code>{{ t.target }}</code></td>
+            <td>
+                {% for c in t.candidates %}{{ c.server }}{% if not loop.last %} / {% endif %}{% endfor %}
+                {% if not t.candidates %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td>
+                {% for c in t.candidates %}{{ c.database }}{% if not loop.last %} / {% endif %}{% endfor %}
+                {% if not t.candidates %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td>
+                {% if t.resolution_status == "resolved" %}
+                <span class="badge resolution-resolved">{{ _('resuelto') }}</span>
+                {% elif t.resolution_status == "unresolved_ambiguous_conditional" %}
+                <span class="badge resolution-ambiguous">{{ _('ambiguo') }} ({{ t.candidates|length }} {{ _('candidatos') }})</span>
+                {% elif t.resolution_status == "unresolved_no_source_file" %}
+                <span class="badge resolution-unknown">{{ _('sin archivo fuente') }}</span>
+                {% else %}
+                <span class="badge resolution-unknown">{{ _('desconocido') }}</span>
+                {% endif %}
+            </td>
+            <td class="muted" style="font-size:0.78rem;">
+                {% if t.evidence.extractor != "UNKNOWN" %}
+                {{ t.evidence.extractor }} ({{ _('confianza') }} {{ t.evidence.confidence }})
+                {% if t.evidence.snippet %}<br><code>{{ t.evidence.snippet }}</code>{% endif %}
+                {% else %}
+                {{ _('sin evidencia suficiente') }}
+                {% endif %}
+            </td>
+            <td>
+                {% if t.is_oracle_erp_table %}
+                <span class="badge oracle-erp">ERP</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endfor %}
+
+{% endblock %}

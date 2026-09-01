@@ -1,0 +1,100 @@
+{
+  "_comment": "Catalogo de columnas que representan MEDICIONES REALES del cable/conector (no limites configurados, no parametros de prueba, no metadata/identidad). Cada entrada esta respaldada por un INSERT real observado en el portafolio (ver 'evidence' abajo) -- ninguna se incluyo por patron de nombre solamente. Columnas numericas pero que son limites/parametros de configuracion (ILPassLimit, RLPassLimit, WAVE) se excluyen deliberadamente -- ver KNOWN_EXCLUSIONS. keyerror se deja fuera por ahora (ambiguedad de tipo de dato, ver KNOWN_EXCLUSIONS) hasta tener evidencia adicional (ej. introspeccion real de columna).",
+  "captured_at": "2026-08-19",
+  "columns": [
+    {
+      "name": "IL",
+      "meaning": "Insertion Loss (perdida de insercion, dB) -- medicion optica directa por fibra",
+      "tables": ["TESTS_OTDR_RES"],
+      "evidence_app": "OTDR/OTDR",
+      "evidence_file": "OTDR/Form1.cs",
+      "evidence_method": "Inserta"
+    },
+    {
+      "name": "ILEndA",
+      "meaning": "Insertion Loss medida en el extremo A del conector",
+      "tables": ["TESTS_OTDR_RES", "TESTS_RL1_RES"],
+      "evidence_app": "OTDR/OTDR",
+      "evidence_file": "OTDR/Form1.cs",
+      "evidence_method": "Inserta"
+    },
+    {
+      "name": "ILEndB",
+      "meaning": "Insertion Loss medida en el extremo B del conector",
+      "tables": ["TESTS_OTDR_RES", "TESTS_RL1_RES"],
+      "evidence_app": "OTDR/OTDR",
+      "evidence_file": "OTDR/Form1.cs",
+      "evidence_method": "Inserta"
+    },
+    {
+      "name": "Refl",
+      "meaning": "Reflectancia (Return Loss) -- medicion optica directa",
+      "tables": ["TESTS_OTDR_RES"],
+      "evidence_app": "OTDR/OTDR",
+      "evidence_file": "OTDR/Form1.cs",
+      "evidence_method": "Inserta"
+    },
+    {
+      "name": "ReflA",
+      "meaning": "Reflectancia medida en el extremo A",
+      "tables": ["TESTS_OTDR_RES"],
+      "evidence_app": "OTDR/OTDR",
+      "evidence_file": "OTDR/Form1.cs",
+      "evidence_method": "Inserta"
+    },
+    {
+      "name": "ReflB",
+      "meaning": "Reflectancia medida en el extremo B",
+      "tables": ["TESTS_OTDR_RES"],
+      "evidence_app": "OTDR/OTDR",
+      "evidence_file": "OTDR/Form1.cs",
+      "evidence_method": "Inserta"
+    },
+    {
+      "name": "roc",
+      "meaning": "Radius of curvature (radio de curvatura del pulido) -- medicion de interferometro de geometria de conector",
+      "tables": ["pruebanorland", "XXAFL_QAPV_TESTS_NORLAND"],
+      "evidence_app": "InterAFL/InterAFL",
+      "evidence_file": null,
+      "evidence_method": null
+    },
+    {
+      "name": "apcangle",
+      "meaning": "Angulo de pulido APC (Angled Physical Contact) -- medicion de interferometro",
+      "tables": ["pruebanorland", "XXAFL_QAPV_TESTS_NORLAND"],
+      "evidence_app": "InterAFL/InterAFL",
+      "evidence_file": null,
+      "evidence_method": null
+    },
+    {
+      "name": "fiberdiameter",
+      "meaning": "Diametro de la fibra respecto al ferrule -- medicion de interferometro",
+      "tables": ["pruebanorland", "XXAFL_QAPV_TESTS_NORLAND"],
+      "evidence_app": "InterAFL/InterAFL",
+      "evidence_file": null,
+      "evidence_method": null
+    },
+    {
+      "name": "fiberheight",
+      "meaning": "Altura de la fibra respecto al ferrule -- medicion de interferometro",
+      "tables": ["pruebanorland", "XXAFL_QAPV_TESTS_NORLAND"],
+      "evidence_app": "InterAFL/InterAFL",
+      "evidence_file": null,
+      "evidence_method": null
+    },
+    {
+      "name": "linearoffset",
+      "meaning": "Desplazamiento lineal (offset) del nucleo -- medicion de interferometro",
+      "tables": ["pruebanorland", "XXAFL_QAPV_TESTS_NORLAND"],
+      "evidence_app": "InterAFL/InterAFL",
+      "evidence_file": null,
+      "evidence_method": null
+    }
+  ],
+  "known_exclusions": [
+    {"name": "ILPassLimit", "reason": "Limite de aceptacion configurado (umbral), no el resultado medido del cable."},
+    {"name": "RLPassLimit", "reason": "Limite de aceptacion configurado (umbral), no el resultado medido del cable."},
+    {"name": "WAVE", "reason": "Longitud de onda USADA en la prueba (parametro de configuracion), no una medicion resultante."},
+    {"name": "keyerror", "reason": "Aparece en el mismo INSERT que roc/apcangle/etc (mismo interferometro), nombre sugiere una medicion real (error angular de llave del conector), pero el extractor reconstruye todos los valores del INSERT como placeholders de texto generico sin distinguir tipo de dato -- sin evidencia de tipo suficiente para incluirla con la misma confianza. Reevaluar si se obtiene introspeccion real de la columna (analyzer/db_introspect.py)."}
+  ]
+}

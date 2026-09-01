@@ -1,23 +1,23 @@
 {% extends "library_base.html" %}
-{% block title %}Apps encontradas — QAPV Legacy App Analyzer{% endblock %}
+{% block title %}{{ _('Apps encontradas') }} — QAPV Legacy App Analyzer{% endblock %}
 {% block right %}
 
 <div class="card">
-    <h2>Apps encontradas en</h2>
+    <h2>{{ _('Apps encontradas en') }}</h2>
     <p class="muted"><code>{{ root_path }}</code></p>
     {% if groups %}
     <p class="muted">
-        Se encontraron {{ candidates|length }} ejecutable{{ 's' if candidates|length != 1 else '' }}
-        en {{ groups|length }} carpeta{{ 's' if groups|length != 1 else '' }}. Revisa y quita las
-        que no quieras analizar (p. ej. copias de respaldo "- Copy") antes de continuar. Cada una se
-        guardara como <code>{{ root_path.split('\\')[-1] or root_path }}/NombreModulo</code>.
+        {{ ngettext('Se encontro %(num)s ejecutable', 'Se encontraron %(num)s ejecutables', candidates|length) }}
+        {{ ngettext('en %(num)s carpeta.', 'en %(num)s carpetas.', groups|length) }}
+        {{ _('Revisa y quita las que no quieras analizar (p. ej. copias de respaldo "- Copy") antes de continuar. Cada una se guardara como') }}
+        <code>{{ root_path.split('\\')[-1] or root_path }}/NombreModulo</code>.
     </p>
     <form id="batchForm" method="post" action="{{ url_for('analyze_batch') }}">
         <input type="hidden" name="root_path" value="{{ root_path }}">
         <p>
-            <a href="#" onclick="document.querySelectorAll('.exe-check').forEach(c => c.checked = true); return false;">Seleccionar todas</a>
+            <a href="#" onclick="document.querySelectorAll('.exe-check').forEach(c => c.checked = true); return false;">{{ _('Seleccionar todas') }}</a>
             &nbsp;|&nbsp;
-            <a href="#" onclick="document.querySelectorAll('.exe-check').forEach(c => c.checked = false); return false;">Deseleccionar todas</a>
+            <a href="#" onclick="document.querySelectorAll('.exe-check').forEach(c => c.checked = false); return false;">{{ _('Deseleccionar todas') }}</a>
         </p>
         {% for project, exes in groups.items() %}
         <div style="margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #eef1f4;">
@@ -32,7 +32,7 @@
             {% endfor %}
         </div>
         {% endfor %}
-        <button type="submit" id="batchSubmit">Analizar seleccionadas</button>
+        <button type="submit" id="batchSubmit">{{ _('Analizar seleccionadas') }}</button>
     </form>
 
     <div id="batchProgress" style="display:none; margin-top: 18px;">
@@ -42,19 +42,29 @@
         </p>
         <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
         <p id="progressHint" class="muted" style="display:none;">
-            Las apps con conexion a base de datos tardan un poco mas (se intenta traer tambien las
-            definiciones de sus Stored Procedures, solo lectura) — esto sigue trabajando, no se congelo.
+            {{ _('Las apps con conexion a base de datos tardan un poco mas (se intenta traer tambien las definiciones de sus Stored Procedures, solo lectura) — esto sigue trabajando, no se congelo.') }}
         </p>
         <ul id="progressList" class="progress-list"></ul>
-        <a id="backToList" class="btn secondary" href="{{ url_for('index') }}" style="display:none;">Volver al listado</a>
+        <a id="backToList" class="btn secondary" href="{{ url_for('index') }}" style="display:none;">{{ _('Volver al listado') }}</a>
     </div>
 
     {% else %}
-    <p class="muted">No se encontro ningun .exe dentro de esa carpeta (se ignoran obj, .vs, .git, packages y *.vshost.exe).</p>
+    <p class="muted">{{ _('No se encontro ningun .exe dentro de esa carpeta (se ignoran obj, .vs, .git, packages y *.vshost.exe).') }}</p>
     {% endif %}
 </div>
 
 <script>
+var I18N = {
+    selectAtLeastOne: {{ _('Selecciona al menos una app.')|tojson }},
+    working: {{ _('trabajando...')|tojson }},
+    done: {{ _('Listo')|tojson }},
+    analyzing: {{ _('Analizando')|tojson }},
+    viewLastAnalysis: {{ _('Ver ultimo analisis')|tojson }},
+    dbSummary: {{ _('BD')|tojson }},
+    spsFound: {{ _('SPs')|tojson }},
+    tables: {{ _('tablas')|tojson }},
+    networkError: {{ _('error de red')|tojson }}
+};
 (function () {
     var form = document.getElementById('batchForm');
     if (!form) return;
@@ -63,7 +73,7 @@
         e.preventDefault();
         var selected = Array.from(document.querySelectorAll('.exe-check:checked')).map(c => c.value);
         if (selected.length === 0) {
-            alert('Selecciona al menos una app.');
+            alert(I18N.selectAtLeastOne);
             return;
         }
         var rootPath = form.querySelector('input[name="root_path"]').value;
@@ -90,7 +100,7 @@
             clearInterval(elapsedTimer);
             elapsedTimer = setInterval(function () {
                 var secs = Math.floor((Date.now() - itemStartedAt) / 1000);
-                elapsedEl.textContent = '(' + secs + 's, trabajando...)';
+                elapsedEl.textContent = '(' + secs + 's, ' + I18N.working + ')';
                 fill.classList.add('progress-fill-active');
                 if (secs >= 12) hint.style.display = 'block';
             }, 1000);
@@ -105,16 +115,16 @@
         function next(i) {
             if (i >= total) {
                 stopElapsedTimer();
-                status.textContent = 'Listo: ' + done + ' / ' + total + ' analizadas.';
+                status.textContent = I18N.done + ': ' + done + ' / ' + total + '.';
                 backLink.style.display = 'inline-block';
                 if (lastAppId) {
-                    backLink.textContent = 'Ver ultimo analisis';
+                    backLink.textContent = I18N.viewLastAnalysis;
                     backLink.href = '/apps/' + lastAppId;
                 }
                 return;
             }
             var path = selected[i];
-            status.textContent = 'Analizando ' + (i + 1) + ' / ' + total + ' ...';
+            status.textContent = I18N.analyzing + ' ' + (i + 1) + ' / ' + total + ' ...';
             startElapsedTimer();
             fetch('/analyze_one', {
                 method: 'POST',
@@ -130,7 +140,7 @@
                 li.className = data.ok ? 'ok' : 'fail';
                 var extra = '';
                 if (data.ok && data.enrich && data.enrich.sp_total) {
-                    extra = ' — BD: ' + data.enrich.sp_ok + '/' + data.enrich.sp_total + ' SPs, ' + data.enrich.tables + ' tablas';
+                    extra = ' — ' + I18N.dbSummary + ': ' + data.enrich.sp_ok + '/' + data.enrich.sp_total + ' ' + I18N.spsFound + ', ' + data.enrich.tables + ' ' + I18N.tables;
                 }
                 li.textContent = (data.ok ? '✓ ' : '✗ ') + data.name + (data.ok ? extra : ' — ' + data.error);
                 list.appendChild(li);
@@ -141,7 +151,7 @@
                 stopElapsedTimer();
                 var li = document.createElement('li');
                 li.className = 'fail';
-                li.textContent = '✗ ' + path + ' — error de red: ' + err;
+                li.textContent = '✗ ' + path + ' — ' + I18N.networkError + ': ' + err;
                 list.appendChild(li);
                 fill.style.width = Math.round(((i + 1) / total) * 100) + '%';
                 next(i + 1);

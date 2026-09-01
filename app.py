@@ -14,7 +14,8 @@ import markdown as md
 from collections import defaultdict
 from pathlib import Path
 
-from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
+from flask import Flask, Response, flash, jsonify, redirect, render_template, request, session, url_for
+from flask_babel import Babel, gettext as _
 
 from analyzer import data_flow as data_flow_analyzer
 from analyzer import db, diagram, enrich, export_office, priority_report, server_resolution
@@ -42,6 +43,28 @@ REPORTS_DIR = BASE_DIR / "reports"
 
 app = Flask(__name__)
 app.secret_key = "qapv-legacy-analyzer"  # solo para flash messages, no hay login/datos sensibles
+
+app.config["LANGUAGES"] = {"es": "Español", "en": "English"}
+app.config["BABEL_DEFAULT_LOCALE"] = "es"
+
+
+def get_locale():
+    lang = session.get("lang")
+    if lang in app.config["LANGUAGES"]:
+        return lang
+    return request.accept_languages.best_match(app.config["LANGUAGES"].keys(), "es")
+
+
+babel = Babel(app, locale_selector=get_locale)
+app.jinja_env.globals["get_locale"] = get_locale
+
+
+@app.route("/set_language/<lang_code>")
+def set_language(lang_code):
+    if lang_code in app.config["LANGUAGES"]:
+        session["lang"] = lang_code
+    return redirect(request.referrer or url_for("index"))
+
 
 db.init_db()
 
@@ -109,11 +132,11 @@ def _flash_enrich_summary(enrich_summary: dict) -> None:
     report), so this doesn't spam a flash on every single-file app."""
     if enrich_summary["sp_total"] or enrich_summary["tables"]:
         flash(
-            f"Extraccion de BD (solo lectura): {enrich_summary['sp_ok']}/{enrich_summary['sp_total']} "
-            f"SPs encontrados, {enrich_summary['tables']} tablas con esquema."
+            _("Extraccion de BD (solo lectura): %(ok)s/%(total)s SPs encontrados, %(tables)s tablas con esquema.")
+            % {"ok": enrich_summary["sp_ok"], "total": enrich_summary["sp_total"], "tables": enrich_summary["tables"]}
         )
     for err in enrich_summary["connection_errors"]:
-        flash(f"No se pudo conectar a la BD (solo lectura): {err}")
+        flash(_("No se pudo conectar a la BD (solo lectura): %(err)s") % {"err": err})
 
 
 def _batch_name(root_path: str, exe_path: str) -> str:
@@ -153,12 +176,12 @@ def analyze():
     custom_name = request.form.get("name", "").strip() or None
 
     if not raw_path:
-        flash("Indica una ruta de carpeta o de archivo .exe/.dll.")
+        flash(_("Indica una ruta de carpeta o de archivo .exe/.dll."))
         return redirect(url_for("index"))
 
     p = Path(raw_path)
     if not p.exists():
-        flash(f"No se encontro la ruta: {raw_path}")
+        flash(_("No se encontro la ruta: %(path)s") % {"path": raw_path})
         return redirect(url_for("index"))
 
     if p.is_file():
@@ -166,7 +189,7 @@ def analyze():
     else:
         candidates = sorted(p.glob("*.exe")) or sorted(p.glob("*.dll"))
         if not candidates:
-            flash(f"No se encontro ningun .exe/.dll directamente dentro de: {raw_path}")
+            flash(_("No se encontro ningun .exe/.dll directamente dentro de: %(path)s") % {"path": raw_path})
             return redirect(url_for("index"))
         if len(candidates) > 1:
             return render_template("choose_assembly.html", folder=raw_path, candidates=candidates)
@@ -175,10 +198,10 @@ def analyze():
     try:
         outcome = _analyze_and_save(assembly, custom_name)
     except DecompileError as e:
-        flash(f"Error al decompilar '{assembly.name}': {e}")
+        flash(_("Error al decompilar '%(name)s': %(err)s") % {"name": assembly.name, "err": e})
         return redirect(url_for("index"))
 
-    flash(f"'{assembly.stem}' analizado correctamente.")
+    flash(_("'%(name)s' analizado correctamente.") % {"name": assembly.stem})
     _flash_enrich_summary(outcome["enrich"])
     return redirect(url_for("app_detail", app_id=outcome["app_id"]))
 
@@ -187,12 +210,12 @@ def analyze():
 def discover():
     raw_path = request.form.get("root_path", "").strip().strip('"')
     if not raw_path:
-        flash("Indica una carpeta raiz para escanear.")
+        flash(_("Indica una carpeta raiz para escanear."))
         return redirect(url_for("index"))
 
     root = Path(raw_path)
     if not root.exists() or not root.is_dir():
-        flash(f"No se encontro la carpeta: {raw_path}")
+        flash(_("No se encontro la carpeta: %(path)s") % {"path": raw_path})
         return redirect(url_for("index"))
 
     candidates = discover_assemblies(root)
@@ -218,7 +241,7 @@ def analyze_batch():
     selected = request.form.getlist("selected")
     root_path = request.form.get("root_path", "").strip()
     if not selected:
-        flash("No seleccionaste ninguna app para analizar.")
+        flash(_("No seleccionaste ninguna app para analizar."))
         return redirect(url_for("index"))
 
     last_app_id = None
@@ -228,10 +251,10 @@ def analyze_batch():
         try:
             outcome = _analyze_and_save(assembly, name)
             last_app_id = outcome["app_id"]
-            flash(f"'{name or assembly.stem}' analizado correctamente.")
+            flash(_("'%(name)s' analizado correctamente.") % {"name": name or assembly.stem})
             _flash_enrich_summary(outcome["enrich"])
         except DecompileError as e:
-            flash(f"Error al decompilar '{assembly.name}': {e}")
+            flash(_("Error al decompilar '%(name)s': %(err)s") % {"name": assembly.name, "err": e})
 
     if last_app_id is not None:
         return redirect(url_for("app_detail", app_id=last_app_id))
@@ -247,7 +270,7 @@ def analyze_one():
     raw_path = (payload.get("path") or "").strip()
     root_path = (payload.get("root") or "").strip()
     if not raw_path:
-        return jsonify(ok=False, name="?", error="Ruta vacia"), 400
+        return jsonify(ok=False, name="?", error=_("Ruta vacia")), 400
 
     assembly = Path(raw_path)
     name = _batch_name(root_path, raw_path) if root_path else assembly.stem
@@ -263,14 +286,14 @@ def analyze_one():
 def app_detail(app_id):
     data = db.get_app(app_id)
     if not data:
-        flash("Esa app no existe en la base de datos.")
+        flash(_("Esa app no existe en la base de datos."))
         return redirect(url_for("index"))
     report_html = md.markdown(
         render_from_db(data),
         extensions=["tables", "fenced_code", "codehilite", "md_in_html"],
         extension_configs={"codehilite": {"guess_lang": False, "pygments_style": "vs", "noclasses": False}},
     )
-    _, _, _, sql_findings, io_findings, *_rest = reconstruct_from_db(data)
+    __, __, __, sql_findings, io_findings, *__rest = reconstruct_from_db(data)
     dataflow_diagram = diagram.build_dataflow_diagram(sql_findings, io_findings)
     # Mapa de Flujo de Datos (Fase 8): misma fuente de verdad que /data_flow,
     # via un test_context_index ACOTADO a las tablas de esta app (incremento
@@ -294,25 +317,25 @@ def enrich_route(app_id):
     and analyzer/db_introspect.py for the strict SELECT-only guarantee."""
     data = db.get_app(app_id)
     if not data:
-        flash("Esa app no existe en la base de datos.")
+        flash(_("Esa app no existe en la base de datos."))
         return redirect(url_for("index"))
 
     try:
         result = enrich.enrich_app(app_id)
     except Exception as e:
-        flash(f"Error al conectar a la base de datos: {e}")
+        flash(_("Error al conectar a la base de datos: %(err)s") % {"err": e})
         return redirect(url_for("app_detail", app_id=app_id))
 
     db.save_db_objects(app_id, result["procedures"], result["tables"], result["connection_errors"])
 
     ok_procs = sum(1 for p in result["procedures"] if p["status"] == "ok")
     flash(
-        f"Extraccion de BD (solo lectura): {ok_procs}/{len(result['procedures'])} SPs encontrados, "
-        f"{len(result['tables'])} tablas con esquema."
+        _("Extraccion de BD (solo lectura): %(ok)s/%(total)s SPs encontrados, %(tables)s tablas con esquema.")
+        % {"ok": ok_procs, "total": len(result["procedures"]), "tables": len(result["tables"])}
     )
     if result["connection_errors"]:
         for err in result["connection_errors"]:
-            flash(f"No se pudo conectar: {err}")
+            flash(_("No se pudo conectar: %(err)s") % {"err": err})
 
     return redirect(url_for("app_detail", app_id=app_id))
 
@@ -323,7 +346,7 @@ def review_route(app_id):
     our own tracking DB, never touches the legacy app itself."""
     data = db.get_app(app_id)
     if not data:
-        flash("Esa app no existe en la base de datos.")
+        flash(_("Esa app no existe en la base de datos."))
         return redirect(url_for("index"))
 
     status = request.form.get("review_status", "borrador")
@@ -334,7 +357,7 @@ def review_route(app_id):
         flash(str(e))
         return redirect(url_for("app_detail", app_id=app_id))
 
-    flash("Estado de revision actualizado.")
+    flash(_("Estado de revision actualizado."))
     return redirect(url_for("app_detail", app_id=app_id))
 
 
@@ -342,10 +365,10 @@ def review_route(app_id):
 def export(app_id, fmt):
     data = db.get_app(app_id)
     if not data:
-        flash("Esa app no existe en la base de datos.")
+        flash(_("Esa app no existe en la base de datos."))
         return redirect(url_for("index"))
     if fmt not in EXPORT_MIMETYPES:
-        flash(f"Formato de exportacion no soportado: {fmt}")
+        flash(_("Formato de exportacion no soportado: %(fmt)s") % {"fmt": fmt})
         return redirect(url_for("app_detail", app_id=app_id))
 
     (
@@ -380,7 +403,7 @@ def delete(app_id):
     data = db.get_app(app_id)
     name = data["app"]["name"] if data else "?"
     db.delete_app(app_id)
-    flash(f"'{name}' eliminado de la base de datos.")
+    flash(_("'%(name)s' eliminado de la base de datos.") % {"name": name})
     return redirect(url_for("index"))
 
 
@@ -405,7 +428,7 @@ def findings():
 @app.route("/findings/delete/<int:finding_id>", methods=["POST"])
 def delete_finding_route(finding_id):
     db.delete_finding(finding_id)
-    flash("Hallazgo eliminado.")
+    flash(_("Hallazgo eliminado."))
     return redirect(url_for("findings"))
 
 
@@ -420,7 +443,7 @@ def set_finding_status_route(finding_id):
     except ValueError as e:
         flash(str(e))
     else:
-        flash(f"Hallazgo #{finding_id} marcado como {status}.")
+        flash(_("Hallazgo #%(id)s marcado como %(status)s.") % {"id": finding_id, "status": status})
     return redirect(url_for("findings"))
 
 
@@ -571,7 +594,7 @@ def priority_report_view(app_id):
     get_priority_and_complexity() — ver analyzer/priority_report.py."""
     report = priority_report.build_report(app_id)
     if report is None:
-        flash("App no encontrada.")
+        flash(_("App no encontrada."))
         return redirect(url_for("portfolio"))
     # Narrativa/conclusion son prosa con enfasis **markdown** simple (misma
     # libreria ya usada en app_detail() para renderizar reportes) -- nada

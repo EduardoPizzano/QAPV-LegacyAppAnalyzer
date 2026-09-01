@@ -1,46 +1,45 @@
 {% extends "library_base.html" %}
-{% block title %}Reporte de prioridad — {{ report.app_name }} — QAPV Legacy App Analyzer{% endblock %}
+{% block title %}{{ _('Reporte de prioridad') }} — {{ report.app_name }} — QAPV Legacy App Analyzer{% endblock %}
 {% block right %}
 
 <div class="card">
-    <h2>Reporte de prioridad — {{ report.app_name }}</h2>
+    <h2>{{ _('Reporte de prioridad') }} — {{ report.app_name }}</h2>
     <p class="muted">
-        Reporte de apoyo a la decision generado a partir del Priority &amp; Complexity Engine
-        (<code>analyzer/db.py: get_priority_and_complexity()</code>) — este reporte no recalcula
-        score, buckets ni pesos, solo interpreta y narra lo que el motor ya calculo.
-        Ver <a href="{{ url_for('app_detail', app_id=report.app_id) }}">detalle tecnico completo de la app</a>
-        o volver al <a href="{{ url_for('portfolio') }}">portafolio</a>.
+        {{ _('Reporte de apoyo a la decision generado a partir del Priority &amp; Complexity Engine') }}
+        (<code>analyzer/db.py: get_priority_and_complexity()</code>) — {{ _('este reporte no recalcula score, buckets ni pesos, solo interpreta y narra lo que el motor ya calculo.') }}
+        {{ _('Ver') }} <a href="{{ url_for('app_detail', app_id=report.app_id) }}">{{ _('detalle tecnico completo de la app') }}</a>
+        {{ _('o volver al') }} <a href="{{ url_for('portfolio') }}">{{ _('portafolio') }}</a>.
     </p>
 </div>
 
 <div class="card">
-    <span class="section-tag">Resumen ejecutivo</span>
+    <span class="section-tag">{{ _('Resumen ejecutivo') }}</span>
     <div class="exec-summary">
         <div class="exec-stat">
-            <div class="label">Prioridad recomendada</div>
-            <div class="value"><span class="badge pri-{{ report.resumen_ejecutivo.prioridad|lower }}">{{ report.resumen_ejecutivo.prioridad }}</span></div>
+            <div class="label">{{ _('Prioridad recomendada') }}</div>
+            <div class="value"><span class="badge pri-{{ report.resumen_ejecutivo.prioridad|lower }}">{{ _(report.resumen_ejecutivo.prioridad) }}</span></div>
         </div>
         <div class="exec-stat">
-            <div class="label">Complejidad tecnica</div>
-            <div class="value"><span class="badge pri-{{ report.resumen_ejecutivo.complejidad_tecnica|lower }}">{{ report.resumen_ejecutivo.complejidad_tecnica }}</span></div>
+            <div class="label">{{ _('Complejidad tecnica') }}</div>
+            <div class="value"><span class="badge pri-{{ report.resumen_ejecutivo.complejidad_tecnica|lower }}">{{ _(report.resumen_ejecutivo.complejidad_tecnica) }}</span></div>
         </div>
         <div class="exec-stat">
-            <div class="label">Complejidad de integracion</div>
-            <div class="value"><span class="badge pri-{{ report.resumen_ejecutivo.complejidad_integracion|lower }}">{{ report.resumen_ejecutivo.complejidad_integracion }}</span></div>
+            <div class="label">{{ _('Complejidad de integracion') }}</div>
+            <div class="value"><span class="badge pri-{{ report.resumen_ejecutivo.complejidad_integracion|lower }}">{{ _(report.resumen_ejecutivo.complejidad_integracion) }}</span></div>
         </div>
         <div class="exec-stat">
-            <div class="label">Riesgo</div>
-            <div class="value"><span class="badge pri-{{ report.resumen_ejecutivo.riesgo|lower }}">{{ report.resumen_ejecutivo.riesgo }}</span></div>
+            <div class="label">{{ _('Riesgo') }}</div>
+            <div class="value"><span class="badge pri-{{ report.resumen_ejecutivo.riesgo|lower }}">{{ _(report.resumen_ejecutivo.riesgo) }}</span></div>
         </div>
         <div class="exec-stat">
-            <div class="label">Estado general de preparacion</div>
-            <div class="value">{{ report.resumen_ejecutivo.estado_preparacion }}</div>
+            <div class="label">{{ _('Estado general de preparacion') }}</div>
+            <div class="value">{{ _(report.resumen_ejecutivo.estado_preparacion) }}</div>
         </div>
         <div class="exec-stat" style="flex-basis:100%;">
-            <div class="label">Factores pendientes de informacion</div>
+            <div class="label">{{ _('Factores pendientes de informacion') }}</div>
             <div class="value">
                 {% for p in report.resumen_ejecutivo.factores_pendientes %}
-                <span class="badge pendiente-negocio">{{ p }}</span>
+                <span class="badge pendiente-negocio">{{ _(p) }}</span>
                 {% endfor %}
             </div>
         </div>
@@ -48,48 +47,47 @@
 </div>
 
 <div class="card">
-    <span class="section-tag">Explicacion narrativa</span>
+    <span class="section-tag">{{ _('Explicacion narrativa') }}</span>
     <div>{{ report.narrativa_html|safe }}</div>
     <details class="factor-evidence" style="margin-top:10px;">
-        <summary>Ver desglose exacto del score (peso x bucket = aporte)</summary>
+        <summary>{{ _('Ver desglose exacto del score (peso x bucket = aporte)') }}</summary>
         <ul>
             {% for b in report.priority_score_breakdown %}
-            <li>{{ b.factor }}: peso {{ b.peso }} x {{ b.bucket }} = {{ b.aporte }}</li>
+            <li>{{ b.factor }}: {{ _('peso') }} {{ b.peso }} x {{ b.bucket }} = {{ b.aporte }}</li>
             {% endfor %}
-            <li><strong>Score total: {{ report.priority_score }}</strong></li>
+            <li><strong>{{ _('Score total') }}: {{ report.priority_score }}</strong></li>
         </ul>
     </details>
 </div>
 
 <div class="card">
-    <span class="section-tag">Desglose de factores</span>
+    <span class="section-tag">{{ _('Desglose de factores') }}</span>
     <p class="muted">
-        <strong>Evidencia</strong> = lo que fue encontrado (dato factual, ver tabla). <strong>Interpretacion</strong>
-        = lo que el motor concluye a partir de esa evidencia (el bucket ya calculado, traducido a una frase). Los
-        dos conceptos se muestran en columnas separadas y nunca se mezclan.
+        <strong>{{ _('Evidencia') }}</strong> = {{ _('lo que fue encontrado (dato factual, ver tabla).') }} <strong>{{ _('Interpretacion') }}</strong>
+        = {{ _('lo que el motor concluye a partir de esa evidencia (el bucket ya calculado, traducido a una frase). Los dos conceptos se muestran en columnas separadas y nunca se mezclan.') }}
     </p>
     <table>
         <tr>
-            <th>Factor</th>
-            <th>Nivel</th>
-            <th>Evidencia</th>
-            <th>Interpretacion</th>
+            <th>{{ _('Factor') }}</th>
+            <th>{{ _('Nivel') }}</th>
+            <th>{{ _('Evidencia') }}</th>
+            <th>{{ _('Interpretacion') }}</th>
         </tr>
         {% for fr in report.factor_rows %}
         <tr>
-            <td>{{ fr.label }}</td>
+            <td>{{ _(fr.label) }}</td>
             <td>
                 {% if fr.bucket %}
-                <span class="badge pri-{{ fr.bucket|lower }}">{{ fr.bucket }}</span>
+                <span class="badge pri-{{ fr.bucket|lower }}">{{ _(fr.bucket) }}</span>
                 {% else %}
-                <span class="badge pendiente-negocio">Sin evidencia</span>
+                <span class="badge pendiente-negocio">{{ _('Sin evidencia') }}</span>
                 {% endif %}
             </td>
             <td>
                 <div class="evidencia-cell">{{ fr.evidencia_corta }}</div>
                 {% if fr.evidencia_completa and (fr.evidencia_completa|length > 1 or fr.evidencia_completa[0] != fr.evidencia_corta) %}
                 <details class="factor-evidence" style="margin-top:4px;">
-                    <summary>Ver evidencia completa ({{ fr.evidencia_completa|length }})</summary>
+                    <summary>{{ _('Ver evidencia completa') }} ({{ fr.evidencia_completa|length }})</summary>
                     <ul>
                         {% for e in fr.evidencia_completa %}
                         <li>{{ e }}</li>
@@ -105,22 +103,20 @@
 </div>
 
 <div class="card">
-    <span class="section-tag">Observaciones arquitectonicas</span>
+    <span class="section-tag">{{ _('Observaciones arquitectonicas') }}</span>
     <p class="muted">
-        Relaciones entre aplicaciones/componentes detectadas durante el analisis (ensamblados
-        companion compartidos, patrones/dependencias repetidas). No modifican el score ni la
-        prioridad — es conocimiento adicional para quien decide.
+        {{ _('Relaciones entre aplicaciones/componentes detectadas durante el analisis (ensamblados companion compartidos, patrones/dependencias repetidas). No modifican el score ni la prioridad — es conocimiento adicional para quien decide.') }}
     </p>
     {% if not report.observaciones_arquitectonicas %}
-    <p class="muted">Sin observaciones arquitectonicas detectadas para esta app todavia.</p>
+    <p class="muted">{{ _('Sin observaciones arquitectonicas detectadas para esta app todavia.') }}</p>
     {% else %}
     {% for o in report.observaciones_arquitectonicas %}
     <div class="obs-item">
         <p style="margin:0 0 4px;">
             {% if o.es_inferencia %}
-            <span class="badge inferencia">Inferencia</span>
+            <span class="badge inferencia">{{ _('Inferencia') }}</span>
             {% else %}
-            <span class="badge dato-calculado">Dato ya calculado</span>
+            <span class="badge dato-calculado">{{ _('Dato ya calculado') }}</span>
             {% endif %}
             {{ o.texto }}
         </p>
@@ -131,7 +127,7 @@
 </div>
 
 <div class="card">
-    <span class="section-tag">Conclusion</span>
+    <span class="section-tag">{{ _('Conclusion') }}</span>
     <div>{{ report.conclusion_html|safe }}</div>
 </div>
 

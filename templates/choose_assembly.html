@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Elegir ejecutable — QAPV Legacy App Analyzer{% endblock %}
+{% block title %}{{ _('Elegir ejecutable') }} — QAPV Legacy App Analyzer{% endblock %}
 {% block content %}
 
 <div class="card">
-    <h2>Se encontraron varios ejecutables en esta carpeta</h2>
+    <h2>{{ _('Se encontraron varios ejecutables en esta carpeta') }}</h2>
     <p class="muted">{{ folder }}</p>
-    <p>Elige cual analizar:</p>
+    <p>{{ _('Elige cual analizar:') }}</p>
     {% for c in candidates %}
     <form class="chooseForm" method="post" action="{{ url_for('analyze') }}" style="display:inline-block; margin-right:10px;">
         <input type="hidden" name="path" value="{{ c }}">
@@ -14,10 +14,9 @@
     {% endfor %}
     <p id="chooseWorking" class="muted" style="display:none; margin-top:10px;">
         <span class="spinner" style="border-color: rgba(107,118,132,0.3); border-top-color:#6b7684;"></span>
-        Decompilando y analizando (<span id="chooseElapsed">0</span>s)... esto puede tardar mas para
-        apps grandes o con conexion a base de datos — sigue trabajando, no se congelo.
+        {{ _('Decompilando y analizando') }} (<span id="chooseElapsed">0</span>s)... {{ _('esto puede tardar mas para apps grandes o con conexion a base de datos — sigue trabajando, no se congelo.') }}
     </p>
-    <p style="margin-top:20px;"><a href="{{ url_for('index') }}">&larr; Volver</a></p>
+    <p style="margin-top:20px;"><a href="{{ url_for('index') }}">&larr; {{ _('Volver') }}</a></p>
 </div>
 
 <script>

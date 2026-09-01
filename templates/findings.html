@@ -1,29 +1,27 @@
 {% extends "library_base.html" %}
-{% block title %}Hallazgos — QAPV Legacy App Analyzer{% endblock %}
+{% block title %}{{ _('Hallazgos') }} — QAPV Legacy App Analyzer{% endblock %}
 {% block right %}
 
 <div class="card">
-    <h2>Hallazgos acumulados</h2>
+    <h2>{{ _('Hallazgos acumulados') }}</h2>
     <p class="muted">
-        Registro acumulativo de riesgos y bugs reales encontrados durante la revision de logica de
-        negocio de cada app — solo para tenerlos en cuenta, no modifica ninguna aplicacion legada.
-        Se sigue agregando conforme revisamos mas apps.
+        {{ _('Registro acumulativo de riesgos y bugs reales encontrados durante la revision de logica de negocio de cada app — solo para tenerlos en cuenta, no modifica ninguna aplicacion legada. Se sigue agregando conforme revisamos mas apps.') }}
     </p>
     {% if not findings %}
-    <p class="muted">Aun no hay hallazgos registrados.</p>
+    <p class="muted">{{ _('Aun no hay hallazgos registrados.') }}</p>
     {% else %}
     <table>
         <tr>
-            <th>Severidad</th>
+            <th>{{ _('Severidad') }}</th>
             <th>App</th>
-            <th>Hallazgo</th>
-            <th>Detalle</th>
-            <th>Estado</th>
+            <th>{{ _('Hallazgo') }}</th>
+            <th>{{ _('Detalle') }}</th>
+            <th>{{ _('Estado') }}</th>
             <th></th>
         </tr>
         {% for f in findings %}
         <tr>
-            <td><span class="badge sev-{{ f.severity }}">{{ f.severity }}</span></td>
+            <td><span class="badge sev-{{ f.severity }}">{{ _(f.severity) }}</span></td>
             <td>
                 {% if f.current_app_id %}
                 <a href="{{ url_for('app_detail', app_id=f.current_app_id) }}">{{ f.app_name }}</a>
@@ -35,19 +33,19 @@
             <td>{{ f.title }}</td>
             <td>{{ f.description }}</td>
             <td>
-                <span class="badge status-{{ f.status|lower }}" title="{% if f.status_changed_at %}Cambiado {{ f.status_changed_at }}{% if f.status_changed_by %} por {{ f.status_changed_by }}{% endif %}{% else %}Sin cambios desde su creacion{% endif %}">{{ f.status }}</span>
+                <span class="badge status-{{ f.status|lower }}" title="{% if f.status_changed_at %}{{ _('Cambiado') }} {{ f.status_changed_at }}{% if f.status_changed_by %} {{ _('por') }} {{ f.status_changed_by }}{% endif %}{% else %}{{ _('Sin cambios desde su creacion') }}{% endif %}">{{ f.status }}</span>
                 <form method="post" action="{{ url_for('set_finding_status_route', finding_id=f.id) }}" style="display:inline;">
                     <select name="status" style="font-size:0.72rem; padding:2px; margin-top:4px;">
                         {% for s in statuses %}
                         <option value="{{ s }}" {% if f.status == s %}selected{% endif %}>{{ s }}</option>
                         {% endfor %}
                     </select>
-                    <button type="submit" class="secondary" style="margin:4px 0 0; padding:3px 8px; font-size:0.72rem;">Cambiar</button>
+                    <button type="submit" class="secondary" style="margin:4px 0 0; padding:3px 8px; font-size:0.72rem;">{{ _('Cambiar') }}</button>
                 </form>
             </td>
             <td>
                 <form method="post" action="{{ url_for('delete_finding_route', finding_id=f.id) }}">
-                    <button type="submit" class="danger" onclick="return confirm('¿Eliminar este hallazgo?');">Borrar</button>
+                    <button type="submit" class="danger" onclick="return confirm({{ _('¿Eliminar este hallazgo?')|tojson }});">{{ _('Borrar') }}</button>
                 </form>
             </td>
         </tr>
