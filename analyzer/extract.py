@@ -559,6 +559,61 @@ def _find_statement_end(text: str, start: int) -> Optional[int]:
     return None
 
 
+def _find_matching_close_brace(text: str, open_idx: int) -> Optional[int]:
+    """`open_idx` debe apuntar al '{' de apertura de un bloque. Regresa el
+    indice de su '}' de cierre, saltando literales de cadena (mismo
+    mecanismo que _find_matching_close_paren, para no confundir una llave
+    dentro de un string con sintaxis real). None si nunca cierra."""
+    i, n, depth = open_idx, len(text), 0
+    while i < n:
+        if STRING_OPENER.match(text, i):
+            i = _skip_string_literal(text, i)
+            continue
+        c = text[i]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return None
+
+
+def _conditional_block_spans(text: str) -> list[tuple[int, int]]:
+    """Spans (inicio, fin) del CUERPO (entre sus llaves) de cada bloque
+    if/else/for/foreach/while/switch en `text`. Un guard sin llaves (una
+    sola sentencia) no se acota aqui -- se ignora, dejando que el llamador
+    trate esa posicion como incondicional NO es seguro, asi que en ese caso
+    simplemente no se agrega ningun span (comportamiento conservador: mejor
+    no detectar el bloque que acotarlo mal).
+
+    Incremento (revision de logica de negocio QAPV2, 2026-09): antes de
+    esto, _reconstruct_dynamic_sql() abortaba la reconstruccion COMPLETA en
+    cuanto CONDITIONAL_LINE encontraba una linea if/for/while/switch en
+    cualquier parte del texto restante -- sin importar si esa condicion
+    envolvia la asignacion que se esta intentando resolver o una completamente
+    distinta mas adelante. Estos spans permiten distinguir "esta asignacion
+    especifica esta dentro de un bloque condicional" de "hay un condicional
+    en algun lugar de este metodo", sin ejecutar nada simbolicamente -- solo
+    delimitar donde vive cada bloque."""
+    spans: list[tuple[int, int]] = []
+    for m in CONDITIONAL_LINE.finditer(text):
+        brace_idx = text.find("{", m.end())
+        stmt_end = text.find(";", m.end())
+        if brace_idx == -1 or (stmt_end != -1 and stmt_end < brace_idx):
+            continue
+        close_idx = _find_matching_close_brace(text, brace_idx)
+        if close_idx is None:
+            continue
+        spans.append((brace_idx, close_idx))
+    return spans
+
+
+def _inside_any_span(pos: int, spans: list[tuple[int, int]]) -> bool:
+    return any(start <= pos < end for start, end in spans)
+
+
 def _find_matching_close_paren(text: str, start: int) -> Optional[int]:
     """`start` apunta justo despues del '(' de apertura de una llamada (ej.
     tras `Append(`). Regresa el indice del ')' que la cierra, saltando
@@ -685,17 +740,29 @@ def _reconstruct_dynamic_sql(
     matches = list(assign_re.finditer(method_text))
     if not matches:
         return None
-    if CONDITIONAL_LINE.search(method_text[matches[0].start():]):
-        return None
     if TERNARY_HINT.search(method_text[matches[0].start():]):
         return None
+
+    # Cada asignacion se evalua POR SU CUENTA contra los spans de bloques
+    # condicionales -- no se aborta toda la reconstruccion solo porque
+    # exista un if/for/while/switch en algun lugar del metodo (ver
+    # _conditional_block_spans). Una asignacion que SI corre siempre (ej. el
+    # SELECT base antes de un WHERE opcional) se resuelve normalmente; una
+    # que solo corre condicionalmente se marca como segmento dinamico/
+    # incierto (mismo marcador {...} que ya usa un valor C# sin resolver),
+    # nunca se concatena como si siempre aplicara.
+    conditional_spans = _conditional_block_spans(method_text)
 
     tokens = []
     for m in matches:
         stmt_end = _find_statement_end(method_text, m.end())
         if stmt_end is None:
             return None
-        rhs_tokens = _tokenize_string_expression(method_text[m.end():stmt_end])
+        rhs_text = method_text[m.end():stmt_end]
+        if _inside_any_span(m.start(), conditional_spans):
+            tokens.append(("expr", f"if-guarded: {rhs_text.strip()}"))
+            continue
+        rhs_tokens = _tokenize_string_expression(rhs_text)
         if not rhs_tokens:
             return None
         tokens.extend(rhs_tokens)
