@@ -63,6 +63,13 @@ RESOLUTION_STATUSES = (
     # Incremento Flujo de Aplicacion - Screen Surface Discovery (2026-08-21,
     # analyzer/app_controls.py):
     "unresolved_control_type_unknown",  # se observo instanciacion real de un control, pero su tipo no pertenece al catalogo curado -- se sabe que existe, no que tipo concreto es
+    # Incremento Data Lineage (2026-09, analyzer/data_lineage.py): dos causas
+    # distintas de ambiguedad en un hop del grafo de linaje -- cualquier
+    # LineageHop apoyado UNICAMENTE en uno de estos dos estados nunca sube de
+    # confidence_label POSSIBLE, sin importar el score numerico crudo
+    # (Principio 3: nunca convertir una hipotesis en CONFIRMED silenciosamente).
+    "unresolved_lineage_origin_ambiguous",    # el origen Oracle de un hop depende de una ConnectionResolution con resolution_status != 'resolved' (ej. ternario Oracle-vs-SQLServer) -- nunca se cuenta como DIRECT_ORACLE con certeza
+    "unresolved_lineage_direction_ambiguous",  # dos apps tocan el mismo objeto pero Data Flow solo confirma una SharedTableRelation (mismo lado) -- se registra el contacto, nunca se dibuja una flecha dirigida
 )
 
 

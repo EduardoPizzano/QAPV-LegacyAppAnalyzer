@@ -1,0 +1,44 @@
+{% extends "library_base.html" %}
+{% block title %}{{ _('Linaje') }} — {{ object_name }} — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2><code>{{ object_name }}</code></h2>
+    <p class="muted">
+        <a href="{{ url_for('lineage_explorer', object=object_name) }}">{{ _('Explorar en vivo') }}</a>
+        · <a href="{{ url_for('lineage_impact_analysis', object=object_name) }}">{{ _('Impact analysis') }}</a>
+    </p>
+
+    {% if not run %}
+    <p class="muted">{{ _('Todavía no se ha calculado el Data Lineage del portafolio — ve a') }} <a href="{{ url_for('lineage_overview') }}">{{ _('Linaje de Datos') }}</a> {{ _('y pulsa Construir/Refrescar.') }}</p>
+    {% elif not stats %}
+    <p class="muted">{{ _('Este objeto no participó en la última corrida de Data Lineage.') }}</p>
+    {% else %}
+    <div class="exec-summary">
+        <div class="exec-stat"><div class="label">{{ _('Tipo') }}</div><div class="value">{{ stats.object_kind }}</div></div>
+        <div class="exec-stat"><div class="label">{{ _('Servidor') }}</div><div class="value">{{ stats.server_kind or '—' }}</div></div>
+        <div class="exec-stat"><div class="label">Fan-in</div><div class="value">{{ stats.fan_in }}</div></div>
+        <div class="exec-stat"><div class="label">Fan-out</div><div class="value">{{ stats.fan_out }}</div></div>
+        <div class="exec-stat"><div class="label">ERP Oracle</div><div class="value">{{ '✓' if stats.is_oracle_erp_table else '—' }}</div></div>
+    </div>
+    {% endif %}
+</div>
+
+{% if edges %}
+<div class="card">
+    <h2>{{ _('Relaciones de linaje sobre este objeto') }}</h2>
+    <table>
+        <tr><th>{{ _('Productor') }}</th><th>{{ _('Consumidor') }}</th><th>{{ _('Operación') }}</th><th>{{ _('Confianza') }}</th></tr>
+        {% for e in edges %}
+        <tr>
+            <td>{% if e.from_app_id %}<a href="{{ url_for('lineage_application_detail', app_id=e.from_app_id) }}">{{ e.from_app_name }}</a>{% else %}{{ e.from_app_name }}{% endif %}</td>
+            <td>{% if e.to_app_id %}<a href="{{ url_for('lineage_application_detail', app_id=e.to_app_id) }}">{{ e.to_app_name }}</a>{% else %}{{ e.to_app_name }}{% endif %}</td>
+            <td>{{ e.operation or '—' }}</td>
+            <td>{{ e.confidence_label }} ({{ e.confidence }})</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}

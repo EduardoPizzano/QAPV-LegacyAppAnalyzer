@@ -1,0 +1,61 @@
+{% extends "library_base.html" %}
+{% block title %}{{ _('Impact Analysis') }} — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>{{ _('Impact Analysis') }}</h2>
+    <p class="muted">
+        {{ _('¿Qué aplicaciones se verían afectadas si cambia o desaparece esta app/objeto? Calculado sobre la ÚLTIMA corrida persistida de Data Lineage — nunca una extracción nueva.') }}
+    </p>
+
+    {% if not run %}
+    <p class="muted">{{ _('Todavía no se ha calculado el Data Lineage del portafolio — ve a') }} <a href="{{ url_for('lineage_overview') }}">{{ _('Linaje de Datos') }}</a> {{ _('y pulsa Construir/Refrescar.') }}</p>
+    {% else %}
+    <form method="get" action="{{ url_for('lineage_impact_analysis') }}">
+        <label for="app_id">{{ _('Aplicación') }}</label>
+        <select id="app_id" name="app_id" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink);">
+            <option value="">-- {{ _('Selecciona una aplicación') }} --</option>
+            {% for row in all_apps %}
+            <option value="{{ row.id }}" {% if row.id == selected_app_id %}selected{% endif %}>{{ row.name }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="object">{{ _('...o un objeto de datos, si no seleccionaste app arriba') }}</label>
+        <input type="text" id="object" name="object" value="{{ object_name or '' }}" placeholder="{{ _('ej. TESTS_OTDR_RES') }}"
+               style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink);">
+
+        <button type="submit" class="btn" style="margin-top:10px;">{{ _('Analizar impacto') }}</button>
+    </form>
+    {% endif %}
+</div>
+
+{% if run and (selected_app_id or object_name) and not result %}
+<div class="card"><p class="muted">{{ _('Esa app no participó en la última corrida de Data Lineage.') }}</p></div>
+{% endif %}
+
+{% if result %}
+<div class="card">
+    <h2>{{ result.subject_name }}</h2>
+    <div class="exec-summary">
+        <div class="exec-stat"><div class="label">{{ _('Consumidores directos') }}</div><div class="value">{{ result.direct_consumers|length }}</div></div>
+        <div class="exec-stat"><div class="label">{{ _('Consumidores indirectos') }}</div><div class="value">{{ result.indirect_consumers|length }}</div></div>
+        <div class="exec-stat"><div class="label">{{ _('Profundidad de impacto') }}</div><div class="value">{{ result.depth_reached }}</div></div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>{{ _('Impacto directo') }}</h2>
+    {% if result.direct_consumers %}
+    <ul>{% for app_name in result.direct_consumers %}<li>{{ app_name }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted">{{ _('Ningún consumidor directo demostrable.') }}</p>{% endif %}
+</div>
+
+<div class="card">
+    <h2>{{ _('Impacto indirecto') }}</h2>
+    {% if result.indirect_consumers %}
+    <ul>{% for app_name in result.indirect_consumers %}<li>{{ app_name }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted">{{ _('Ningún consumidor indirecto demostrable.') }}</p>{% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

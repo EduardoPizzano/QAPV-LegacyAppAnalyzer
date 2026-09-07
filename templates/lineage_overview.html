@@ -1,0 +1,110 @@
+{% extends "library_base.html" %}
+{% block title %}{{ _('Linaje de Datos') }} — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>{{ _('Linaje de Datos') }}</h2>
+    <p class="muted">
+        {{ _('Recorre la cadena') }} <code>Oracle → app → tabla → app → tabla → ... → consumidor terminal</code>,
+        {{ _('reutilizando la MISMA clasificación de') }} <a href="{{ url_for('data_flow') }}">{{ _('Flujo de Datos') }}</a>
+        {{ _('y de') }} <code>analyzer/server_resolution.py</code> ({{ _('nunca una segunda clasificación). Una app sin conexión Oracle directa puede seguir siendo') }}
+        <code>ORACLE_DERIVED</code> {{ _('si consume, aunque sea a través de SQL Server, un objeto escrito por una app') }} <code>DIRECT_ORACLE</code>.
+        {{ _('Este resumen y los Objetos/Apps críticos se leen de la ÚLTIMA corrida completada — recorrer el grafo completo del portafolio en cada clic no es viable, ver el botón de abajo.') }}
+    </p>
+
+    <form method="post" action="{{ url_for('lineage_build') }}" onsubmit="return confirm('{{ _('Esto recorre el portafolio completo y puede tardar — ¿continuar?') }}');">
+        <button type="submit" class="btn">{{ _('Construir / Refrescar Data Lineage') }}</button>
+    </form>
+
+    {% if run %}
+    <p class="muted" style="margin-top:10px;">
+        {{ _('Última corrida completada') }}: <strong>{{ run.completed_at }}</strong>
+        — {{ run.app_count }} {{ _('app(s)') }}, {{ run.edge_count }} {{ _('relación(es) de linaje') }}.
+    </p>
+    {% else %}
+    <p class="muted" style="margin-top:10px;">{{ _('Nunca se ha calculado el Data Lineage de este portafolio todavía.') }}</p>
+    {% endif %}
+</div>
+
+{% if run %}
+<div class="card">
+    <h2>{{ _('Resumen por clasificación') }}</h2>
+    <div class="exec-summary">
+        {% for c in classification_order %}
+        <div class="exec-stat">
+            <div class="label">{{ c|replace('_', ' ') }}</div>
+            <div class="value"><a href="{{ url_for('lineage_overview', classification=c) }}">{{ classification_counts.get(c, 0) }}</a></div>
+        </div>
+        {% endfor %}
+    </div>
+    {% if filter_classification %}
+    <p class="muted"><a href="{{ url_for('lineage_overview') }}">{{ _('Quitar filtro') }} ({{ filter_classification }})</a></p>
+    {% endif %}
+
+    <table>
+        <tr>
+            <th>{{ _('Aplicación') }}</th><th>{{ _('Clasificación') }}</th><th>{{ _('Nivel') }}</th>
+            <th>{{ _('Origen Oracle') }}</th><th>{{ _('Fan-in') }}</th><th>{{ _('Fan-out') }}</th><th></th>
+        </tr>
+        {% for c in classifications %}
+        <tr>
+            <td>{{ c.app_name }}</td>
+            <td><code>{{ c.classification }}</code>{% if c.is_critical_app %} <span class="badge">{{ _('crítica') }}</span>{% endif %}</td>
+            <td>{{ c.lineage_level if c.lineage_level is not none else '—' }}</td>
+            <td>{{ c.origin_app_name or '—' }}</td>
+            <td>{{ c.fan_in }}</td>
+            <td>{{ c.fan_out }}</td>
+            <td>
+                {% if c.app_id %}<a href="{{ url_for('lineage_application_detail', app_id=c.app_id) }}">{{ _('detalle') }}</a>{% endif %}
+                · <a href="{{ url_for('lineage_explorer', app_id=c.app_id) }}">{{ _('explorar') }}</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+<div class="card">
+    <h2>{{ _('Objetos críticos (data hubs)') }}</h2>
+    <p class="muted">{{ _('Objetos con más consumidores/productores que la mayoría del portafolio (tercil superior).') }}</p>
+    {% if critical_objects %}
+    <table>
+        <tr><th>{{ _('Objeto') }}</th><th>{{ _('Tipo') }}</th><th>{{ _('Servidor') }}</th><th>{{ _('Fan-in') }}</th><th>{{ _('Fan-out') }}</th><th>ERP Oracle</th><th></th></tr>
+        {% for o in critical_objects %}
+        <tr>
+            <td><code>{{ o.object_name }}</code></td>
+            <td>{{ o.object_kind }}</td>
+            <td>{{ o.server_kind or '—' }}</td>
+            <td>{{ o.fan_in }}</td>
+            <td>{{ o.fan_out }}</td>
+            <td>{{ '✓' if o.is_oracle_erp_table else '—' }}</td>
+            <td><a href="{{ url_for('lineage_object_detail', object_name=o.object_name) }}">{{ _('detalle') }}</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">{{ _('Ningún objeto alcanzó el umbral de criticidad en esta corrida.') }}</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>{{ _('Aplicaciones críticas (hubs)') }}</h2>
+    {% if critical_apps %}
+    <table>
+        <tr><th>{{ _('Aplicación') }}</th><th>{{ _('Clasificación') }}</th><th>{{ _('Fan-in') }}</th><th>{{ _('Fan-out') }}</th><th></th></tr>
+        {% for a in critical_apps %}
+        <tr>
+            <td>{{ a.app_name }}</td>
+            <td><code>{{ a.classification }}</code></td>
+            <td>{{ a.fan_in }}</td>
+            <td>{{ a.fan_out }}</td>
+            <td>{% if a.app_id %}<a href="{{ url_for('lineage_application_detail', app_id=a.app_id) }}">{{ _('detalle') }}</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">{{ _('Ninguna aplicación alcanzó el umbral de criticidad en esta corrida.') }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

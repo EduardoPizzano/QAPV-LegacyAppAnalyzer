@@ -1,0 +1,87 @@
+{% extends "library_base.html" %}
+{% block title %}{{ _('Explorador de Linaje') }} — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>{{ _('Explorador de Linaje') }}</h2>
+    <p class="muted">
+        {{ _('Traversal acotado EN VIVO (no depende de la corrida persistida) a partir de una app o de un objeto de datos, siguiendo relaciones productor→consumidor ya confirmadas por') }}
+        <a href="{{ url_for('data_flow') }}">{{ _('Flujo de Datos') }}</a>.
+    </p>
+
+    <form method="get" action="{{ url_for('lineage_explorer') }}">
+        <label for="app_id">{{ _('Aplicación') }}</label>
+        <select id="app_id" name="app_id" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink);">
+            <option value="">-- {{ _('Selecciona una aplicación') }} --</option>
+            {% for row in all_apps %}
+            <option value="{{ row.id }}" {% if row.id == selected_app_id %}selected{% endif %}>{{ row.name }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="object">{{ _('...o un objeto de datos (tabla/SP), si no seleccionaste app arriba') }}</label>
+        <input type="text" id="object" name="object" value="{{ object_name or '' }}" placeholder="{{ _('ej. TESTS_OTDR_RES') }}"
+               style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink);">
+
+        <label for="direction">{{ _('Dirección') }}</label>
+        <select id="direction" name="direction" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink);">
+            <option value="downstream" {% if direction == 'downstream' %}selected{% endif %}>{{ _('Downstream (hacia consumidores)') }}</option>
+            <option value="upstream" {% if direction == 'upstream' %}selected{% endif %}>{{ _('Upstream (hacia productores)') }}</option>
+            <option value="both" {% if direction == 'both' %}selected{% endif %}>{{ _('Ambas') }}</option>
+        </select>
+
+        <label for="max_depth">{{ _('Profundidad máxima') }} (1-8)</label>
+        <input type="number" id="max_depth" name="max_depth" value="{{ max_depth }}" min="1" max="8"
+               style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink);">
+
+        <button type="submit" class="btn" style="margin-top:10px;">{{ _('Explorar') }}</button>
+    </form>
+</div>
+
+{% if (selected_app_id or object_name) and not tree %}
+<div class="card"><p class="muted">{{ _('Sin resultados: la app no existe o el objeto no aparece en ningún hallazgo SQL del portafolio.') }}</p></div>
+{% endif %}
+
+{% if tree %}
+<div class="card">
+    <h2>{{ tree.root_name }}</h2>
+
+    {% if diagram_text %}
+    <pre class="mermaid">{{ diagram_text }}</pre>
+    <script src="{{ url_for('static', filename='mermaid.min.js') }}"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, securityLevel: "strict" });
+    </script>
+    {% else %}
+    <p class="muted">{{ _('Sin relaciones demostrables en esta dirección/profundidad.') }}</p>
+    {% endif %}
+
+    {% if tree.truncated %}
+    <p class="muted">{{ _('El árbol se truncó por profundidad/tamaño máximo — aumenta la profundidad o re-centra el explorador en un nodo más cercano.') }}</p>
+    {% endif %}
+</div>
+
+{% if tree.paths %}
+<div class="card">
+    <h2>{{ _('Caminos encontrados') }} ({{ tree.paths|length }})</h2>
+    <table>
+        <tr><th>{{ _('Camino') }}</th><th>{{ _('Objeto(s)') }}</th><th>{{ _('Confianza mínima') }}</th></tr>
+        {% for path in tree.paths %}
+        <tr>
+            <td>
+                {% for hop in path.hops %}
+                {% if loop.first %}
+                {% if app_ids.get(hop.from_app_name) %}<a href="{{ url_for('lineage_explorer', app_id=app_ids[hop.from_app_name], direction=direction, max_depth=max_depth) }}">{{ hop.from_app_name }}</a>{% else %}{{ hop.from_app_name }}{% endif %} →
+                {% endif %}
+                {% if app_ids.get(hop.to_app_name) %}<a href="{{ url_for('lineage_explorer', app_id=app_ids[hop.to_app_name], direction=direction, max_depth=max_depth) }}">{{ hop.to_app_name }}</a>{% else %}{{ hop.to_app_name }}{% endif %}{% if not loop.last %} → {% endif %}
+                {% endfor %}
+            </td>
+            <td>{% for hop in path.hops %}<code>{{ hop.object_name }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+            <td>{{ path.hops|map(attribute='confidence_label')|list|join(', ') }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}

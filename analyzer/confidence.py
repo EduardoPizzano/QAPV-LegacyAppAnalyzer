@@ -250,6 +250,65 @@ ARTIFACT_RELATIONSHIP_INSUFFICIENT_EVIDENCE = 20
 # la escala, igual que UNKNOWN: "no sabemos", nunca "no existe".
 APP_CALL_TARGET_UNKNOWN = 30
 
+# Incremento Data Lineage (2026-09, analyzer/data_lineage.py): confianza de
+# un HOP app->app sobre una tabla/SP/paquete Oracle dentro del grafo de
+# linaje -- dimension independiente de la confianza de columnas de Data Flow
+# (ya cubierta arriba via DATA_ROLE_COLUMNS_*, reutilizada tal cual via
+# RelationEvidence, nunca recalculada aqui) y de la confianza de conexion de
+# server_resolution.py (CONNECTION_CTOR_DIRECT_SETTING/_AMBIGUOUS_CONDITIONAL,
+# reutilizadas tal cual para atribuir el servidor de un hop).
+
+# El origen Oracle de la app se confirma por evidencia sintactica directa:
+# kind == "OracleConnection", category == "oracle_package_call", o un
+# connection string con forma TNS (HOST=/SID=/SERVICE_NAME=) -- las 3 senales
+# independientes de analyzer.data_lineage.detect_oracle_origin_apps().
+LINEAGE_ORACLE_ORIGIN_DIRECT_CONNECTION = 95
+
+# El hop reutiliza una relacion FUERTE ya confirmada por
+# data_flow.resolve_app_relations() (escritura+lectura confirmadas de ambos
+# lados sobre la misma tabla) -- misma certeza que la propia relacion de
+# Data Flow, sin degradar.
+LINEAGE_HOP_STRONG_DATA_FLOW = 85
+
+# La relacion productor/consumidor es igual de fuerte, pero la atribucion del
+# SERVIDOR del salto (a que Oracle/SQL Server/localdb pertenece) depende de
+# server_resolution.resolve_write_targets(), que puede quedar en un estado
+# "unresolved_*" para ese target especifico -- se sabe QUE hop existe, no con
+# igual certeza A QUE servidor pertenece.
+LINEAGE_HOP_SERVER_MEDIATED = 70
+
+# Ambas apps tocan el mismo objeto pero Data Flow solo confirma una
+# SharedTableRelation (mismo lado -- ambas productoras o ambas consumidoras),
+# nunca una relacion dirigida real -- se sabe que hay contacto, no direccion
+# (ver unknown.RESOLUTION_STATUSES: unresolved_lineage_direction_ambiguous).
+LINEAGE_HOP_WEAK_OR_UNCONFIRMED_DIRECTION = 45
+
+# Bandas cualitativas sobre la escala 0-100 -- unico lugar que traduce un
+# score numerico a una etiqueta CONFIRMED/PROBABLE/POSSIBLE/NOT_CONFIRMED
+# (pedido explicito del usuario para Data Lineage, seccion 11), para que
+# ninguna feature futura invente su propio corte. Umbrales alineados con los
+# niveles ya existentes arriba: 85 = certeza sintactica directa (igual que
+# HARDCODED_METHOD_LITERAL/LINEAGE_HOP_STRONG_DATA_FLOW), 65 = evidencia
+# fuerte con un eslabon mediado (LINEAGE_HOP_SERVER_MEDIATED), 40 = señal
+# real pero ambigua (DYNAMIC_SQL/REFLECTION/LINEAGE_HOP_WEAK_OR_UNCONFIRMED_
+# DIRECTION), por debajo = no confirmado.
+CONFIDENCE_LABEL_BANDS = (
+    (85, "CONFIRMED"),
+    (65, "PROBABLE"),
+    (40, "POSSIBLE"),
+    (0, "NOT_CONFIRMED"),
+)
+
+
+def label_for_score(score: int) -> str:
+    """Nunca lanza excepcion -- un score fuera de [0, 100] simplemente cae en
+    la banda que le corresponda (por debajo de 0 -> NOT_CONFIRMED, por
+    encima de 100 -> CONFIRMED), igual de tolerante que resolve_confidence()."""
+    for threshold, label in CONFIDENCE_LABEL_BANDS:
+        if score >= threshold:
+            return label
+    return "NOT_CONFIRMED"
+
 # Incremento Flujo de Aplicacion - Data Flow Integration (2026-08-20,
 # analyzer/app_data_flow.py): confianza de la ATRIBUCION Method->SqlFinding
 # -- dimension independiente de la confianza del propio contenido SQL (ya
@@ -347,6 +406,10 @@ CONFIDENCE_TABLE: dict[str, int] = {
     "ARTIFACT_RELATIONSHIP_SOURCE_HASH_MATCH": ARTIFACT_RELATIONSHIP_SOURCE_HASH_MATCH,
     "ARTIFACT_RELATIONSHIP_MANUAL_EVIDENCE": ARTIFACT_RELATIONSHIP_MANUAL_EVIDENCE,
     "ARTIFACT_RELATIONSHIP_INSUFFICIENT_EVIDENCE": ARTIFACT_RELATIONSHIP_INSUFFICIENT_EVIDENCE,
+    "LINEAGE_ORACLE_ORIGIN_DIRECT_CONNECTION": LINEAGE_ORACLE_ORIGIN_DIRECT_CONNECTION,
+    "LINEAGE_HOP_STRONG_DATA_FLOW": LINEAGE_HOP_STRONG_DATA_FLOW,
+    "LINEAGE_HOP_SERVER_MEDIATED": LINEAGE_HOP_SERVER_MEDIATED,
+    "LINEAGE_HOP_WEAK_OR_UNCONFIRMED_DIRECTION": LINEAGE_HOP_WEAK_OR_UNCONFIRMED_DIRECTION,
     "UNKNOWN": UNKNOWN,
 }
 

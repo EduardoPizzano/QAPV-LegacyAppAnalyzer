@@ -9,6 +9,7 @@
         <a class="btn secondary full" href="{{ url_for('data_footprint') }}">🗺 {{ _('Huella de datos') }}</a>
         <a class="btn secondary full" href="{{ url_for('data_flow') }}">🔀 {{ _('Flujo de datos') }}</a>
         <a class="btn secondary full" href="{{ url_for('app_map') }}">🕸 {{ _('Mapa de aplicaciones') }}</a>
+        <a class="btn secondary full" href="{{ url_for('lineage_overview') }}">🧬 {{ _('Linaje de datos') }}</a>
         <ul class="report-list">
             {% for item in apps %}
             {% if item.kind == 'group' %}

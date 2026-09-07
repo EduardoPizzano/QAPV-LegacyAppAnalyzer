@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
+from .__version__ import ANALYZER_VERSION
 from .activity import ActivityEvidence
 from .artifact import UNKNOWN as ARTIFACT_UNKNOWN
 from .artifact import ArtifactEvidence
@@ -164,6 +165,83 @@ CREATE TABLE IF NOT EXISTS artifact_relationships (
     CHECK (artifact_a_id < artifact_b_id),
     UNIQUE (artifact_a_id, artifact_b_id)
 );
+
+-- Data Lineage (2026-09): un "lineage_run" es una corrida completa y ATOMICA
+-- del Build/Refresh (analyzer/data_lineage.run_lineage_build()) -- NUNCA se
+-- sobreescribe una corrida anterior, cada refresh crea una fila nueva aqui y
+-- sus propias filas en lineage_edges/lineage_app_classifications/
+-- lineage_object_stats, todas scoped por lineage_run_id. "cual corrida es la
+-- vigente" tiene UN SOLO punto de decision: get_latest_completed_lineage_run()
+-- -- ninguna vista/consulta lo decide por su cuenta (Principio 1: el grafo es
+-- regenerable, se reemplaza en cada refresh; nunca se edita a mano).
+CREATE TABLE IF NOT EXISTS lineage_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    status TEXT NOT NULL DEFAULT 'running',
+    app_count INTEGER,
+    edge_count INTEGER,
+    triggered_by TEXT,
+    error_message TEXT,
+    analyzer_version TEXT
+);
+
+-- Una arista app->app sobre un objeto de datos (tabla/SP/paquete Oracle),
+-- derivada de la MISMA clasificacion de analyzer/data_flow.py -- nunca una
+-- segunda clasificacion. confidence/confidence_label siguen la banda
+-- centralizada de analyzer/confidence.py (CONFIRMED/PROBABLE/POSSIBLE/
+-- NOT_CONFIRMED), nunca un corte propio.
+CREATE TABLE IF NOT EXISTS lineage_edges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lineage_run_id INTEGER NOT NULL REFERENCES lineage_runs(id) ON DELETE CASCADE,
+    from_app_id INTEGER REFERENCES apps(id) ON DELETE CASCADE,
+    from_app_name TEXT NOT NULL,
+    to_app_id INTEGER REFERENCES apps(id) ON DELETE CASCADE,
+    to_app_name TEXT NOT NULL,
+    object_name TEXT NOT NULL,
+    object_kind TEXT NOT NULL,
+    operation TEXT,
+    server_kind TEXT NOT NULL DEFAULT 'unknown',
+    server_name TEXT,
+    database_name TEXT,
+    is_oracle_erp_table INTEGER NOT NULL DEFAULT 0,
+    confidence INTEGER NOT NULL,
+    confidence_label TEXT NOT NULL,
+    detection_method TEXT NOT NULL,
+    evidence_json TEXT,
+    observed_at TEXT NOT NULL
+);
+
+-- Clasificacion de linaje por app para UNA corrida (DIRECT_ORACLE/
+-- ORACLE_DERIVED/DOWNSTREAM_CONSUMER/INDIRECT_DOWNSTREAM/UNRELATED) --
+-- ver analyzer/data_lineage.py para la regla de nivel/BFS que la produce.
+CREATE TABLE IF NOT EXISTS lineage_app_classifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lineage_run_id INTEGER NOT NULL REFERENCES lineage_runs(id) ON DELETE CASCADE,
+    app_id INTEGER REFERENCES apps(id) ON DELETE CASCADE,
+    app_name TEXT NOT NULL,
+    classification TEXT NOT NULL,
+    lineage_level INTEGER,
+    origin_app_name TEXT,
+    fan_in INTEGER NOT NULL DEFAULT 0,
+    fan_out INTEGER NOT NULL DEFAULT 0,
+    is_critical_app INTEGER NOT NULL DEFAULT 0,
+    evidence_summary TEXT
+);
+
+-- Estadisticas de fan-in/fan-out por objeto de datos para UNA corrida --
+-- base de "Critical / Hub Objects" (fan_in/fan_out altos = data hub).
+CREATE TABLE IF NOT EXISTS lineage_object_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lineage_run_id INTEGER NOT NULL REFERENCES lineage_runs(id) ON DELETE CASCADE,
+    object_name TEXT NOT NULL,
+    object_kind TEXT NOT NULL,
+    server_kind TEXT,
+    fan_in INTEGER NOT NULL DEFAULT 0,
+    fan_out INTEGER NOT NULL DEFAULT 0,
+    is_critical_object INTEGER NOT NULL DEFAULT 0,
+    is_oracle_erp_table INTEGER NOT NULL DEFAULT 0
+);
 """
 
 # Read models (ADR-0003 / VISION.md decision #4): capas de agregacion de
@@ -197,6 +275,21 @@ JOIN sql_findings sf2 ON sf2.target = sf1.target AND sf2.app_id > sf1.app_id
 JOIN apps a1 ON a1.id = sf1.app_id
 JOIN apps a2 ON a2.id = sf2.app_id
 WHERE sf1.target IS NOT NULL AND sf1.category IN ('query', 'stored_procedure');
+
+-- Aristas de la ULTIMA corrida de Data Lineage completada -- equivalente de
+-- vw_dependency_graph pero DIRIGIDA, TIPADA y con confianza. "cual es la
+-- corrida vigente" tiene un unico punto de decision (misma subquery que
+-- get_latest_completed_lineage_run() usa) para que ninguna consulta ad hoc
+-- lo re-derive por su cuenta.
+DROP VIEW IF EXISTS vw_lineage_latest_edges;
+CREATE VIEW vw_lineage_latest_edges AS
+SELECT le.*
+FROM lineage_edges le
+WHERE le.lineage_run_id = (
+    SELECT lr.id FROM lineage_runs lr
+    WHERE lr.status = 'completed'
+    ORDER BY lr.completed_at DESC, lr.id DESC LIMIT 1
+);
 """
 
 
@@ -320,6 +413,16 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_artifact_relationships_a ON artifact_relationships(artifact_a_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_artifact_relationships_b ON artifact_relationships(artifact_b_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_apps_artifact_id ON apps(artifact_id)")
+
+        # Data Lineage: indices sobre las 4 tablas nuevas, todas creadas
+        # directamente en SCHEMA (tablas nuevas, no requieren ALTER).
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_edges_run ON lineage_edges(lineage_run_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_edges_from_app ON lineage_edges(lineage_run_id, from_app_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_edges_to_app ON lineage_edges(lineage_run_id, to_app_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_edges_object ON lineage_edges(lineage_run_id, object_name)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_classifications_run ON lineage_app_classifications(lineage_run_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_classifications_app ON lineage_app_classifications(app_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_object_stats_run ON lineage_object_stats(lineage_run_id)")
 
         # Las vistas se recrean siempre (DROP + CREATE) en cada arranque, no
         # solo la primera vez -- son baratas de regenerar y asi nunca quedan
@@ -782,6 +885,24 @@ def group_apps_for_sidebar() -> list[dict]:
     return items
 
 
+def get_portfolio_summary() -> dict:
+    """Conteos agregados para el dashboard principal (index.html). Pura
+    lectura sobre list_apps(), mismo criterio 'reviewed_statuses' que ya usa
+    group_apps_for_sidebar() -- una sola fuente de verdad para que decide
+    "revisada", no una regla nueva ni duplicada."""
+    apps = list_apps()
+    reviewed_statuses = {"logica_revisada", "listo_para_migrar"}
+    total = len(apps)
+    obsolete = sum(1 for a in apps if a["review_status"] == "obsoleta")
+    reviewed = sum(1 for a in apps if a["review_status"] in reviewed_statuses)
+    return {
+        "total": total,
+        "reviewed": reviewed,
+        "pending": total - obsolete - reviewed,
+        "obsolete": obsolete,
+    }
+
+
 def get_app(app_id: int) -> dict:
     with get_conn() as conn:
         app = conn.execute("SELECT * FROM apps WHERE id = ?", (app_id,)).fetchone()
@@ -851,6 +972,12 @@ def list_sql_findings_for_targets(target_keys: set[str]) -> list[dict]:
 def delete_app(app_id: int) -> None:
     with get_conn() as conn:
         conn.execute("DELETE FROM apps WHERE id = ?", (app_id,))
+
+
+def get_app_id_by_name(name: str) -> int | None:
+    with get_conn() as conn:
+        row = conn.execute("SELECT id FROM apps WHERE name = ?", (name,)).fetchone()
+        return row["id"] if row else None
 
 
 def search_by_table(term: str) -> list[sqlite3.Row]:
@@ -1350,3 +1477,203 @@ def get_priority_and_complexity() -> list[dict]:
 
     rows.sort(key=lambda r: -r["priority_score"])
     return rows
+
+
+# ---------------------------------------------------------------------------
+# Data Lineage (2026-09) -- persistencia de las corridas de
+# analyzer.data_lineage.run_lineage_build(). Un "lineage_run" es la unica
+# unidad de escritura: nunca se actualiza una corrida ya completada, un
+# refresh siempre crea una fila nueva en lineage_runs y sus propias filas
+# hijas. get_latest_completed_lineage_run() es el UNICO punto de decision de
+# "cual corrida es la vigente" -- toda funcion/ruta de lectura recibe run_id
+# explicito, nunca re-deriva "la ultima" por su cuenta.
+# ---------------------------------------------------------------------------
+
+LINEAGE_RUN_STATUSES = ("running", "completed", "failed")
+LINEAGE_CLASSIFICATIONS = (
+    "DIRECT_ORACLE", "ORACLE_DERIVED", "DOWNSTREAM_CONSUMER", "INDIRECT_DOWNSTREAM", "UNRELATED",
+)
+LINEAGE_CONFIDENCE_LABELS = ("CONFIRMED", "PROBABLE", "POSSIBLE", "NOT_CONFIRMED")
+
+
+def start_lineage_run(triggered_by: str | None = None) -> int:
+    """Abre una corrida nueva en estado 'running' -- si el proceso truena a
+    mitad de camino, la fila queda 'running' para siempre (nunca 'completed'
+    a medias, Principio 3): quien lea lineage_runs puede distinguir una
+    corrida interrumpida de una exitosa."""
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO lineage_runs (started_at, status, triggered_by, analyzer_version) "
+            "VALUES (?, 'running', ?, ?)",
+            (datetime.now().isoformat(timespec="seconds"), triggered_by, ANALYZER_VERSION),
+        )
+        return cur.lastrowid
+
+
+def complete_lineage_run(run_id: int, app_count: int, edge_count: int) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE lineage_runs SET status = 'completed', completed_at = ?, app_count = ?, edge_count = ? "
+            "WHERE id = ?",
+            (datetime.now().isoformat(timespec="seconds"), app_count, edge_count, run_id),
+        )
+
+
+def fail_lineage_run(run_id: int, error_message: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE lineage_runs SET status = 'failed', completed_at = ?, error_message = ? WHERE id = ?",
+            (datetime.now().isoformat(timespec="seconds"), error_message, run_id),
+        )
+
+
+def save_lineage_edges(run_id: int, edges: list[dict]) -> None:
+    with get_conn() as conn:
+        conn.executemany(
+            "INSERT INTO lineage_edges (lineage_run_id, from_app_id, from_app_name, to_app_id, to_app_name, "
+            "object_name, object_kind, operation, server_kind, server_name, database_name, "
+            "is_oracle_erp_table, confidence, confidence_label, detection_method, evidence_json, observed_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    run_id, e.get("from_app_id"), e["from_app_name"], e.get("to_app_id"), e["to_app_name"],
+                    e["object_name"], e["object_kind"], e.get("operation"), e.get("server_kind", "unknown"),
+                    e.get("server_name"), e.get("database_name"), int(e.get("is_oracle_erp_table", False)),
+                    e["confidence"], e["confidence_label"], e["detection_method"],
+                    json.dumps(e.get("evidence")) if e.get("evidence") is not None else None,
+                    e.get("observed_at") or datetime.now().isoformat(timespec="seconds"),
+                )
+                for e in edges
+            ],
+        )
+
+
+def save_lineage_classifications(run_id: int, classifications: list[dict]) -> None:
+    with get_conn() as conn:
+        conn.executemany(
+            "INSERT INTO lineage_app_classifications (lineage_run_id, app_id, app_name, classification, "
+            "lineage_level, origin_app_name, fan_in, fan_out, is_critical_app, evidence_summary) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    run_id, c.get("app_id"), c["app_name"], c["classification"], c.get("lineage_level"),
+                    c.get("origin_app_name"), c.get("fan_in", 0), c.get("fan_out", 0),
+                    int(c.get("is_critical_app", False)), c.get("evidence_summary"),
+                )
+                for c in classifications
+            ],
+        )
+
+
+def save_lineage_object_stats(run_id: int, object_stats: list[dict]) -> None:
+    with get_conn() as conn:
+        conn.executemany(
+            "INSERT INTO lineage_object_stats (lineage_run_id, object_name, object_kind, server_kind, "
+            "fan_in, fan_out, is_critical_object, is_oracle_erp_table) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    run_id, o["object_name"], o["object_kind"], o.get("server_kind"),
+                    o.get("fan_in", 0), o.get("fan_out", 0),
+                    int(o.get("is_critical_object", False)), int(o.get("is_oracle_erp_table", False)),
+                )
+                for o in object_stats
+            ],
+        )
+
+
+def get_latest_completed_lineage_run() -> dict | None:
+    """ORDER BY completed_at DESC, id DESC -- dos corridas pueden completarse
+    dentro del mismo segundo (datetime.now() con resolucion de segundos), y
+    sin un desempate explicito por id la corrida mas reciente no queda
+    garantizada como la primera fila devuelta."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM lineage_runs WHERE status = 'completed' ORDER BY completed_at DESC, id DESC LIMIT 1"
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def list_lineage_runs(limit: int = 20) -> list[dict]:
+    with get_conn() as conn:
+        return [
+            dict(r) for r in conn.execute(
+                "SELECT * FROM lineage_runs ORDER BY started_at DESC, id DESC LIMIT ?", (limit,)
+            )
+        ]
+
+
+def get_lineage_edges(
+    run_id: int, *, app_id: int | None = None, object_name: str | None = None, direction: str | None = None,
+) -> list[dict]:
+    """direction='downstream' -> aristas donde app_id es el ORIGEN
+    (from_app_id); 'upstream' -> aristas donde app_id es el DESTINO
+    (to_app_id); None -> ambas direcciones (o sin filtro de app si app_id
+    tampoco se da)."""
+    query = "SELECT * FROM lineage_edges WHERE lineage_run_id = ?"
+    params: list = [run_id]
+    if app_id is not None:
+        if direction == "downstream":
+            query += " AND from_app_id = ?"
+            params.append(app_id)
+        elif direction == "upstream":
+            query += " AND to_app_id = ?"
+            params.append(app_id)
+        else:
+            query += " AND (from_app_id = ? OR to_app_id = ?)"
+            params.extend([app_id, app_id])
+    if object_name is not None:
+        query += " AND object_name = ?"
+        params.append(object_name)
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(query, tuple(params))]
+
+
+def get_lineage_classification(run_id: int, app_id: int) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM lineage_app_classifications WHERE lineage_run_id = ? AND app_id = ?",
+            (run_id, app_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def list_lineage_classifications(run_id: int, *, classification: str | None = None) -> list[dict]:
+    query = "SELECT * FROM lineage_app_classifications WHERE lineage_run_id = ?"
+    params: list = [run_id]
+    if classification is not None:
+        query += " AND classification = ?"
+        params.append(classification)
+    query += " ORDER BY app_name"
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(query, tuple(params))]
+
+
+def get_lineage_object_stats(run_id: int, object_name: str) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM lineage_object_stats WHERE lineage_run_id = ? AND object_name = ?",
+            (run_id, object_name),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def list_critical_lineage_objects(run_id: int, top_n: int | None = None) -> list[dict]:
+    query = (
+        "SELECT * FROM lineage_object_stats WHERE lineage_run_id = ? AND is_critical_object = 1 "
+        "ORDER BY (fan_in + fan_out) DESC"
+    )
+    if top_n is not None:
+        query += f" LIMIT {int(top_n)}"
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(query, (run_id,))]
+
+
+def list_critical_lineage_apps(run_id: int, top_n: int | None = None) -> list[dict]:
+    query = (
+        "SELECT * FROM lineage_app_classifications WHERE lineage_run_id = ? AND is_critical_app = 1 "
+        "ORDER BY (fan_in + fan_out) DESC"
+    )
+    if top_n is not None:
+        query += f" LIMIT {int(top_n)}"
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(query, (run_id,))]

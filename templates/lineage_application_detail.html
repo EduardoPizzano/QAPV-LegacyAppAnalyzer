@@ -1,0 +1,63 @@
+{% extends "library_base.html" %}
+{% block title %}{{ _('Linaje') }} — {{ app.name }} — QAPV Legacy App Analyzer{% endblock %}
+{% block right %}
+
+<div class="card">
+    <h2>{{ app.name }}</h2>
+    <p class="muted">
+        <a href="{{ url_for('app_detail', app_id=app.id) }}">{{ _('Ver detalle de la app') }}</a>
+        · <a href="{{ url_for('lineage_explorer', app_id=app.id) }}">{{ _('Explorar en vivo') }}</a>
+        · <a href="{{ url_for('lineage_impact_analysis', app_id=app.id) }}">{{ _('Impact analysis') }}</a>
+    </p>
+
+    {% if not run %}
+    <p class="muted">{{ _('Todavía no se ha calculado el Data Lineage del portafolio — ve a') }} <a href="{{ url_for('lineage_overview') }}">{{ _('Linaje de Datos') }}</a> {{ _('y pulsa Construir/Refrescar.') }}</p>
+    {% elif not classification %}
+    <p class="muted">{{ _('Esta app no participó en la última corrida de Data Lineage (sin evidencia de relaciones productor/consumidor).') }}</p>
+    {% else %}
+    <div class="exec-summary">
+        <div class="exec-stat"><div class="label">{{ _('Clasificación') }}</div><div class="value">{{ classification.classification }}</div></div>
+        <div class="exec-stat"><div class="label">{{ _('Nivel') }}</div><div class="value">{{ classification.lineage_level if classification.lineage_level is not none else '—' }}</div></div>
+        <div class="exec-stat"><div class="label">{{ _('Origen Oracle') }}</div><div class="value">{{ classification.origin_app_name or '—' }}</div></div>
+        <div class="exec-stat"><div class="label">Fan-in</div><div class="value">{{ classification.fan_in }}</div></div>
+        <div class="exec-stat"><div class="label">Fan-out</div><div class="value">{{ classification.fan_out }}</div></div>
+    </div>
+    <p class="muted">{{ classification.evidence_summary }}</p>
+    {% endif %}
+</div>
+
+{% if edges_out %}
+<div class="card">
+    <h2>{{ _('Produce hacia (linaje)') }}</h2>
+    <table>
+        <tr><th>{{ _('Objeto') }}</th><th>{{ _('Consumidor') }}</th><th>{{ _('Servidor') }}</th><th>{{ _('Confianza') }}</th></tr>
+        {% for e in edges_out %}
+        <tr>
+            <td><a href="{{ url_for('lineage_object_detail', object_name=e.object_name) }}"><code>{{ e.object_name }}</code></a></td>
+            <td>{% if e.to_app_id %}<a href="{{ url_for('lineage_application_detail', app_id=e.to_app_id) }}">{{ e.to_app_name }}</a>{% else %}{{ e.to_app_name }}{% endif %}</td>
+            <td>{{ e.server_kind }}{% if e.server_name %} ({{ e.server_name }}){% endif %}</td>
+            <td>{{ e.confidence_label }} ({{ e.confidence }})</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+
+{% if edges_in %}
+<div class="card">
+    <h2>{{ _('Consume desde (linaje)') }}</h2>
+    <table>
+        <tr><th>{{ _('Objeto') }}</th><th>{{ _('Productor') }}</th><th>{{ _('Servidor') }}</th><th>{{ _('Confianza') }}</th></tr>
+        {% for e in edges_in %}
+        <tr>
+            <td><a href="{{ url_for('lineage_object_detail', object_name=e.object_name) }}"><code>{{ e.object_name }}</code></a></td>
+            <td>{% if e.from_app_id %}<a href="{{ url_for('lineage_application_detail', app_id=e.from_app_id) }}">{{ e.from_app_name }}</a>{% else %}{{ e.from_app_name }}{% endif %}</td>
+            <td>{{ e.server_kind }}{% if e.server_name %} ({{ e.server_name }}){% endif %}</td>
+            <td>{{ e.confidence_label }} ({{ e.confidence }})</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -193,3 +193,78 @@ def build_app_relations_diagram(app_name: str, produces_to, consumes_from, self_
     lines.append("    classDef focalNode fill:#e1eef8,stroke:#1c6fc9,color:#17324d,font-weight:bold;")
 
     return "\n".join(lines)
+
+
+def build_lineage_diagram(tree, root_kind: str = "app") -> str | None:
+    """Data Lineage Explorer (2026-09): flowchart TD (top-down se lee mejor
+    que LR para una cadena de varios niveles) de un LineageTree ya acotado
+    (analyzer.data_lineage.resolve_lineage_for_app/_for_object). Reutiliza
+    MAX_NODES/_sanitize_id/_escape_label -- mismo mecanismo, mismo limite que
+    build_app_relations_diagram, deliberadamente NINGUNA libreria JS nueva
+    (ver ARCHITECTURAL_PRINCIPLES.md Principio 4: sin evidencia de que
+    Mermaid no alcance para esto).
+
+    Nodos = SOLO apps (igual decision que build_app_relations_diagram): el
+    nombre del objeto de datos va como ETIQUETA de la arista, nunca como su
+    propio nodo -- en un arbol multi-nivel, un nodo por objeto agotaria
+    MAX_NODES mucho antes que en el Mapa de Aplicaciones de un solo salto.
+    Los nodos DIRECT_ORACLE (root, o cualquier hop cuyo server_kind=='oracle')
+    reciben su propio classDef para anclar visualmente donde nace la cadena."""
+    if tree is None or not tree.paths:
+        return None
+
+    lines = ["flowchart TD"]
+    node_ids: dict[str, str] = {}
+    oracle_nodes: set[str] = set()
+    node_count = 0
+    truncated = tree.truncated
+    edges_drawn: set[tuple[str, str, str]] = set()
+
+    def app_node(name: str) -> str:
+        nonlocal node_count
+        if name in node_ids:
+            return node_ids[name]
+        node_id = f"app_{_sanitize_id(name)}"
+        node_ids[name] = node_id
+        node_count += 1
+        return node_id
+
+    for path in tree.paths:
+        for hop in path.hops:
+            if node_count >= MAX_NODES:
+                truncated = True
+                break
+            from_id = app_node(hop.from_app_name)
+            to_id = app_node(hop.to_app_name)
+            if hop.server_kind == "oracle":
+                oracle_nodes.add(hop.from_app_name)
+            edge_key = (from_id, to_id, hop.object_name)
+            if edge_key in edges_drawn:
+                continue
+            edges_drawn.add(edge_key)
+            lines.append(f'    {from_id} -->|"{_escape_label(hop.object_name)}"| {to_id}')
+        if node_count >= MAX_NODES:
+            truncated = True
+            break
+
+    if root_kind == "app" and tree.root_name in node_ids:
+        oracle_nodes.discard(tree.root_name)  # el classDef de root se aplica aparte, no se duplica
+
+    node_decls = [f'    {node_id}["{_escape_label(name)}"]' for name, node_id in node_ids.items()]
+    lines[1:1] = node_decls  # las declaraciones de nodo van antes de las aristas
+
+    root_id = node_ids.get(tree.root_name)
+    if root_id:
+        lines.append(f"    class {root_id} rootNode;")
+    if oracle_nodes:
+        oracle_ids = ", ".join(node_ids[n] for n in oracle_nodes if n in node_ids)
+        if oracle_ids:
+            lines.append(f"    class {oracle_ids} oracleNode;")
+
+    if truncated:
+        lines.append('    nota_truncado["... linaje adicional truncado — ver la tabla de evidencia abajo"]')
+
+    lines.append("    classDef rootNode fill:#e1eef8,stroke:#1c6fc9,color:#17324d,font-weight:bold;")
+    lines.append("    classDef oracleNode fill:#f8dfc0,stroke:#b5651d,color:#5c3010;")
+
+    return "\n".join(lines)

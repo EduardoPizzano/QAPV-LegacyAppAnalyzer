@@ -199,6 +199,62 @@ class TestArtifactSchemaMigration:
         assert before == after
 
 
+class TestDataLineageSchemaMigration:
+    """Data Lineage (2026-09): 4 tablas nuevas (lineage_runs/lineage_edges/
+    lineage_app_classifications/lineage_object_stats), todas CREATE TABLE IF
+    NOT EXISTS directas en SCHEMA (no ALTER) -- verificado contra una COPIA
+    de la BD real ya poblada, mismo patron que el resto de esta clase."""
+
+    def test_lineage_tables_exist_after_migration_on_real_db_copy(self, db_copy):
+        db.init_db()
+        with db.get_conn() as conn:
+            tables = {row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        for table in ("lineage_runs", "lineage_edges", "lineage_app_classifications", "lineage_object_stats"):
+            assert table in tables
+
+    def test_migration_does_not_populate_lineage_tables(self, db_copy):
+        """init_db() es puramente aditivo a nivel de esquema -- nunca calcula
+        ni persiste un lineage_run por si solo (eso requiere la accion
+        explicita Construir/Refrescar, ver analyzer/data_lineage.run_lineage_build).
+
+        No asume que la copia de la BD real empieza sin lineage_runs -- desde
+        que el portafolio real se construyo por primera vez (Iteracion 1,
+        2026-09-07) la BD de produccion trae legitimamente su propio
+        lineage_run_id=1, y una migracion nunca debe alterar eso. El
+        invariante real a proteger es "init_db() no agrega filas nuevas",
+        mismo criterio que ya usan test_migration_does_not_populate_artifacts_table
+        y test_app_count_unchanged de mas arriba -- no "la tabla nace vacia"."""
+        with db.get_conn() as conn:
+            count_before = conn.execute("SELECT COUNT(*) AS c FROM lineage_runs").fetchone()["c"]
+
+        db.init_db()
+
+        with db.get_conn() as conn:
+            count_after = conn.execute("SELECT COUNT(*) AS c FROM lineage_runs").fetchone()["c"]
+        assert count_after == count_before
+
+    def test_app_count_and_review_status_unaffected_by_lineage_migration(self, db_copy):
+        with db.get_conn() as conn:
+            before = [dict(r) for r in conn.execute("SELECT id, name, review_status, review_notes FROM apps")]
+
+        db.init_db()
+
+        with db.get_conn() as conn:
+            after = [dict(r) for r in conn.execute("SELECT id, name, review_status, review_notes FROM apps")]
+        assert before == after
+
+    def test_migration_is_idempotent_for_lineage_tables(self, db_copy):
+        db.init_db()
+        db.init_db()  # no debe lanzar excepcion ni duplicar tablas/indices
+        with db.get_conn() as conn:
+            tables = [
+                row["name"] for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name = 'lineage_runs'"
+                )
+            ]
+        assert len(tables) == 1
+
+
 class TestMigrationIsIdempotent:
     def test_running_init_db_twice_is_safe(self, db_copy):
         """init_db() ya corre en cada arranque de app.py -- confirma que

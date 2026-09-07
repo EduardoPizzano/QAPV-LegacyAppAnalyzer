@@ -7,9 +7,12 @@ Todo lo analizado se acumula en qapv_analyzer.db para busqueda cruzada.
 
 Uso:
     .venv/Scripts/python.exe app.py
-    (abre http://127.0.0.1:5000)
+    (abre http://127.0.0.1:5000 automaticamente en el navegador)
 """
 
+import os
+import threading
+import webbrowser
 import markdown as md
 from collections import defaultdict
 from pathlib import Path
@@ -18,6 +21,7 @@ from flask import Flask, Response, flash, jsonify, redirect, render_template, re
 from flask_babel import Babel, gettext as _
 
 from analyzer import data_flow as data_flow_analyzer
+from analyzer import data_lineage
 from analyzer import db, diagram, enrich, export_office, priority_report, server_resolution
 from analyzer.decompile import DecompileError, discover_assemblies, project_label
 from analyzer.pipeline import run_analysis
@@ -167,7 +171,10 @@ def _batch_name(root_path: str, exe_path: str) -> str:
 
 @app.route("/")
 def index():
-    return render_template("index.html", apps=db.group_apps_for_sidebar(), selected_id=None)
+    return render_template(
+        "index.html", apps=db.group_apps_for_sidebar(), selected_id=None,
+        summary=db.get_portfolio_summary(),
+    )
 
 
 @app.route("/analyze", methods=["POST"])
@@ -586,6 +593,155 @@ def app_map():
     )
 
 
+@app.route("/lineage")
+def lineage_overview():
+    """Data Lineage - Overview (2026-09): resumen del ecosistema + Critical
+    Objects/Apps, leidos EXCLUSIVAMENTE de la ULTIMA corrida completada
+    (db.get_latest_completed_lineage_run()) -- nunca recalcula el grafo
+    completo por request (ver analyzer/data_lineage.py: esa es la parte cara,
+    solo se ejecuta via el boton Construir/Refrescar). Sin corrida previa,
+    muestra un estado explicito en vez de tablas vacias."""
+    run = db.get_latest_completed_lineage_run()
+    classifications = []
+    critical_objects = []
+    critical_apps = []
+    classification_counts = {c: 0 for c in db.LINEAGE_CLASSIFICATIONS}
+    if run:
+        classifications = db.list_lineage_classifications(run["id"])
+        for c in classifications:
+            classification_counts[c["classification"]] = classification_counts.get(c["classification"], 0) + 1
+        critical_objects = db.list_critical_lineage_objects(run["id"])
+        critical_apps = db.list_critical_lineage_apps(run["id"])
+
+    filter_classification = request.args.get("classification", "").strip()
+    if filter_classification:
+        classifications = [c for c in classifications if c["classification"] == filter_classification]
+
+    return render_template(
+        "lineage_overview.html",
+        run=run, classifications=classifications, classification_counts=classification_counts,
+        classification_order=db.LINEAGE_CLASSIFICATIONS, filter_classification=filter_classification,
+        critical_objects=critical_objects, critical_apps=critical_apps,
+        apps=db.group_apps_for_sidebar(), selected_id=None,
+    )
+
+
+@app.route("/lineage/build", methods=["POST"])
+def lineage_build():
+    """Construir/Refrescar Data Lineage -- mismo patron UX que
+    /apps/<id>/enrich: ejecucion sincronica, portfolio-wide, flash de
+    resumen, redirect. Persiste una corrida NUEVA (nunca sobreescribe la
+    anterior) via analyzer.data_lineage.run_lineage_build()."""
+    try:
+        summary = data_lineage.run_lineage_build(triggered_by="manual")
+    except Exception as e:
+        flash(_("Error al construir el Data Lineage: %(err)s") % {"err": e})
+        return redirect(url_for("lineage_overview"))
+
+    flash(
+        _("Data Lineage reconstruido: %(apps)s app(s), %(edges)s relacion(es) de linaje.")
+        % {"apps": summary.app_count, "edges": summary.edge_count}
+    )
+    return redirect(url_for("lineage_overview"))
+
+
+@app.route("/lineage/explorer")
+def lineage_explorer():
+    """Lineage Explorer: vista ENFOCADA on-demand, igual patron que
+    /app_map -- NUNCA lee/escribe las tablas lineage_*, recalcula en cada
+    request via analyzer.data_lineage.resolve_lineage_for_app/_for_object
+    (bounded_context, mismo mecanismo que resolve_app_relations)."""
+    app_id = request.args.get("app_id", type=int)
+    object_name = request.args.get("object", "").strip() or None
+    direction = request.args.get("direction", "downstream")
+    if direction not in ("upstream", "downstream", "both"):
+        direction = "downstream"
+    max_depth = request.args.get("max_depth", default=3, type=int)
+    max_depth = max(1, min(max_depth or 3, 8))
+
+    all_apps = db.list_apps()
+    app_ids = {row["name"]: row["id"] for row in all_apps}
+
+    tree = None
+    diagram_text = None
+    if app_id is not None:
+        tree = data_lineage.resolve_lineage_for_app(app_id, max_depth=max_depth, direction=direction)
+    elif object_name:
+        tree = data_lineage.resolve_lineage_for_object(object_name, max_depth=max_depth, direction=direction)
+
+    if tree:
+        diagram_text = diagram.build_lineage_diagram(tree, root_kind=tree.root_kind)
+
+    return render_template(
+        "lineage_explorer.html",
+        all_apps=all_apps, app_ids=app_ids,
+        selected_app_id=app_id, object_name=object_name, direction=direction, max_depth=max_depth,
+        tree=tree, diagram_text=diagram_text,
+        apps=db.group_apps_for_sidebar(), selected_id=app_id,
+    )
+
+
+@app.route("/lineage/applications/<int:app_id>")
+def lineage_application_detail(app_id):
+    """Application Details del linaje -- lee la clasificacion/edges YA
+    PERSISTIDOS de la ultima corrida completada; el link al Explorer permite
+    traversal en vivo desde aqui."""
+    run = db.get_latest_completed_lineage_run()
+    app_data = db.get_app(app_id)
+    if not app_data:
+        flash(_("Esa app no existe en la base de datos."))
+        return redirect(url_for("lineage_overview"))
+
+    classification = db.get_lineage_classification(run["id"], app_id) if run else None
+    edges_out = db.get_lineage_edges(run["id"], app_id=app_id, direction="downstream") if run else []
+    edges_in = db.get_lineage_edges(run["id"], app_id=app_id, direction="upstream") if run else []
+
+    return render_template(
+        "lineage_application_detail.html",
+        run=run, app=app_data["app"], classification=classification,
+        edges_out=edges_out, edges_in=edges_in,
+        apps=db.group_apps_for_sidebar(), selected_id=app_id,
+    )
+
+
+@app.route("/lineage/objects/<path:object_name>")
+def lineage_object_detail(object_name):
+    """Object Details del linaje -- <path:...> porque los nombres de objeto
+    traen puntos (ej. paquete.procedimiento). Lee la ultima corrida
+    persistida; ver /lineage/explorer?object=... para traversal en vivo."""
+    run = db.get_latest_completed_lineage_run()
+    stats = db.get_lineage_object_stats(run["id"], object_name) if run else None
+    edges = db.get_lineage_edges(run["id"], object_name=object_name) if run else []
+
+    return render_template(
+        "lineage_object_detail.html",
+        run=run, object_name=object_name, stats=stats, edges=edges,
+        apps=db.group_apps_for_sidebar(), selected_id=None,
+    )
+
+
+@app.route("/lineage/impact")
+def lineage_impact_analysis():
+    """Impact Analysis: ?app_id=<int> o ?object=<str>, sobre la ultima
+    corrida persistida -- BFS pequeno en memoria sobre aristas ya
+    calculadas (analyzer.data_lineage.compute_impact_analysis), nunca una
+    extraccion recursiva nueva."""
+    run = db.get_latest_completed_lineage_run()
+    app_id = request.args.get("app_id", type=int)
+    object_name = request.args.get("object", "").strip() or None
+
+    all_apps = db.list_apps()
+    result = None
+    if run and (app_id is not None or object_name):
+        result = data_lineage.compute_impact_analysis(run["id"], app_id=app_id, object_name=object_name)
+
+    return render_template(
+        "lineage_impact.html",
+        run=run, all_apps=all_apps, selected_app_id=app_id, object_name=object_name, result=result,
+        apps=db.group_apps_for_sidebar(), selected_id=app_id,
+    )
+
+
 @app.route("/apps/<int:app_id>/priority_report")
 def priority_report_view(app_id):
     """Reporte de apoyo a la decision para una app (resumen ejecutivo,
@@ -608,4 +764,10 @@ def priority_report_view(app_id):
 
 
 if __name__ == "__main__":
+    # WERKZEUG_RUN_MAIN solo esta presente en el proceso hijo que el
+    # reloader de debug=True relanza -- sin este chequeo el navegador se
+    # abriria dos veces (una por el proceso padre, otra por cada reinicio
+    # del hijo al detectar un cambio de archivo).
+    if not os.environ.get("WERKZEUG_RUN_MAIN"):
+        threading.Timer(1.0, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
     app.run(debug=True, port=5000)
