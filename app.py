@@ -635,11 +635,11 @@ def lineage_build():
     try:
         summary = data_lineage.run_lineage_build(triggered_by="manual")
     except Exception as e:
-        flash(_("Error al construir el Data Lineage: %(err)s") % {"err": e})
+        flash(_("Error al construir el Linaje de Datos: %(err)s") % {"err": e})
         return redirect(url_for("lineage_overview"))
 
     flash(
-        _("Data Lineage reconstruido: %(apps)s app(s), %(edges)s relacion(es) de linaje.")
+        _("Linaje de Datos reconstruido: %(apps)s app(s), %(edges)s relacion(es) de linaje.")
         % {"apps": summary.app_count, "edges": summary.edge_count}
     )
     return redirect(url_for("lineage_overview"))

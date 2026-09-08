@@ -13,7 +13,7 @@
     </p>
 
     <form method="post" action="{{ url_for('lineage_build') }}" onsubmit="return confirm('{{ _('Esto recorre el portafolio completo y puede tardar — ¿continuar?') }}');">
-        <button type="submit" class="btn">{{ _('Construir / Refrescar Data Lineage') }}</button>
+        <button type="submit" class="btn">{{ _('Construir / Refrescar Linaje de Datos') }}</button>
     </form>
 
     {% if run %}
@@ -22,7 +22,7 @@
         — {{ run.app_count }} {{ _('app(s)') }}, {{ run.edge_count }} {{ _('relación(es) de linaje') }}.
     </p>
     {% else %}
-    <p class="muted" style="margin-top:10px;">{{ _('Nunca se ha calculado el Data Lineage de este portafolio todavía.') }}</p>
+    <p class="muted" style="margin-top:10px;">{{ _('Nunca se ha calculado el Linaje de Datos de este portafolio todavía.') }}</p>
     {% endif %}
 </div>
 

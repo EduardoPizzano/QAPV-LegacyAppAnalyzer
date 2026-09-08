@@ -1710,3 +1710,354 @@ msgstr "High"
 
 msgid "consumidor resultado"
 msgstr "result consumer"
+
+#: app.py:638
+#, python-format
+msgid "Error al construir el Linaje de Datos: %(err)s"
+msgstr "Error building Data Lineage: %(err)s"
+
+#: app.py:642
+#, python-format
+msgid ""
+"Linaje de Datos reconstruido: %(apps)s app(s), %(edges)s relacion(es) de "
+"linaje."
+msgstr "Data Lineage rebuilt: %(apps)s app(s), %(edges)s lineage relationship(s)."
+
+#: templates/library_base.html:13
+msgid "Linaje de datos"
+msgstr "Data Lineage"
+
+#: templates/lineage_application_detail.html:2
+#: templates/lineage_object_detail.html:2
+msgid "Linaje"
+msgstr "Lineage"
+
+#: templates/lineage_application_detail.html:8
+msgid "Ver detalle de la app"
+msgstr "View app detail"
+
+#: templates/lineage_application_detail.html:9
+#: templates/lineage_object_detail.html:8
+msgid "Explorar en vivo"
+msgstr "Explore live"
+
+#: templates/lineage_application_detail.html:10
+#: templates/lineage_object_detail.html:9
+msgid "Análisis de impacto"
+msgstr "Impact analysis"
+
+#: templates/lineage_application_detail.html:14
+#: templates/lineage_impact.html:12 templates/lineage_object_detail.html:13
+msgid "Todavía no se ha calculado el Linaje de Datos del portafolio — ve a"
+msgstr "Data Lineage hasn't been computed for this portfolio yet — go to"
+
+#: templates/lineage_application_detail.html:14
+#: templates/lineage_impact.html:12 templates/lineage_object_detail.html:13
+#: templates/lineage_overview.html:2 templates/lineage_overview.html:6
+msgid "Linaje de Datos"
+msgstr "Data Lineage"
+
+#: templates/lineage_application_detail.html:14
+#: templates/lineage_impact.html:12 templates/lineage_object_detail.html:13
+msgid "y pulsa Construir/Refrescar."
+msgstr "and click Build/Refresh."
+
+#: templates/lineage_application_detail.html:16
+msgid ""
+"Esta app no participó en la última corrida de Linaje de Datos (sin "
+"evidencia de relaciones productor/consumidor)."
+msgstr ""
+"This app did not take part in the latest Data Lineage run (no "
+"producer/consumer relationship evidence)."
+
+#: templates/lineage_application_detail.html:21
+#: templates/lineage_overview.html:47
+msgid "Origen Oracle"
+msgstr "Oracle Origin"
+
+#: templates/lineage_application_detail.html:31
+msgid "Produce hacia (linaje)"
+msgstr "Produces to (lineage)"
+
+#: templates/lineage_application_detail.html:33
+#: templates/lineage_application_detail.html:50
+#: templates/lineage_overview.html:71
+msgid "Objeto"
+msgstr "Object"
+
+#: templates/lineage_application_detail.html:33
+#: templates/lineage_object_detail.html:31
+msgid "Consumidor"
+msgstr "Consumer"
+
+#: templates/lineage_application_detail.html:48
+msgid "Consume desde (linaje)"
+msgstr "Consumes from (lineage)"
+
+#: templates/lineage_application_detail.html:50
+#: templates/lineage_object_detail.html:31
+msgid "Productor"
+msgstr "Producer"
+
+#: templates/lineage_explorer.html:2 templates/lineage_explorer.html:6
+msgid "Explorador de Linaje"
+msgstr "Lineage Explorer"
+
+#: templates/lineage_explorer.html:8
+msgid ""
+"Traversal acotado EN VIVO (no depende de la corrida persistida) a partir "
+"de una app o de un objeto de datos, siguiendo relaciones "
+"productor→consumidor ya confirmadas por"
+msgstr ""
+"Bounded LIVE traversal (does not depend on the persisted run) starting "
+"from an app or a data object, following producer→consumer relationships "
+"already confirmed by"
+
+#: templates/lineage_explorer.html:21
+msgid "...o un objeto de datos (tabla/SP), si no seleccionaste app arriba"
+msgstr "...or a data object (table/SP), if you did not select an app above"
+
+#: templates/lineage_explorer.html:22 templates/lineage_impact.html:24
+msgid "ej. TESTS_OTDR_RES"
+msgstr "e.g. TESTS_OTDR_RES"
+
+#: templates/lineage_explorer.html:25
+msgid "Dirección"
+msgstr "Direction"
+
+#: templates/lineage_explorer.html:27
+msgid "Downstream (hacia consumidores)"
+msgstr "Downstream (toward consumers)"
+
+#: templates/lineage_explorer.html:28
+msgid "Upstream (hacia productores)"
+msgstr "Upstream (toward producers)"
+
+#: templates/lineage_explorer.html:29
+msgid "Ambas"
+msgstr "Both"
+
+#: templates/lineage_explorer.html:32
+msgid "Profundidad máxima"
+msgstr "Maximum depth"
+
+#: templates/lineage_explorer.html:36
+msgid "Explorar"
+msgstr "Explore"
+
+#: templates/lineage_explorer.html:41
+msgid ""
+"Sin resultados: la app no existe o el objeto no aparece en ningún "
+"hallazgo SQL del portafolio."
+msgstr ""
+"No results: the app does not exist, or the object does not appear in any "
+"SQL finding in the portfolio."
+
+#: templates/lineage_explorer.html:55
+msgid "Sin relaciones demostrables en esta dirección/profundidad."
+msgstr "No demonstrable relationships in this direction/depth."
+
+#: templates/lineage_explorer.html:59
+msgid ""
+"El árbol se truncó por profundidad/tamaño máximo — aumenta la profundidad"
+" o re-centra el explorador en un nodo más cercano."
+msgstr ""
+"The tree was truncated by maximum depth/size — increase the depth or re-"
+"center the explorer on a closer node."
+
+#: templates/lineage_explorer.html:65
+msgid "Caminos encontrados"
+msgstr "Paths found"
+
+#: templates/lineage_explorer.html:67
+msgid "Camino"
+msgstr "Path"
+
+#: templates/lineage_explorer.html:67
+msgid "Objeto(s)"
+msgstr "Object(s)"
+
+#: templates/lineage_explorer.html:67
+msgid "Confianza mínima"
+msgstr "Minimum confidence"
+
+#: templates/lineage_impact.html:2 templates/lineage_impact.html:6
+msgid "Análisis de Impacto"
+msgstr "Impact Analysis"
+
+#: templates/lineage_impact.html:8
+msgid ""
+"¿Qué aplicaciones se verían afectadas si cambia o desaparece esta "
+"app/objeto? Calculado sobre la ÚLTIMA corrida persistida de Linaje de "
+"Datos — nunca una extracción nueva."
+msgstr ""
+"Which applications would be affected if this app/object changes or "
+"disappears? Calculated over the LATEST persisted Data Lineage run — never"
+" a fresh extraction."
+
+#: templates/lineage_impact.html:23
+msgid "...o un objeto de datos, si no seleccionaste app arriba"
+msgstr "...or a data object, if you did not select an app above"
+
+#: templates/lineage_impact.html:27
+msgid "Analizar impacto"
+msgstr "Analyze impact"
+
+#: templates/lineage_impact.html:33
+msgid "Esa app no participó en la última corrida de Linaje de Datos."
+msgstr "That app did not take part in the latest Data Lineage run."
+
+#: templates/lineage_impact.html:40
+msgid "Consumidores directos"
+msgstr "Direct consumers"
+
+#: templates/lineage_impact.html:41
+msgid "Consumidores indirectos"
+msgstr "Indirect consumers"
+
+#: templates/lineage_impact.html:42
+msgid "Profundidad de impacto"
+msgstr "Impact depth"
+
+#: templates/lineage_impact.html:47
+msgid "Impacto directo"
+msgstr "Direct impact"
+
+#: templates/lineage_impact.html:50
+msgid "Ningún consumidor directo demostrable."
+msgstr "No demonstrable direct consumer."
+
+#: templates/lineage_impact.html:54
+msgid "Impacto indirecto"
+msgstr "Indirect impact"
+
+#: templates/lineage_impact.html:57
+msgid "Ningún consumidor indirecto demostrable."
+msgstr "No demonstrable indirect consumer."
+
+#: templates/lineage_object_detail.html:15
+msgid "Este objeto no participó en la última corrida de Linaje de Datos."
+msgstr "This object did not take part in the latest Data Lineage run."
+
+#: templates/lineage_object_detail.html:29
+msgid "Relaciones de linaje sobre este objeto"
+msgstr "Lineage relationships on this object"
+
+#: templates/lineage_object_detail.html:31
+msgid "Operación"
+msgstr "Operation"
+
+#: templates/lineage_overview.html:8
+msgid "Recorre la cadena"
+msgstr "Traces the chain"
+
+#: templates/lineage_overview.html:9
+msgid "reutilizando la MISMA clasificación de"
+msgstr "reusing the SAME classification from"
+
+#: templates/lineage_overview.html:10
+msgid "y de"
+msgstr "and from"
+
+#: templates/lineage_overview.html:10
+msgid ""
+"nunca una segunda clasificación). Una app sin conexión Oracle directa "
+"puede seguir siendo"
+msgstr ""
+"never a second classification). An app with no direct Oracle connection "
+"can still be"
+
+#: templates/lineage_overview.html:11
+msgid ""
+"si consume, aunque sea a través de SQL Server, un objeto escrito por una "
+"app"
+msgstr "if it consumes, even via SQL Server, an object written by an app"
+
+#: templates/lineage_overview.html:12
+msgid ""
+"Este resumen y los Objetos/Apps críticos se leen de la ÚLTIMA corrida "
+"completada — recorrer el grafo completo del portafolio en cada clic no es"
+" viable, ver el botón de abajo."
+msgstr ""
+"This summary and the Critical Objects/Apps are read from the LATEST "
+"completed run — walking the full portfolio graph on every click is not "
+"viable, see the button below."
+
+#: templates/lineage_overview.html:15
+msgid "Esto recorre el portafolio completo y puede tardar — ¿continuar?"
+msgstr "This walks the entire portfolio and may take a while — continue?"
+
+#: templates/lineage_overview.html:16
+msgid "Construir / Refrescar Linaje de Datos"
+msgstr "Build / Refresh Data Lineage"
+
+#: templates/lineage_overview.html:21
+msgid "Última corrida completada"
+msgstr "Last completed run"
+
+#: templates/lineage_overview.html:22
+msgid "app(s)"
+msgstr "app(s)"
+
+#: templates/lineage_overview.html:22
+msgid "relación(es) de linaje"
+msgstr "lineage relationship(s)"
+
+#: templates/lineage_overview.html:25
+msgid "Nunca se ha calculado el Linaje de Datos de este portafolio todavía."
+msgstr "Data Lineage has never been computed for this portfolio yet."
+
+#: templates/lineage_overview.html:31
+msgid "Resumen por clasificación"
+msgstr "Summary by classification"
+
+#: templates/lineage_overview.html:41
+msgid "Quitar filtro"
+msgstr "Remove filter"
+
+#: templates/lineage_overview.html:47 templates/lineage_overview.html:71
+#: templates/lineage_overview.html:93
+msgid "Fan-in"
+msgstr "Fan-in"
+
+#: templates/lineage_overview.html:47 templates/lineage_overview.html:71
+#: templates/lineage_overview.html:93
+msgid "Fan-out"
+msgstr "Fan-out"
+
+#: templates/lineage_overview.html:52
+msgid "crítica"
+msgstr "critical"
+
+#: templates/lineage_overview.html:58 templates/lineage_overview.html:80
+#: templates/lineage_overview.html:100
+msgid "detalle"
+msgstr "detail"
+
+#: templates/lineage_overview.html:59
+msgid "explorar"
+msgstr "explore"
+
+#: templates/lineage_overview.html:67
+msgid "Objetos críticos (data hubs)"
+msgstr "Critical objects (data hubs)"
+
+#: templates/lineage_overview.html:68
+msgid ""
+"Objetos con más consumidores/productores que la mayoría del portafolio "
+"(tercil superior)."
+msgstr ""
+"Objects with more consumers/producers than most of the portfolio (top "
+"tercile)."
+
+#: templates/lineage_overview.html:85
+msgid "Ningún objeto alcanzó el umbral de criticidad en esta corrida."
+msgstr "No object reached the criticality threshold in this run."
+
+#: templates/lineage_overview.html:90
+msgid "Aplicaciones críticas (hubs)"
+msgstr "Critical applications (hubs)"
+
+#: templates/lineage_overview.html:105
+msgid "Ninguna aplicación alcanzó el umbral de criticidad en esta corrida."
+msgstr "No application reached the criticality threshold in this run."

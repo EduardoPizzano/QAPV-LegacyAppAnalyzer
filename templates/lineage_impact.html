@@ -1,15 +1,15 @@
 {% extends "library_base.html" %}
-{% block title %}{{ _('Impact Analysis') }} — QAPV Legacy App Analyzer{% endblock %}
+{% block title %}{{ _('Análisis de Impacto') }} — QAPV Legacy App Analyzer{% endblock %}
 {% block right %}
 
 <div class="card">
-    <h2>{{ _('Impact Analysis') }}</h2>
+    <h2>{{ _('Análisis de Impacto') }}</h2>
     <p class="muted">
-        {{ _('¿Qué aplicaciones se verían afectadas si cambia o desaparece esta app/objeto? Calculado sobre la ÚLTIMA corrida persistida de Data Lineage — nunca una extracción nueva.') }}
+        {{ _('¿Qué aplicaciones se verían afectadas si cambia o desaparece esta app/objeto? Calculado sobre la ÚLTIMA corrida persistida de Linaje de Datos — nunca una extracción nueva.') }}
     </p>
 
     {% if not run %}
-    <p class="muted">{{ _('Todavía no se ha calculado el Data Lineage del portafolio — ve a') }} <a href="{{ url_for('lineage_overview') }}">{{ _('Linaje de Datos') }}</a> {{ _('y pulsa Construir/Refrescar.') }}</p>
+    <p class="muted">{{ _('Todavía no se ha calculado el Linaje de Datos del portafolio — ve a') }} <a href="{{ url_for('lineage_overview') }}">{{ _('Linaje de Datos') }}</a> {{ _('y pulsa Construir/Refrescar.') }}</p>
     {% else %}
     <form method="get" action="{{ url_for('lineage_impact_analysis') }}">
         <label for="app_id">{{ _('Aplicación') }}</label>
@@ -30,7 +30,7 @@
 </div>
 
 {% if run and (selected_app_id or object_name) and not result %}
-<div class="card"><p class="muted">{{ _('Esa app no participó en la última corrida de Data Lineage.') }}</p></div>
+<div class="card"><p class="muted">{{ _('Esa app no participó en la última corrida de Linaje de Datos.') }}</p></div>
 {% endif %}
 
 {% if result %}

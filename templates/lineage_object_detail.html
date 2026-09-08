@@ -6,13 +6,13 @@
     <h2><code>{{ object_name }}</code></h2>
     <p class="muted">
         <a href="{{ url_for('lineage_explorer', object=object_name) }}">{{ _('Explorar en vivo') }}</a>
-        · <a href="{{ url_for('lineage_impact_analysis', object=object_name) }}">{{ _('Impact analysis') }}</a>
+        · <a href="{{ url_for('lineage_impact_analysis', object=object_name) }}">{{ _('Análisis de impacto') }}</a>
     </p>
 
     {% if not run %}
-    <p class="muted">{{ _('Todavía no se ha calculado el Data Lineage del portafolio — ve a') }} <a href="{{ url_for('lineage_overview') }}">{{ _('Linaje de Datos') }}</a> {{ _('y pulsa Construir/Refrescar.') }}</p>
+    <p class="muted">{{ _('Todavía no se ha calculado el Linaje de Datos del portafolio — ve a') }} <a href="{{ url_for('lineage_overview') }}">{{ _('Linaje de Datos') }}</a> {{ _('y pulsa Construir/Refrescar.') }}</p>
     {% elif not stats %}
-    <p class="muted">{{ _('Este objeto no participó en la última corrida de Data Lineage.') }}</p>
+    <p class="muted">{{ _('Este objeto no participó en la última corrida de Linaje de Datos.') }}</p>
     {% else %}
     <div class="exec-summary">
         <div class="exec-stat"><div class="label">{{ _('Tipo') }}</div><div class="value">{{ stats.object_kind }}</div></div>
