@@ -1,0 +1,1289 @@
+[
+  {
+    "inventory_application": "DataCenter",
+    "analyzer_app_name": "AFL_DataCenter",
+    "mapping_method": "manual (functional overview evidence)",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "DataCenter",
+    "analyzer_app_name": "DataCenter2ORA",
+    "mapping_method": "manual (functional overview evidence)",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "DataCenter",
+    "analyzer_app_name": "DataCenterMN",
+    "mapping_method": "manual (functional overview evidence)",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Datacenter2Ora",
+    "analyzer_app_name": "DataCenter2ORA",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Interconfig",
+    "analyzer_app_name": "InterConfig/InterConfig",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "InterAfl",
+    "analyzer_app_name": "InterAFL/InterAFL",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Centinela",
+    "analyzer_app_name": "CentiRL1/CentiRL1",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "CopyViavi",
+    "analyzer_app_name": "CopyVIAVI",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "CopyJdsu",
+    "analyzer_app_name": "CopyJDSU",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ServerMPO",
+    "analyzer_app_name": "ServerMPO/Populator",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ServerMPO",
+    "analyzer_app_name": "ServerMPO/AnnotatorV3",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Miniprint",
+    "analyzer_app_name": "MiniPrintLabels",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ReferenceControl",
+    "analyzer_app_name": "ReferenceControlWpf/ReferenceControlWpf",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ReferenceControl",
+    "analyzer_app_name": "ReferenceControlWpf/ClassLibrary(RefControlWpfVale)",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ReferenceControlVale",
+    "analyzer_app_name": "ReferenceControlWpf/ReferenceControlWpf",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ReferenceControlVale",
+    "analyzer_app_name": "ReferenceControlWpf/ClassLibrary(RefControlWpfVale)",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Dashboard",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Entrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.Dashboard/AFL.LiberacionYEntrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReciboShopPack",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.Dashboard/AFL.RegistroOperacion",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones - Copy",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Scrap",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.Dashboard/Classes.Borrar",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Dashboard",
+    "analyzer_app_name": "AFL.ConsultaOperaciones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReciboShopPack",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Dashboard",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Entrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.Dashboard/AFL.LiberacionYEntrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.Dashboard/AFL.RegistroOperacion",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones - Copy",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Scrap",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.Dashboard/Classes.Borrar",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Shopack receiving",
+    "analyzer_app_name": "AFL.ConsultaOperaciones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.Dashboard/AFL.LiberacionYEntrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Dashboard",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Entrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReciboShopPack",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.Dashboard/AFL.RegistroOperacion",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones - Copy",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Scrap",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.Dashboard/Classes.Borrar",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Operation tracker",
+    "analyzer_app_name": "AFL.ConsultaOperaciones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.Dashboard/Classes.Borrar",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Dashboard",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Entrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.LiberacionYEntrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReciboShopPack",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.RegistroOperacion",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones - Copy",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Scrap",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QC Labels Delivery",
+    "analyzer_app_name": "AFL.ConsultaOperaciones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.Dashboard/AFL.LiberacionYEntrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Dashboard",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Entrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReciboShopPack",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.Dashboard/AFL.RegistroOperacion",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones - Copy",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Scrap",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.Dashboard/Classes.Borrar",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFL Label delivery complete",
+    "analyzer_app_name": "AFL.ConsultaOperaciones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.ConsultaOperaciones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Dashboard",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Entrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.LiberacionYEntrega",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReciboShopPack",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.RegistroOperacion",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.ReporteImpresiones - Copy",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.Dashboard/AFL.Scrap",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLOperationQuery",
+    "analyzer_app_name": "AFL.Dashboard/Classes.Borrar",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Cuttings",
+    "analyzer_app_name": "Cortes/Cortes",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Inventa",
+    "analyzer_app_name": "INVENTA2-2TEST/InventaServerTest2",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Inventa",
+    "analyzer_app_name": "INVENTA2-2TEST/AlmacenDiagnostico",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Inventa",
+    "analyzer_app_name": "INVENTA2-2TEST/InventaVales - rebuild",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Inventa",
+    "analyzer_app_name": "INVENTA2-2TEST/InventaValesPlanta2",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Inventa",
+    "analyzer_app_name": "INVENTA2-2TEST/SGI",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Inventa",
+    "analyzer_app_name": "INVENTA2-2TEST/WebApplication1",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ValeRH",
+    "analyzer_app_name": "SafeRH/SafeRH",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ToolMaintRequestVale",
+    "analyzer_app_name": "ToolMaintReq",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ToolMaintRequest",
+    "analyzer_app_name": "ToolMaintReq",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Epoxy Label",
+    "analyzer_app_name": "EpoxyLabel",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Epoxy Label",
+    "analyzer_app_name": "EpoxyLabel/EpoxyLabel",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "MediPart",
+    "analyzer_app_name": "MediPart",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "PullTest",
+    "analyzer_app_name": "PullTest/PullTest",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "LabelPrint",
+    "analyzer_app_name": "LabelPrint2/LabelPrint",
+    "mapping_method": "prefix",
+    "mapping_confidence": "inferred",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "LabelPrint",
+    "analyzer_app_name": "LabelPrint/LabelPrint",
+    "mapping_method": "prefix",
+    "mapping_confidence": "inferred",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "PreconditionLog",
+    "analyzer_app_name": "PreconditionLog",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Monitor JobStart",
+    "analyzer_app_name": "MonitorJobStart/MonitorJobStart",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "VisualGuide",
+    "analyzer_app_name": "VisualGuide",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "FaceUnion",
+    "analyzer_app_name": "FaceUnion/FaceUnion",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Reflect",
+    "analyzer_app_name": "Reflect/Reflect",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "CompareImage",
+    "analyzer_app_name": "CompareImages/CompareImages",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "CompareImage",
+    "analyzer_app_name": "CompareImages/App472",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Ribbonconfiguration",
+    "analyzer_app_name": "RibbonConfigurator/RibbonConfigurator",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Vins1",
+    "analyzer_app_name": "VINS1/VINS1",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Vins1",
+    "analyzer_app_name": "VINS1/Modbus",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Vins1",
+    "analyzer_app_name": "VINS1/Test_FiberDetector",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Montemp",
+    "analyzer_app_name": "MonTemp2/MonTemp2",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Data Transfer",
+    "analyzer_app_name": "DataTransfer",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Monitor1",
+    "analyzer_app_name": "Monitor1/Monitor1",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "GeometryConfigurator",
+    "analyzer_app_name": "GeometryConfigurator/GeometryConfigurator",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "LigthValidation",
+    "analyzer_app_name": "LightValidation/LightValidation",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "JGRPROD",
+    "analyzer_app_name": "InterAFL/InterAFL",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "LabelConfigurator",
+    "analyzer_app_name": "LabelConfigurator/FacebookConfigurator",
+    "mapping_method": "manual (functional overview evidence)",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": "RES-02 - Excel SOURCE CODE PATH omite el segmento 'LabelConfigurator\\\\'; APPLICATION NAME coincide exactamente con la carpeta raiz real del Analyzer."
+  },
+  {
+    "inventory_application": "FaceLab",
+    "analyzer_app_name": "FaceLab/FaceLab",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "FaceLabUnion",
+    "analyzer_app_name": "FaceLabUnion/FaceLabUnion",
+    "mapping_method": "prefix",
+    "mapping_confidence": "inferred",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "FaceLabUnion",
+    "analyzer_app_name": "FaceLab/FaceLab",
+    "mapping_method": "prefix",
+    "mapping_confidence": "inferred",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "OTDR",
+    "analyzer_app_name": "OTDR/OTDR",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "RlAlta and Test rpofile",
+    "analyzer_app_name": "RLAltaConfig/RLAltaConfig",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ReportPrinter",
+    "analyzer_app_name": "ReportViewer/ReportViewer",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Polarity profile configurator",
+    "analyzer_app_name": "PolarityProfileConfigurator/PolarityProfileConfigurator",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Valabel",
+    "analyzer_app_name": "VaLabel/VaLabel",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Monitor Pass/Fail",
+    "analyzer_app_name": "MonitorPF1/MonitorPF1",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "MpoEndFace",
+    "analyzer_app_name": "MPOEndFace - Copy (11) - Copy/EndFaceVal",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "FIBER CLEAN",
+    "analyzer_app_name": "EndFiberClean/EndFiberClean",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "TestValidation",
+    "analyzer_app_name": "TestValidation/TestValidation",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Monitor Final audit",
+    "analyzer_app_name": "MonitorFinalAudit/MonitorFinalAudit",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "NewMonitorFA",
+    "analyzer_app_name": "MonitorFAWPF/MonitorFAWPF",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "AFLProdMon",
+    "analyzer_app_name": "AFLProdMon/AFLProdMon",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QAPV2",
+    "analyzer_app_name": "QAPV2/QAPV2",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QAPV2",
+    "analyzer_app_name": "QAPV2/QAConfigurator",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "CabLabel configurator",
+    "analyzer_app_name": "CabLabelConfigurator/CabLabelConfigurator",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "Meta configurator",
+    "analyzer_app_name": "MetaPolarityConfigurator/MetaPolarityConfigurator",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "InventaProd",
+    "analyzer_app_name": "INVENTAPROD",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "NewVaLabelMeta",
+    "analyzer_app_name": "NewVaLabel/NewVaLabel",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "QAConfigurator",
+    "analyzer_app_name": "LabelConfigurator/FacebookConfigurator",
+    "mapping_method": "fuzzy",
+    "mapping_confidence": "inferred",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ApiDispositivo",
+    "analyzer_app_name": "ApiDispositivo",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ItemTrackCuting",
+    "analyzer_app_name": "ItemTrack/ItemTrack",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "NewVaLabelGoogle",
+    "analyzer_app_name": "NewVaLabelGoogle",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "ValeEtiquetas",
+    "analyzer_app_name": "ValeEtiquetas",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "InventaVales",
+    "analyzer_app_name": "INVENTA2-2TEST/InventaValesPlanta2",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": true,
+    "evidence": null
+  },
+  {
+    "inventory_application": "InventaVales",
+    "analyzer_app_name": "INVENTA2-2TEST/AlmacenDiagnostico",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "InventaVales",
+    "analyzer_app_name": "INVENTA2-2TEST/InventaServerTest2",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "InventaVales",
+    "analyzer_app_name": "INVENTA2-2TEST/InventaVales - rebuild",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "InventaVales",
+    "analyzer_app_name": "INVENTA2-2TEST/SGI",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "InventaVales",
+    "analyzer_app_name": "INVENTA2-2TEST/WebApplication1",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "NEEDS_REVIEW",
+    "is_primary": false,
+    "evidence": null
+  },
+  {
+    "inventory_application": "LabelPrintGoogle",
+    "analyzer_app_name": "LabelPrintGoogle",
+    "mapping_method": "exact",
+    "mapping_confidence": "confirmed",
+    "mapping_status": "CONFIRMED",
+    "is_primary": true,
+    "evidence": null
+  }
+]

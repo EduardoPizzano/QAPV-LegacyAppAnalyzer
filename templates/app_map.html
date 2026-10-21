@@ -14,7 +14,7 @@
 
     <form method="get" action="{{ url_for('app_map') }}">
         <label for="app_id">{{ _('Aplicación') }}</label>
-        <select id="app_id" name="app_id" onchange="this.form.submit()" style="width:100%; padding:10px 12px; border:1px solid #c6ccd2; border-radius:6px;">
+        <select id="app_id" name="app_id" onchange="this.form.submit()" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink);">
             <option value="">-- {{ _('Selecciona una aplicación') }} --</option>
             {% for row in all_apps %}
             <option value="{{ row.id }}" {% if row.id == selected_app_id %}selected{% endif %}>{{ row.name }}</option>

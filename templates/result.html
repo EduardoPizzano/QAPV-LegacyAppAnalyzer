@@ -26,7 +26,7 @@
     </p>
     <form method="post" action="{{ url_for('review_route', app_id=data.app.id) }}">
         <label for="review_status">{{ _('Estado') }}</label>
-        <select id="review_status" name="review_status" style="width:100%; padding:10px 12px; border:1px solid #c6ccd2; border-radius:6px;">
+        <select id="review_status" name="review_status" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink);">
             <option value="borrador" {% if data.app.review_status == 'borrador' or not data.app.review_status %}selected{% endif %}>{{ _('Borrador (solo extraccion automatica)') }}</option>
             <option value="logica_revisada" {% if data.app.review_status == 'logica_revisada' %}selected{% endif %}>{{ _('Logica de negocio revisada') }}</option>
             <option value="listo_para_migrar" {% if data.app.review_status == 'listo_para_migrar' %}selected{% endif %}>{{ _('Listo para migrar') }}</option>
@@ -34,7 +34,7 @@
         </select>
 
         <label for="review_notes">{{ _('Notas de la revision (validaciones, reglas de negocio, riesgos, casos borde)') }}</label>
-        <textarea id="review_notes" name="review_notes" rows="10" style="width:100%; padding:10px 12px; border:1px solid #c6ccd2; border-radius:6px; font-family:inherit; font-size:0.9rem;">{{ data.app.review_notes or '' }}</textarea>
+        <textarea id="review_notes" name="review_notes" rows="10" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; font-family:inherit; font-size:0.9rem; background:var(--surface); color:var(--ink);">{{ data.app.review_notes or '' }}</textarea>
 
         <button type="submit">{{ _('Guardar revision') }}</button>
     </form>

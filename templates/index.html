@@ -2,25 +2,193 @@
 {% block title %}{{ _('Analizar app') }} — QAPV Legacy App Analyzer{% endblock %}
 {% block right %}
 
+<div class="dashboard-hero">
+    <div>
+        <p class="eyebrow">QAPV Legacy App Analyzer</p>
+        <h1>{{ _('Inteligencia y análisis de aplicaciones legadas') }}</h1>
+        <p>{{ _('Decompila, extrae y revisa el SQL, las conexiones y la lógica de negocio de las aplicaciones legadas de QAPV antes de migrarlas.') }}</p>
+    </div>
+</div>
+
+<div class="stat-grid">
+    <a class="stat-card linked" href="{{ url_for('index') }}#sidebar-piso">
+        <span class="stat-icon" aria-hidden="true">🏭</span>
+        <div class="stat-value">{{ summary.floor_count }}</div>
+        <div class="stat-label">{{ _('Apps en Piso') }}</div>
+        <div class="stat-sublabel">{{ _('Operativas en producción') }}</div>
+    </a>
+    <a class="stat-card linked" href="{{ url_for('index') }}#sidebar-resto">
+        <span class="stat-icon" aria-hidden="true">🖥</span>
+        <div class="stat-value">{{ summary.rest_count }}</div>
+        <div class="stat-label">{{ _('Resto de Apps') }}</div>
+        <div class="stat-sublabel">{{ _('Resto del portafolio') }}</div>
+    </a>
+    <a class="stat-card accent linked" href="{{ url_for('portfolio') }}"
+       title="{{ _('Lineage opera sobre deployments; Application Identity aún no está implementada.') }}">
+        <span class="stat-icon" aria-hidden="true">🔍</span>
+        <div class="stat-value">{{ summary.total }}</div>
+        <div class="stat-label">{{ _('Deployments Analizados') }}</div>
+        <div class="stat-sublabel">{{ _('Universo técnico del Analyzer') }}</div>
+    </a>
+    <div class="stat-card">
+        <span class="stat-icon" aria-hidden="true">⏳</span>
+        <div class="stat-value">{{ summary.pending }}</div>
+        <div class="stat-label">{{ _('Apps Pendientes') }}</div>
+        <div class="stat-sublabel">{{ _('Requieren revisión') }}</div>
+    </div>
+</div>
+<p class="muted stat-obsolete-note">
+    <a href="{{ url_for('index') }}#sidebar-obsoletas">
+        🗄 {{ ngettext('%(num)s aplicación obsoleta', '%(num)s aplicaciones obsoletas', summary.obsolete) }}
+    </a>
+</p>
+
 <div class="card">
-    <h2>{{ _('Analizar una app legacy') }}</h2>
+    <h2>{{ _('Conectividad y dependencias de datos') }}</h2>
+    {% if not ecosystem.run %}
     <p class="muted">
-        {{ _('Pega la ruta de la carpeta donde esta el .exe/.dll de la app (p. ej. su carpeta') }}
-        <code>bin\Debug</code> {{ _('), o la ruta directa al archivo. Si la carpeta tiene varios ejecutables te dejare elegir cual.') }}
+        {{ _('Todavía no se ha calculado el Data Lineage del portafolio — ve a') }}
+        <a href="{{ url_for('lineage_overview') }}">{{ _('Linaje de datos') }}</a>
+        {{ _('para construirlo.') }}
     </p>
-    <form id="analyzeForm" method="post" action="{{ url_for('analyze') }}">
-        <label for="path">{{ _('Carpeta o archivo .exe/.dll') }}</label>
-        <input type="text" id="path" name="path" placeholder="{{ _('\\\\servidor\\ruta\\a\\LaApp\\bin\\Debug') }}" required>
+    {% else %}
+    <p class="muted">
+        {{ _('Derivado de la última corrida de Data Lineage') }}
+        (<a href="{{ url_for('lineage_overview') }}">#{{ ecosystem.run.id }}</a>,
+        {{ ecosystem.run.completed_at }}) — {{ _('evidencia real, sin inferencias nuevas.') }}
+    </p>
 
-        <label for="name">{{ _('Nombre para el reporte (opcional)') }}</label>
-        <input type="text" id="name" name="name" placeholder="{{ _('Se usa el nombre del archivo si se deja vacio') }}">
+    <div class="stat-grid">
+        <a class="stat-card linked" href="{{ url_for('lineage_overview') }}?classification=DIRECT_ORACLE">
+            <span class="stat-icon" aria-hidden="true">🔗</span>
+            <div class="stat-value">{{ ecosystem.oracle_connected }}</div>
+            <div class="stat-label">{{ _('Oracle Connected') }}</div>
+            <div class="stat-sublabel">{{ _('Conexión directa confirmada a Oracle') }}</div>
+        </a>
+        <a class="stat-card linked" href="{{ url_for('lineage_overview') }}">
+            <span class="stat-icon" aria-hidden="true">📤</span>
+            <div class="stat-value">{{ ecosystem.data_providers }}</div>
+            <div class="stat-label">{{ _('Data Providers') }}</div>
+            <div class="stat-sublabel">{{ _('Alimentan a otras aplicaciones') }}</div>
+        </a>
+        <a class="stat-card linked" href="{{ url_for('lineage_overview') }}">
+            <span class="stat-icon" aria-hidden="true">📥</span>
+            <div class="stat-value">{{ ecosystem.data_consumers }}</div>
+            <div class="stat-label">{{ _('Data Consumers') }}</div>
+            <div class="stat-sublabel">{{ _('Dependen de otras aplicaciones') }}</div>
+        </a>
+    </div>
 
-        <button type="submit" id="analyzeSubmit">{{ _('Analizar') }}</button>
-        <p id="analyzeWorking" class="muted" style="display:none; margin-top:10px;">
-            <span class="spinner" style="border-color: rgba(28,111,201,0.3); border-top-color:#1c6fc9;"></span>
-            {{ _('Decompilando y analizando') }} (<span id="analyzeElapsed">0</span>s)... {{ _('esto puede tardar mas para apps grandes o con conexion a base de datos — sigue trabajando, no se congelo.') }}
+    <div class="two-col-grid">
+        <div>
+            <h3>{{ _('Top Data Providers') }}</h3>
+            {% if not ecosystem.top_providers %}
+            <p class="muted">{{ _('Sin providers detectados en la corrida actual.') }}</p>
+            {% else %}
+            <table>
+                <tr>
+                    <th>{{ _('Aplicación') }}</th>
+                    <th title="{{ _('COUNT(DISTINCT to_app_id) — deployments distintos que consumen algo de esta app, no hops.') }}">{{ _('Apps consumidoras únicas') }}</th>
+                    <th title="{{ _('fan_out — número de hops (objeto compartido), puede repetirse por app.') }}">{{ _('Hops') }}</th>
+                </tr>
+                {% for c in ecosystem.top_providers %}
+                <tr>
+                    <td><a href="{{ url_for('lineage_application_detail', app_id=c.app_id) }}">{{ c.app_name }}</a></td>
+                    <td>{{ c.unique_consumers }}</td>
+                    <td class="muted">{{ c.fan_out }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% endif %}
+        </div>
+        <div>
+            <h3>{{ _('Top Data Consumers') }}</h3>
+            {% if not ecosystem.top_consumers %}
+            <p class="muted">{{ _('Sin consumers detectados en la corrida actual.') }}</p>
+            {% else %}
+            <table>
+                <tr>
+                    <th>{{ _('Aplicación') }}</th>
+                    <th title="{{ _('COUNT(DISTINCT from_app_id) — deployments distintos que proveen algo a esta app, no hops.') }}">{{ _('Apps proveedoras únicas') }}</th>
+                    <th title="{{ _('fan_in — número de hops (objeto compartido), puede repetirse por app.') }}">{{ _('Hops') }}</th>
+                </tr>
+                {% for c in ecosystem.top_consumers %}
+                <tr>
+                    <td><a href="{{ url_for('lineage_application_detail', app_id=c.app_id) }}">{{ c.app_name }}</a></td>
+                    <td>{{ c.unique_providers }}</td>
+                    <td class="muted">{{ c.fan_in }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% endif %}
+        </div>
+    </div>
+
+    <h3>{{ _('High Impact Applications') }}</h3>
+    {% if not ecosystem.high_impact %}
+    <p class="muted">{{ _('Ninguna aplicación alcanza el percentil "Alta" de fan-in + fan-out en esta corrida.') }}</p>
+    {% else %}
+    <table>
+        <tr><th>{{ _('Aplicación') }}</th><th>{{ _('Clasificación') }}</th><th>{{ _('Fan-in') }}</th><th>{{ _('Fan-out') }}</th></tr>
+        {% for a in ecosystem.high_impact %}
+        <tr>
+            <td><a href="{{ url_for('lineage_application_detail', app_id=a.app_id) }}">{{ a.app_name }}</a></td>
+            <td><code>{{ a.classification }}</code></td>
+            <td>{{ a.fan_in }}</td>
+            <td>{{ a.fan_out }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+    {% endif %}
+</div>
+
+<div class="action-grid">
+    <div class="action-card">
+        <div class="action-card-head">
+            <span class="action-card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </span>
+            <h2>{{ _('Analizar una app legacy') }}</h2>
+        </div>
+        <p class="muted">{{ _('Analiza un solo ejecutable, DLL, o carpeta de aplicación.') }}</p>
+        <form id="analyzeForm" method="post" action="{{ url_for('analyze') }}">
+            <label for="path">{{ _('Ruta de la aplicación') }}</label>
+            <input type="text" id="path" name="path" placeholder="{{ _('\\\\servidor\\ruta\\a\\LaApp\\bin\\Debug') }}" required>
+
+            <label for="name">{{ _('Nombre para el reporte (opcional)') }}</label>
+            <input type="text" id="name" name="name" placeholder="{{ _('Se usa el nombre del archivo si se deja vacio') }}">
+
+            <button type="submit" id="analyzeSubmit" class="primary-action">{{ _('Analizar aplicación') }}</button>
+            <p id="analyzeWorking" class="muted" style="display:none; margin-top:10px;">
+                <span class="spinner" style="border-color: rgba(28,111,201,0.3); border-top-color:#1c6fc9;"></span>
+                {{ _('Decompilando y analizando') }} (<span id="analyzeElapsed">0</span>s)... {{ _('esto puede tardar mas para apps grandes o con conexion a base de datos — sigue trabajando, no se congelo.') }}
+            </p>
+        </form>
+    </div>
+
+    <div class="action-card">
+        <div class="action-card-head">
+            <span class="action-card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"></path></svg>
+            </span>
+            <h2>{{ _('Escanear una carpeta raíz') }}</h2>
+        </div>
+        <p class="muted">{{ _('Descubre varias aplicaciones legadas dentro de una solución o portafolio.') }}</p>
+        <form id="discoverForm" method="post" action="{{ url_for('discover') }}">
+            <label for="root_path">{{ _('Carpeta raiz') }}</label>
+            <input type="text" id="root_path" name="root_path" placeholder="{{ _('\\\\servidor\\ruta\\a\\AFL.Dashboard') }}" required>
+            <button type="submit" class="secondary primary-action" id="discoverSubmit">{{ _('Escanear carpeta') }}</button>
+            <p id="discoverWorking" class="muted" style="display:none; margin-top:10px;">
+                <span class="spinner" style="border-color: rgba(107,118,132,0.3); border-top-color:#6b7684;"></span>
+                {{ _('Buscando ejecutables en la carpeta') }} (<span id="discoverElapsed">0</span>s)... {{ _('en carpetas de red grandes puede tardar un poco — sigue trabajando, no se congelo.') }}
+            </p>
+        </form>
+        <p class="muted" style="margin-top:14px; font-size:0.82rem;">
+            {{ _('Para soluciones con varios modulos (p. ej.') }} <code>AFL.Dashboard</code>
+            {{ _('con Entrega/Liberacion/Recibo/Reportes/Scrap, cada uno su propio proyecto), pega la carpeta raiz de la solucion y buscare todos los .exe dentro, en cualquier subcarpeta. Despues eliges cuales analizar.') }}
         </p>
-    </form>
+    </div>
 </div>
 
 <script>
@@ -40,26 +208,6 @@
         // navigate away once the server responds, so no need to handle completion here.
     });
 })();
-</script>
-
-<div class="card">
-    <h2>{{ _('Escanear una carpeta raiz (varias apps a la vez)') }}</h2>
-    <p class="muted">
-        {{ _('Para soluciones con varios modulos (p. ej.') }} <code>AFL.Dashboard</code>
-        {{ _('con Entrega/Liberacion/Recibo/Reportes/Scrap, cada uno su propio proyecto), pega la carpeta raiz de la solucion y buscare todos los .exe dentro, en cualquier subcarpeta. Despues eliges cuales analizar.') }}
-    </p>
-    <form id="discoverForm" method="post" action="{{ url_for('discover') }}">
-        <label for="root_path">{{ _('Carpeta raiz') }}</label>
-        <input type="text" id="root_path" name="root_path" placeholder="{{ _('\\\\servidor\\ruta\\a\\AFL.Dashboard') }}" required>
-        <button type="submit" class="secondary" id="discoverSubmit">{{ _('Escanear') }}</button>
-        <p id="discoverWorking" class="muted" style="display:none; margin-top:10px;">
-            <span class="spinner" style="border-color: rgba(107,118,132,0.3); border-top-color:#6b7684;"></span>
-            {{ _('Buscando ejecutables en la carpeta') }} (<span id="discoverElapsed">0</span>s)... {{ _('en carpetas de red grandes puede tardar un poco — sigue trabajando, no se congelo.') }}
-        </p>
-    </form>
-</div>
-
-<script>
 (function () {
     var form = document.getElementById('discoverForm');
     if (!form) return;
@@ -79,10 +227,23 @@
 </script>
 
 <div class="card">
-    <p class="muted">
-        {{ _('Selecciona un reporte de la lista a la izquierda para verlo, o analiza una app nueva arriba.') }}
-        {{ ngettext('Hay %(num)s app analizada hasta ahora.', 'Hay %(num)s apps analizadas hasta ahora.', apps|length) }}
-    </p>
+    <div class="section-head">
+        <h2>{{ _('Aplicaciones analizadas') }}</h2>
+        {% if apps %}
+        <span class="muted">{{ ngettext('%(num)s app analizada', '%(num)s apps analizadas', summary.total) }}</span>
+        {% endif %}
+    </div>
+    {% if apps %}
+    <p class="muted">{{ _('Selecciona un reporte de la lista a la izquierda para verlo, o analiza una app nueva arriba.') }}</p>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"></path></svg>
+        </div>
+        <p class="empty-title">{{ _('Aún no hay aplicaciones analizadas') }}</p>
+        <p>{{ _('Usa "Analizar una app legacy" o "Escanear una carpeta raíz" arriba para empezar.') }}</p>
+    </div>
+    {% endif %}
 </div>
 
 {% endblock %}

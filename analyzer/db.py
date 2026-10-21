@@ -242,6 +242,69 @@ CREATE TABLE IF NOT EXISTS lineage_object_stats (
     is_critical_object INTEGER NOT NULL DEFAULT 0,
     is_oracle_erp_table INTEGER NOT NULL DEFAULT 0
 );
+
+-- Portafolio Funcional (2026-09) -- "Funcionales en Piso" (VISION.md discusion
+-- 2026-09-08/09): los 67 registros de negocio del inventario Excel validado,
+-- persistidos por primera vez (antes solo existian como Excel + JSON fuera
+-- del repo). Identidad = inventory_application (nombre de negocio), NUNCA un
+-- analyzer_app_id -- una fila funcional puede no tener ninguna app tecnica
+-- resuelta y sigue siendo una de las 67 igualmente (ver functional_app_mapping
+-- para la relacion, nunca aqui). Se recarga completa (replace, no upsert
+-- incremental) desde analyzer/reference_data/functional_inventory.json via
+-- import_functional_portfolio() -- ese JSON es el registro versionado de las
+-- decisiones ya validadas del Human Validation Pack, nunca recalculado por
+-- este modulo.
+CREATE TABLE IF NOT EXISTS functional_inventory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    inventory_application TEXT NOT NULL UNIQUE,
+    functional_area_raw TEXT,
+    functional_overview TEXT,
+    business_owner TEXT,
+    integration_notes TEXT,
+    source_code_path_excel TEXT,
+    cross_functional INTEGER NOT NULL DEFAULT 0,
+    imported_at TEXT NOT NULL
+);
+
+-- Relacion N:M entre una fila funcional y una app tecnica de `apps` -- mismo
+-- espiritu que artifact_relationships (evidencia + confianza + metodo), pero
+-- SIN el CHECK de par ordenado porque esta relacion no es simetrica (funcional
+-- -> tecnica, nunca al reves). analyzer_app_name_snapshot se guarda ademas del
+-- FK (mismo patron que findings.app_name / lineage_edges.from_app_name):
+-- sobrevive si la app tecnica se re-analiza y cambia de id, o si se elimina.
+--
+-- is_primary distingue DOS preguntas distintas que NUNCA deben mezclarse:
+--   is_primary = 1 (SELECTED): la relacion que se usa para clasificar la app
+--     tecnica dentro de "Funcionales en Piso" (ASSOCIATED_CONFIRMED/
+--     ASSOCIATED_NEEDS_REVIEW, ver vw_technical_app_classification).
+--   is_primary = 0 (ALTERNATIVE_CONSIDERED): candidato evaluado y NO elegido.
+--     Es evidencia de auditoria (vw_candidates_considered) -- NUNCA participa
+--     en la particion tecnica, sin importar su mapping_status.
+--
+-- mapping_status:
+--   CONFIRMED     = esta app tecnica ES la implementacion de esta fila
+--                   funcional (match inequivoco o decision humana documentada).
+--   NEEDS_REVIEW  = existe relacion confirmada con un conjunto de candidatos
+--                   (ej. SHARED_CODEBASE ya probado), pero falta confirmacion
+--                   humana de CUAL candidato especifico es el correcto. NUNCA
+--                   significa "quizas no hay relacion".
+--   UNMAPPED      = sin candidato tecnico resuelto para esta fila funcional.
+--
+-- El UNIQUE de abajo evita duplicar la misma relacion si
+-- import_functional_portfolio() se re-ejecuta.
+CREATE TABLE IF NOT EXISTS functional_app_mapping (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    functional_inventory_id INTEGER NOT NULL REFERENCES functional_inventory(id) ON DELETE CASCADE,
+    analyzer_app_id INTEGER REFERENCES apps(id) ON DELETE SET NULL,
+    analyzer_app_name_snapshot TEXT NOT NULL,
+    mapping_method TEXT NOT NULL,
+    mapping_confidence TEXT NOT NULL,
+    mapping_status TEXT NOT NULL,
+    is_primary INTEGER NOT NULL DEFAULT 0,
+    evidence TEXT,
+    imported_at TEXT NOT NULL,
+    UNIQUE (functional_inventory_id, analyzer_app_name_snapshot)
+);
 """
 
 # Read models (ADR-0003 / VISION.md decision #4): capas de agregacion de
@@ -290,6 +353,81 @@ WHERE le.lineage_run_id = (
     WHERE lr.status = 'completed'
     ORDER BY lr.completed_at DESC, lr.id DESC LIMIT 1
 );
+
+-- Vista A (Funcionales en Piso): alias de solo-lectura sobre
+-- functional_inventory, para que consumidores futuros no tengan que saber que
+-- la tabla base y la "poblacion oficial" son literalmente la misma cosa --
+-- pertenecer a Funcionales en Piso NUNCA depende de mapping_status/is_primary
+-- (ver comentario de la tabla).
+DROP VIEW IF EXISTS vw_functional_floor;
+CREATE VIEW vw_functional_floor AS
+SELECT * FROM functional_inventory;
+
+-- Particion tecnica de las 137 apps (Vista B/C combinadas para clasificar):
+-- CADA fila de `apps` cae en EXACTAMENTE un bucket -- CASE WHEN evalua en
+-- orden, asi que la precedencia CONFIRMED > NEEDS_REVIEW > TECHNICAL_REMAINDER
+-- es automatica y no requiere logica adicional. Solo mira filas
+-- is_primary=1: un candidato alternativo (is_primary=0) NUNCA saca una app de
+-- TECHNICAL_REMAINDER, sin importar su mapping_status (ver comentario de
+-- functional_app_mapping).
+DROP VIEW IF EXISTS vw_technical_app_classification;
+CREATE VIEW vw_technical_app_classification AS
+SELECT
+    a.id AS app_id,
+    a.name AS app_name,
+    CASE
+        WHEN EXISTS (
+            SELECT 1 FROM functional_app_mapping m
+            WHERE m.analyzer_app_id = a.id AND m.is_primary = 1 AND m.mapping_status = 'CONFIRMED'
+        ) THEN 'ASSOCIATED_CONFIRMED'
+        WHEN EXISTS (
+            SELECT 1 FROM functional_app_mapping m
+            WHERE m.analyzer_app_id = a.id AND m.is_primary = 1 AND m.mapping_status = 'NEEDS_REVIEW'
+        ) THEN 'ASSOCIATED_NEEDS_REVIEW'
+        ELSE 'TECHNICAL_REMAINDER'
+    END AS floor_classification
+FROM apps a;
+
+-- Vista B (Resto del Portafolio Tecnico): las apps SIN ninguna relacion
+-- primaria -- complemento exacto de vw_technical_app_classification. Nunca
+-- oculta ni elimina filas de `apps`; es un filtro de lectura, igual que
+-- vw_lineage_latest_edges lo es sobre lineage_edges.
+DROP VIEW IF EXISTS vw_technical_remainder;
+CREATE VIEW vw_technical_remainder AS
+SELECT a.*
+FROM apps a
+WHERE NOT EXISTS (
+    SELECT 1 FROM functional_app_mapping m
+    WHERE m.analyzer_app_id = a.id AND m.is_primary = 1
+);
+
+-- Vista D (Functional <-> Technical Mapping): detalle completo, primarias Y
+-- alternativas, navegable en ambos sentidos sin colapsar multiplicidad (1
+-- funcional -> N tecnicas, N funcionales -> 1 tecnica).
+DROP VIEW IF EXISTS vw_functional_technical_mapping;
+CREATE VIEW vw_functional_technical_mapping AS
+SELECT
+    fi.id AS functional_inventory_id,
+    fi.inventory_application,
+    fi.cross_functional,
+    m.id AS mapping_id,
+    m.analyzer_app_id,
+    m.analyzer_app_name_snapshot,
+    m.mapping_method,
+    m.mapping_confidence,
+    m.mapping_status,
+    m.is_primary,
+    m.evidence
+FROM functional_app_mapping m
+JOIN functional_inventory fi ON fi.id = m.functional_inventory_id;
+
+-- Vista E (Candidates Considered): SOLO alternativas descartadas
+-- (is_primary=0) -- responde "que se considero y no se eligio" sin que estas
+-- filas puedan filtrarse jamas a la particion tecnica (esa solo lee
+-- vw_technical_app_classification / vw_technical_remainder, nunca esta vista).
+DROP VIEW IF EXISTS vw_candidates_considered;
+CREATE VIEW vw_candidates_considered AS
+SELECT * FROM vw_functional_technical_mapping WHERE is_primary = 0;
 """
 
 
@@ -423,6 +561,12 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_classifications_run ON lineage_app_classifications(lineage_run_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_classifications_app ON lineage_app_classifications(app_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_lineage_object_stats_run ON lineage_object_stats(lineage_run_id)")
+
+        # Portafolio Funcional: indices sobre las 2 tablas nuevas, creadas
+        # directamente en SCHEMA (tablas nuevas, no requieren ALTER).
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_functional_app_mapping_inventory ON functional_app_mapping(functional_inventory_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_functional_app_mapping_app ON functional_app_mapping(analyzer_app_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_functional_app_mapping_primary ON functional_app_mapping(analyzer_app_id, is_primary)")
 
         # Las vistas se recrean siempre (DROP + CREATE) en cada arranque, no
         # solo la primera vez -- son baratas de regenerar y asi nunca quedan
@@ -814,28 +958,33 @@ def list_apps() -> list[sqlite3.Row]:
         ).fetchall()
 
 
-def group_apps_for_sidebar() -> list[dict]:
-    """Agrupa list_apps() para la barra lateral usando la convencion de nombre
-    'CarpetaRaiz/Modulo' (ver app.py: _batch_name()). Solo una raiz con 2+
-    modulos analizados se convierte en un grupo colapsable (hoy: VINS1,
-    AFL.Dashboard, INVENTA2-2TEST) — una raiz con un solo modulo se aplana de
-    vuelta a un item suelto (agrupar un solo elemento no aporta nada, solo
-    agrega un clic extra), deduplicando el nombre visible cuando raiz y
-    modulo son literalmente el mismo texto (ej. 'ItemTrack/ItemTrack' ->
-    'ItemTrack'). Todo (grupos y apps sueltas por igual) se ordena por
-    actividad mas reciente, igual que list_apps() — un grupo usa el
-    analyzed_at mas reciente de sus miembros para su posicion.
+def _floor_classification_by_app_id() -> dict[int, str]:
+    """Unica consulta contra vw_technical_app_classification -- fuente
+    compartida por group_apps_for_sidebar() y get_portfolio_summary() para
+    que el dashboard principal y el sidebar NUNCA puedan divergir en que
+    cuenta como Piso/Resto (un solo mecanismo de clasificacion, nunca dos)."""
+    with get_conn() as conn:
+        return {
+            row["app_id"]: row["floor_classification"]
+            for row in conn.execute("SELECT app_id, floor_classification FROM vw_technical_app_classification")
+        }
 
-    Las apps marcadas manualmente como obsoletas (review_status='obsoleta',
-    ver set_review()) se sacan del listado principal ANTES de agrupar -- no
-    compiten por espacio con las apps activas ni participan del agrupamiento
-    por raiz (si TODOS los miembros de una raiz quedan obsoletos, como
-    LabelControl, esa raiz simplemente deja de aparecer arriba). Van en su
-    propia seccion plana al final, sin importar el orden de actividad."""
-    apps = [dict(r) for r in list_apps()]
-    obsolete_apps = [a for a in apps if a["review_status"] == "obsoleta"]
-    apps = [a for a in apps if a["review_status"] != "obsoleta"]
 
+def _group_apps_by_root(apps: list[dict]) -> list[dict]:
+    """Agrupa una lista de apps (ya filtrada por el llamador) usando la
+    convencion de nombre 'CarpetaRaiz/Modulo' (ver app.py: _batch_name()).
+    Extraido de group_apps_for_sidebar() (Portafolio Funcional, 2026-09) para
+    poder correr el MISMO agrupamiento de forma independiente sobre
+    "Operativas en Piso" y "Resto del Portafolio" -- nunca se agrupa primero
+    y se clasifica despues, porque una raiz (ej. ServerMPO) puede tener
+    miembros con clasificacion tecnica MIXTA (un miembro is_primary=1
+    asociado, otro nunca elegido como primary en ningun lado) y el criterio
+    de particion exige separar por aplicacion individual, no por grupo.
+
+    Solo una raiz con 2+ modulos EN ESTA LISTA se convierte en un grupo
+    colapsable -- si una raiz mixta se parte entre piso/resto, cada lado
+    puede terminar con un solo miembro y se aplana a un item suelto
+    (comportamiento identico al de antes, aplicado ahora por particion)."""
     by_root: dict[str, list[tuple[str, dict]]] = defaultdict(list)
     standalone: list[dict] = []
     for a in apps:
@@ -877,6 +1026,50 @@ def group_apps_for_sidebar() -> list[dict]:
         })
 
     items.sort(key=lambda it: it["sort_key"], reverse=True)
+    return items
+
+
+def group_apps_for_sidebar() -> list[dict]:
+    """Barra lateral completa: particiona las apps activas (no-obsoletas) en
+    "Operativas en Piso" (ASSOCIATED_CONFIRMED + ASSOCIATED_NEEDS_REVIEW,
+    ver vw_technical_app_classification) y "Resto del Portafolio"
+    (TECHNICAL_REMAINDER) ANTES de agrupar por raiz -- ver _group_apps_by_root
+    para por que el orden importa. Cada particion se agrupa exactamente igual
+    que antes (mismo helper), asi que el comportamiento visual de grupos/apps
+    sueltas dentro de cada seccion no cambia.
+
+    La particion es 100% derivada de functional_app_mapping (is_primary=1) --
+    nunca una heuristica nueva de nombre/carpeta. En una BD sin el portafolio
+    funcional importado (ej. bases de test sinteticas), TODAS las apps caen
+    en TECHNICAL_REMAINDER por definicion de la vista (ninguna tiene mapping
+    primario) -- "Operativas en Piso" queda vacia y simplemente no se incluye
+    (ver template: una floor_section con count=0 no se renderiza).
+
+    Las apps obsoletas (review_status='obsoleta') se siguen sacando ANTES de
+    todo esto, exactamente igual que antes -- no participan de la
+    clasificacion de piso/resto, van en su propia seccion al final."""
+    apps = [dict(r) for r in list_apps()]
+    obsolete_apps = [a for a in apps if a["review_status"] == "obsoleta"]
+    apps = [a for a in apps if a["review_status"] != "obsoleta"]
+
+    floor_by_app_id = _floor_classification_by_app_id()
+
+    piso_apps = [a for a in apps if floor_by_app_id.get(a["id"]) in ("ASSOCIATED_CONFIRMED", "ASSOCIATED_NEEDS_REVIEW")]
+    resto_apps = [a for a in apps if floor_by_app_id.get(a["id"]) == "TECHNICAL_REMAINDER"]
+
+    items: list[dict] = []
+    if piso_apps:
+        items.append({
+            "kind": "floor_section", "section": "piso", "icon": "🏭",
+            "label_key": "Operativas en Piso", "count": len(piso_apps),
+            "entries": _group_apps_by_root(piso_apps),
+        })
+    if resto_apps:
+        items.append({
+            "kind": "floor_section", "section": "resto", "icon": "🖥",
+            "label_key": "Resto del Portafolio", "count": len(resto_apps),
+            "entries": _group_apps_by_root(resto_apps),
+        })
 
     if obsolete_apps:
         obsolete_apps.sort(key=lambda a: a["analyzed_at"], reverse=True)
@@ -889,17 +1082,34 @@ def get_portfolio_summary() -> dict:
     """Conteos agregados para el dashboard principal (index.html). Pura
     lectura sobre list_apps(), mismo criterio 'reviewed_statuses' que ya usa
     group_apps_for_sidebar() -- una sola fuente de verdad para que decide
-    "revisada", no una regla nueva ni duplicada."""
-    apps = list_apps()
+    "revisada", no una regla nueva ni duplicada.
+
+    floor_count/rest_count (Portafolio Funcional, 2026-09): MISMA particion
+    que group_apps_for_sidebar() -- via _floor_classification_by_app_id(),
+    nunca una segunda heuristica -- y sobre las mismas apps NO-obsoletas
+    (floor_count + rest_count + obsolete == total, NUNCA
+    floor_count + rest_count == total mientras existan obsoletas)."""
+    apps = [dict(r) for r in list_apps()]
     reviewed_statuses = {"logica_revisada", "listo_para_migrar"}
     total = len(apps)
     obsolete = sum(1 for a in apps if a["review_status"] == "obsoleta")
     reviewed = sum(1 for a in apps if a["review_status"] in reviewed_statuses)
+
+    floor_by_app_id = _floor_classification_by_app_id()
+    active_apps = [a for a in apps if a["review_status"] != "obsoleta"]
+    floor_count = sum(
+        1 for a in active_apps
+        if floor_by_app_id.get(a["id"]) in ("ASSOCIATED_CONFIRMED", "ASSOCIATED_NEEDS_REVIEW")
+    )
+    rest_count = sum(1 for a in active_apps if floor_by_app_id.get(a["id"]) == "TECHNICAL_REMAINDER")
+
     return {
         "total": total,
         "reviewed": reviewed,
         "pending": total - obsolete - reviewed,
         "obsolete": obsolete,
+        "floor_count": floor_count,
+        "rest_count": rest_count,
     }
 
 
@@ -1677,3 +1887,253 @@ def list_critical_lineage_apps(run_id: int, top_n: int | None = None) -> list[di
         query += f" LIMIT {int(top_n)}"
     with get_conn() as conn:
         return [dict(r) for r in conn.execute(query, (run_id,))]
+
+
+def get_unique_app_degree(run_id: int) -> dict[str, dict[int, int]]:
+    """Grado REAL en apps unicas conectadas, por deployment (auditoria
+    semantica 2026-09-09) -- NUNCA confundir con fan_in/fan_out de
+    lineage_app_classifications, que cuentan HOPS (una fila por objeto
+    compartido, ver analyzer/data_lineage.py:474-480): si el deployment A
+    comparte 5 tablas distintas con el deployment B, eso son 5 hops pero
+    1 sola app conectada. Esta funcion deduplica por app_id de origen/destino
+    directamente sobre lineage_edges -- no reemplaza fan_in/fan_out, los
+    complementa. No es Application Identity: sigue siendo conteo de
+    deployments (apps.id), no de aplicaciones de negocio (ver ADR-0000/0004
+    -- ese mecanismo no existe hoy)."""
+    with get_conn() as conn:
+        unique_consumers = {
+            row["app_id"]: row["n"] for row in conn.execute(
+                "SELECT from_app_id AS app_id, COUNT(DISTINCT to_app_id) AS n "
+                "FROM lineage_edges WHERE lineage_run_id = ? AND from_app_id IS NOT NULL "
+                "GROUP BY from_app_id",
+                (run_id,),
+            )
+        }
+        unique_providers = {
+            row["app_id"]: row["n"] for row in conn.execute(
+                "SELECT to_app_id AS app_id, COUNT(DISTINCT from_app_id) AS n "
+                "FROM lineage_edges WHERE lineage_run_id = ? AND to_app_id IS NOT NULL "
+                "GROUP BY to_app_id",
+                (run_id,),
+            )
+        }
+    return {"unique_consumers": unique_consumers, "unique_providers": unique_providers}
+
+
+def get_ecosystem_summary(top_n: int = 5) -> dict:
+    """Resumen ejecutivo del Home (2026-09): Oracle Connectivity / Data
+    Providers / Data Consumers / High Impact -- TODO derivado de la ULTIMA
+    corrida completada de Data Lineage (lineage_app_classifications), nunca
+    un calculo paralelo.
+
+    fan_out/fan_in son HOPS (edges), NO aplicaciones -- demostrado con
+    evidencia real (auditoria 2026-09-09): SUM(fan_in) == SUM(fan_out) ==
+    total de lineage_edges de la corrida, y un caso real (DataTransfer
+    v2.49/Release, app_id=432) tiene fan_in=148 hops pero solo 38 apps
+    origen UNICAS. data_providers/data_consumers (conteo de deployments con
+    fan_out>0 / fan_in>0) SI son correctos a nivel de app -- eso no cambia.
+    Lo que SI cambia aqui: top_providers/top_consumers ahora se ordenan y
+    muestran por apps unicas conectadas (get_unique_app_degree()), nunca por
+    el hop-count crudo, para no presentar un numero de hops como si fuera
+    un numero de aplicaciones. El hop-count sigue disponible en cada fila
+    (fan_out/fan_in) para quien necesite esa dimension tecnica.
+
+    is_critical_app = el mecanismo de impacto YA EXISTENTE (percentil
+    "Alta" de fan_in+fan_out, ver analyzer/data_lineage.py) -- no se
+    inventa un score nuevo aqui.
+
+    Sin corrida completada todavia, devuelve run=None y todo en 0/vacio --
+    el llamador debe mostrar un estado explicito, nunca ceros disfrazados
+    de dato real."""
+    run = get_latest_completed_lineage_run()
+    empty = {
+        "run": None, "oracle_connected": 0, "data_providers": 0, "data_consumers": 0,
+        "top_providers": [], "top_consumers": [], "high_impact": [],
+    }
+    if not run:
+        return empty
+
+    classifications = list_lineage_classifications(run["id"])
+    oracle_connected = sum(1 for c in classifications if c["classification"] == "DIRECT_ORACLE")
+    providers = [dict(c) for c in classifications if c["fan_out"] > 0]
+    consumers = [dict(c) for c in classifications if c["fan_in"] > 0]
+
+    degree = get_unique_app_degree(run["id"])
+    for c in providers:
+        c["unique_consumers"] = degree["unique_consumers"].get(c["app_id"], 0)
+    for c in consumers:
+        c["unique_providers"] = degree["unique_providers"].get(c["app_id"], 0)
+
+    providers.sort(key=lambda c: (c["unique_consumers"], c["fan_out"]), reverse=True)
+    consumers.sort(key=lambda c: (c["unique_providers"], c["fan_in"]), reverse=True)
+
+    return {
+        "run": run,
+        "oracle_connected": oracle_connected,
+        "data_providers": len(providers),
+        "data_consumers": len(consumers),
+        "top_providers": providers[:top_n],
+        "top_consumers": consumers[:top_n],
+        "high_impact": list_critical_lineage_apps(run["id"], top_n=top_n),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Portafolio Funcional (2026-09) -- "Funcionales en Piso" vs "Resto del
+# Portafolio Tecnico". Ver comentarios de SCHEMA (functional_inventory /
+# functional_app_mapping) y VIEWS para la semantica completa. Ninguna funcion
+# de esta seccion recalcula un mapping -- import_functional_portfolio() carga
+# EXACTAMENTE las decisiones ya validadas (Human Validation Pack), tomadas de
+# analyzer/reference_data/functional_inventory.json y
+# analyzer/reference_data/functional_app_mapping.json.
+# ---------------------------------------------------------------------------
+
+FUNCTIONAL_MAPPING_STATUSES = ("CONFIRMED", "NEEDS_REVIEW", "UNMAPPED")
+FLOOR_CLASSIFICATIONS = ("ASSOCIATED_CONFIRMED", "ASSOCIATED_NEEDS_REVIEW", "TECHNICAL_REMAINDER")
+
+
+def import_functional_portfolio(inventory_rows: list[dict], mapping_rows: list[dict]) -> dict:
+    """Reemplaza por completo functional_inventory/functional_app_mapping con
+    los datos dados -- DELETE + INSERT, nunca un upsert incremental, porque
+    esta tabla no se edita a mano: se regenera entera desde el registro
+    versionado (mismo espiritu que un lineage_run, ADR de Data Lineage) cada
+    vez que se re-ejecuta la carga. Re-ejecutar con el MISMO seed produce
+    exactamente el mismo estado (idempotente).
+
+    analyzer_app_id se resuelve por NOMBRE contra `apps` en el momento de la
+    carga (nunca se hardcodea un id en el seed) -- si un nombre no existe hoy
+    en `apps`, la fila se inserta igual con analyzer_app_id=NULL y se reporta
+    en 'unresolved_app_names' para investigacion humana, en vez de fallar
+    silenciosamente o inventar una resolucion.
+
+    Devuelve un resumen de conteos para verificacion inmediata por el
+    llamador (ver import_functional_portfolio.py)."""
+    for row in mapping_rows:
+        if row["mapping_status"] not in FUNCTIONAL_MAPPING_STATUSES:
+            raise ValueError(f"mapping_status invalido: {row['mapping_status']!r} en {row['inventory_application']!r}")
+
+    now = datetime.now().isoformat(timespec="seconds")
+    unresolved_app_names: list[str] = []
+
+    with get_conn() as conn:
+        conn.execute("DELETE FROM functional_app_mapping")
+        conn.execute("DELETE FROM functional_inventory")
+
+        inventory_id_by_name: dict[str, int] = {}
+        for row in inventory_rows:
+            cur = conn.execute(
+                "INSERT INTO functional_inventory (inventory_application, functional_area_raw, "
+                "functional_overview, business_owner, integration_notes, source_code_path_excel, "
+                "cross_functional, imported_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    row["inventory_application"], row.get("functional_area_raw"),
+                    row.get("functional_overview"), row.get("business_owner"),
+                    row.get("integration_notes"), row.get("source_code_path_excel"),
+                    int(row.get("cross_functional", False)), now,
+                ),
+            )
+            inventory_id_by_name[row["inventory_application"]] = cur.lastrowid
+
+        app_id_by_name = {
+            r["name"]: r["id"] for r in conn.execute("SELECT id, name FROM apps")
+        }
+
+        for row in mapping_rows:
+            inv_id = inventory_id_by_name.get(row["inventory_application"])
+            if inv_id is None:
+                raise ValueError(
+                    f"mapping para {row['inventory_application']!r} no tiene fila en functional_inventory "
+                    "-- el seed de mapping y el de inventory estan desincronizados"
+                )
+            app_name = row["analyzer_app_name"]
+            analyzer_app_id = app_id_by_name.get(app_name)
+            if analyzer_app_id is None:
+                unresolved_app_names.append(app_name)
+            conn.execute(
+                "INSERT INTO functional_app_mapping (functional_inventory_id, analyzer_app_id, "
+                "analyzer_app_name_snapshot, mapping_method, mapping_confidence, mapping_status, "
+                "is_primary, evidence, imported_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    inv_id, analyzer_app_id, app_name, row["mapping_method"], row["mapping_confidence"],
+                    row["mapping_status"], int(row["is_primary"]), row.get("evidence"), now,
+                ),
+            )
+
+        inventory_count = conn.execute("SELECT COUNT(*) c FROM functional_inventory").fetchone()["c"]
+        mapping_count = conn.execute("SELECT COUNT(*) c FROM functional_app_mapping").fetchone()["c"]
+        primary_count = conn.execute(
+            "SELECT COUNT(*) c FROM functional_app_mapping WHERE is_primary = 1"
+        ).fetchone()["c"]
+
+    return {
+        "inventory_count": inventory_count,
+        "mapping_count": mapping_count,
+        "primary_count": primary_count,
+        "alternative_count": mapping_count - primary_count,
+        "unresolved_app_names": sorted(set(unresolved_app_names)),
+    }
+
+
+def list_functional_floor() -> list[dict]:
+    """Vista A: exactamente las filas de functional_inventory -- Funcionales
+    en Piso. Nunca filtra por mapping_status/is_primary (ver comentario de la
+    tabla)."""
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM vw_functional_floor ORDER BY inventory_application"
+        )]
+
+
+def get_technical_partition() -> dict:
+    """Particion de las 137 apps tecnicas en los 3 buckets (Vistas B/C),
+    calculada EXCLUSIVAMENTE desde vw_technical_app_classification (que a su
+    vez solo mira filas is_primary=1 -- ver comentario de la vista). Suma de
+    los 3 buckets == total de `apps` siempre, por construccion (CASE WHEN
+    cubre todos los casos, ELSE incluido)."""
+    with get_conn() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM vw_technical_app_classification ORDER BY app_name"
+        )]
+    buckets: dict[str, list[dict]] = {c: [] for c in FLOOR_CLASSIFICATIONS}
+    for r in rows:
+        buckets[r["floor_classification"]].append(r)
+    return {
+        "total": len(rows),
+        "associated_confirmed": buckets["ASSOCIATED_CONFIRMED"],
+        "associated_needs_review": buckets["ASSOCIATED_NEEDS_REVIEW"],
+        "technical_remainder": buckets["TECHNICAL_REMAINDER"],
+    }
+
+
+def list_technical_remainder() -> list[dict]:
+    """Vista B: apps de `apps` sin ninguna relacion funcional primaria."""
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM vw_technical_remainder ORDER BY name")]
+
+
+def list_functional_technical_mapping(
+    inventory_application: str | None = None, analyzer_app_id: int | None = None
+) -> list[dict]:
+    """Vista D: detalle completo (primarias Y alternativas), filtrable por
+    fila funcional o por app tecnica, sin colapsar multiplicidad en ningun
+    sentido."""
+    query = "SELECT * FROM vw_functional_technical_mapping WHERE 1=1"
+    params: list = []
+    if inventory_application is not None:
+        query += " AND inventory_application = ?"
+        params.append(inventory_application)
+    if analyzer_app_id is not None:
+        query += " AND analyzer_app_id = ?"
+        params.append(analyzer_app_id)
+    query += " ORDER BY inventory_application, is_primary DESC"
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(query, params)]
+
+
+def list_candidates_considered() -> list[dict]:
+    """Vista E: SOLO candidatos alternativos (is_primary=0) -- que se
+    considero y no se eligio. Nunca usada para calcular la particion tecnica."""
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM vw_candidates_considered ORDER BY inventory_application"
+        )]

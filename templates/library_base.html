@@ -2,16 +2,17 @@
 {% block content %}
 <div class="library">
     <aside class="sidebar">
-        <a class="btn full" href="{{ url_for('index') }}">+ {{ _('Analizar nueva app') }}</a>
-        <a class="btn secondary full" href="{{ url_for('search') }}">{{ _('Buscar en todo') }}</a>
-        <a class="btn secondary full" href="{{ url_for('findings') }}">⚠ {{ _('Hallazgos') }}</a>
-        <a class="btn secondary full" href="{{ url_for('portfolio') }}">📊 {{ _('Portafolio') }}</a>
-        <a class="btn secondary full" href="{{ url_for('data_footprint') }}">🗺 {{ _('Huella de datos') }}</a>
-        <a class="btn secondary full" href="{{ url_for('data_flow') }}">🔀 {{ _('Flujo de datos') }}</a>
-        <a class="btn secondary full" href="{{ url_for('app_map') }}">🕸 {{ _('Mapa de aplicaciones') }}</a>
-        <a class="btn secondary full" href="{{ url_for('lineage_overview') }}">🧬 {{ _('Linaje de datos') }}</a>
-        <ul class="report-list">
-            {% for item in apps %}
+        <nav class="sidebar-nav">
+            <a class="btn full" href="{{ url_for('index') }}">+ {{ _('Analizar nueva app') }}</a>
+            <a class="btn secondary full" href="{{ url_for('search') }}">{{ _('Buscar en todo') }}</a>
+            <a class="btn secondary full" href="{{ url_for('findings') }}">⚠ {{ _('Hallazgos') }}</a>
+            <a class="btn secondary full" href="{{ url_for('portfolio') }}">📊 {{ _('Portafolio') }}</a>
+            <a class="btn secondary full" href="{{ url_for('data_footprint') }}">🗺 {{ _('Huella de datos') }}</a>
+            <a class="btn secondary full" href="{{ url_for('data_flow') }}">🔀 {{ _('Flujo de datos') }}</a>
+            <a class="btn secondary full" href="{{ url_for('app_map') }}">🕸 {{ _('Mapa de aplicaciones') }}</a>
+            <a class="btn secondary full" href="{{ url_for('lineage_overview') }}">🧬 {{ _('Linaje de datos') }}</a>
+        </nav>
+        {% macro render_app_item(item) %}
             {% if item.kind == 'group' %}
             <li class="app-group-item">
                 <details class="app-group" open>
@@ -60,8 +61,29 @@
                     <span class="muted">{{ item.app.analyzed_at }}</span>
                 </a>
             </li>
+            {% endif %}
+        {% endmacro %}
+        <p class="sidebar-section-label">{{ _('Reportes') }}</p>
+        <ul class="report-list">
+            {% for item in apps %}
+            {% if item.kind == 'floor_section' %}
+            <li id="sidebar-{{ item.section }}" class="app-group-item floor-section floor-section-{{ item.section }}">
+                <details class="app-group" open>
+                    <summary>
+                        <strong>{{ item.icon }} {{ _(item.label_key) }}</strong>
+                        <span class="muted">{{ item.count }}</span>
+                    </summary>
+                    <ul class="report-list nested">
+                        {% for sub_item in item.entries %}
+                        {{ render_app_item(sub_item) }}
+                        {% endfor %}
+                    </ul>
+                </details>
+            </li>
+            {% elif item.kind == 'group' or item.kind == 'single' %}
+            {{ render_app_item(item) }}
             {% elif item.kind == 'obsolete_section' %}
-            <li class="app-group-item obsolete-section">
+            <li id="sidebar-obsoletas" class="app-group-item obsolete-section">
                 <details class="app-group">
                     <summary>
                         <strong>🗄 {{ _('Obsoletos') }}</strong>

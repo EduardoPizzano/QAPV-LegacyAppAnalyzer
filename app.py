@@ -174,6 +174,7 @@ def index():
     return render_template(
         "index.html", apps=db.group_apps_for_sidebar(), selected_id=None,
         summary=db.get_portfolio_summary(),
+        ecosystem=db.get_ecosystem_summary(),
     )
 
 
